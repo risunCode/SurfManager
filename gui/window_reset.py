@@ -9,6 +9,14 @@ from PyQt6.QtCore import Qt
 from core.reset_thread import ResetThread
 from datetime import datetime
 
+# Debug mode configuration
+DEBUG_MODE = os.environ.get('SURFMANAGER_DEBUG', 'NO').upper() == 'YES'
+
+def debug_print(message):
+    """Print debug message only if DEBUG_MODE is enabled."""
+    if DEBUG_MODE:
+        print(message)
+
 
 class ResetTab(QWidget):
     """Reset data tab widget."""
@@ -86,8 +94,8 @@ class ResetTab(QWidget):
         self.windsurf_path_input.setReadOnly(True)
         self.windsurf_path_input.setPlaceholderText("Not detected")
         windsurf_row.addWidget(self.windsurf_path_input, 1)
-        self.open_windsurf_btn = QPushButton("Open in Explorer")
-        self.open_windsurf_btn.setMaximumWidth(120)
+        self.open_windsurf_btn = QPushButton("📁 Open Data Folder")
+        self.open_windsurf_btn.setMaximumWidth(130)
         self.open_windsurf_btn.clicked.connect(lambda: self.open_program_folder("windsurf"))
         windsurf_row.addWidget(self.open_windsurf_btn)
         self.kill_windsurf_program_btn = QPushButton("Kill App")
@@ -108,8 +116,8 @@ class ResetTab(QWidget):
         self.cursor_path_input.setReadOnly(True)
         self.cursor_path_input.setPlaceholderText("Not detected")
         cursor_row.addWidget(self.cursor_path_input, 1)
-        self.open_cursor_btn = QPushButton("Open in Explorer")
-        self.open_cursor_btn.setMaximumWidth(120)
+        self.open_cursor_btn = QPushButton("📁 Open Data Folder")
+        self.open_cursor_btn.setMaximumWidth(130)
         self.open_cursor_btn.clicked.connect(lambda: self.open_program_folder("cursor"))
         cursor_row.addWidget(self.open_cursor_btn)
         self.kill_cursor_program_btn = QPushButton("Kill App")
@@ -161,8 +169,8 @@ class ResetTab(QWidget):
         self.cursor_backup_input.setReadOnly(True)
         self.cursor_backup_input.setPlaceholderText("Folder created when backup is performed")
         self.cursor_backup_row.addWidget(self.cursor_backup_input, 1)
-        self.open_cursor_backup_btn = QPushButton("Open Folder")
-        self.open_cursor_backup_btn.setMaximumWidth(100)
+        self.open_cursor_backup_btn = QPushButton("📁 Select Folder")
+        self.open_cursor_backup_btn.setMaximumWidth(110)
         self.open_cursor_backup_btn.clicked.connect(lambda: self.open_backup_folder("cursor"))
         self.cursor_backup_row.addWidget(self.open_cursor_backup_btn)
         backup_layout.addLayout(self.cursor_backup_row)
@@ -177,8 +185,8 @@ class ResetTab(QWidget):
         self.windsurf_backup_input.setReadOnly(True)
         self.windsurf_backup_input.setPlaceholderText("Folder created when backup is performed")
         self.windsurf_backup_row.addWidget(self.windsurf_backup_input, 1)
-        self.open_windsurf_backup_btn = QPushButton("Open Folder")
-        self.open_windsurf_backup_btn.setMaximumWidth(100)
+        self.open_windsurf_backup_btn = QPushButton("📁 Select Folder")
+        self.open_windsurf_backup_btn.setMaximumWidth(110)
         self.open_windsurf_backup_btn.clicked.connect(lambda: self.open_backup_folder("windsurf"))
         self.windsurf_backup_row.addWidget(self.open_windsurf_backup_btn)
         backup_layout.addLayout(self.windsurf_backup_row)
@@ -358,13 +366,25 @@ class ResetTab(QWidget):
         
         if success:
             self.log(f"✓ {message}")
-            self.status_bar.showMessage("Backup restored successfully", 5000)
+            
+            # Safely update status bar
+            try:
+                if self.status_bar and not self.status_bar.isHidden():
+                    self.status_bar.showMessage("Backup restored successfully", 5000)
+            except RuntimeError:
+                debug_print("[DEBUG] Status bar already deleted")
             
             # Show launch dialog after successful restore
             self.show_launch_dialog_after_restore(app_name)
         else:
             self.log(f"✗ {message}")
-            self.status_bar.showMessage("Restore failed", 5000)
+            
+            # Safely update status bar
+            try:
+                if self.status_bar and not self.status_bar.isHidden():
+                    self.status_bar.showMessage("Restore failed", 5000)
+            except RuntimeError:
+                debug_print("[DEBUG] Status bar already deleted")
             
             # Show error dialog
             error_box = QMessageBox(self)
@@ -421,12 +441,14 @@ class ResetTab(QWidget):
     
     def perform_reset(self, app_name: str):
         """Perform reset operation in background thread."""
+        debug_print(f"[DEBUG] perform_reset called for {app_name}")
         self.log(f"\n{'='*50}")
         self.log(f"Starting reset for {app_name.title()}...")
         self.log(f"{'='*50}")
         
         # Store app name for dialog
         self.last_reset_app = app_name
+        debug_print(f"[DEBUG] Stored last_reset_app: {self.last_reset_app}")
         
         # Disable buttons during reset
         self.disable_all_buttons()
@@ -436,7 +458,7 @@ class ResetTab(QWidget):
         self.progress_bar.setRange(0, 0)  # Indeterminate progress
         
         # Get backup settings
-        create_backup = self.backup_checkbox.isChecked()
+        create_backup = self.backup_enabled_checkbox.isChecked()
         backup_folder = None
         if create_backup and hasattr(self, 'backup_folder_input'):
             backup_folder = self.backup_folder_input.text().strip()
@@ -457,55 +479,88 @@ class ResetTab(QWidget):
     
     def on_reset_finished(self, success: bool, message: str):
         """Handle reset completion."""
-        self.progress_bar.setVisible(False)
-        self.enable_all_buttons()
+        debug_print(f"[DEBUG] on_reset_finished called - success: {success}, message: {message}")
+        
+        try:
+            self.progress_bar.setVisible(False)
+        except RuntimeError:
+            debug_print("[DEBUG] Progress bar already deleted")
+        
+        try:
+            self.enable_all_buttons()
+        except RuntimeError:
+            debug_print("[DEBUG] Buttons already deleted")
         
         if success:
             self.log(f"✓ {message}")
-            self.status_bar.showMessage("Reset completed successfully", 5000)
+            
+            # Safely update status bar
+            try:
+                if self.status_bar and not self.status_bar.isHidden():
+                    self.status_bar.showMessage("Reset completed successfully", 5000)
+            except RuntimeError:
+                debug_print("[DEBUG] Status bar already deleted, skipping status update")
+            
+            debug_print("[DEBUG] Reset successful, showing launch dialog...")
             
             # Show launch dialog after successful reset
             self.show_launch_dialog_after_reset()
-            
-            # Refresh app status
-            if self.refresh_callback:
-                self.refresh_callback()
+            debug_print("[DEBUG] Launch dialog completed")
         else:
             self.log(f"✗ {message}")
-            self.status_bar.showMessage("Reset failed", 5000)
+            
+            # Safely update status bar
+            try:
+                if self.status_bar and not self.status_bar.isHidden():
+                    self.status_bar.showMessage("Reset failed", 5000)
+            except RuntimeError:
+                debug_print("[DEBUG] Status bar already deleted, skipping status update")
+            
+            debug_print(f"[DEBUG] Reset failed: {message}")
             error_box = QMessageBox(self)
             error_box.setWindowTitle("Error")
             error_box.setIcon(QMessageBox.Icon.Critical)
             error_box.setText(message)
             self.apply_dark_theme_to_dialog(error_box)
             error_box.exec()
+            debug_print("[DEBUG] Error dialog closed")
     
     def show_launch_dialog_after_reset(self):
         """Show dialog to launch application after reset completion."""
+        debug_print("[DEBUG] show_launch_dialog_after_reset called")
         # Get the app name from the last reset operation
         app_name = getattr(self, 'last_reset_app', None)
+        debug_print(f"[DEBUG] last_reset_app: {app_name}")
         if not app_name:
+            debug_print("[DEBUG] No app_name found, returning early")
             return
         
         app_info = self.app_manager.get_app_info(app_name)
         display_name = app_info.get('display_name', app_name.title()) if app_info else app_name.title()
+        debug_print(f"[DEBUG] Creating launch dialog for {display_name}")
         
         # Create custom dialog
         dialog = QMessageBox(self)
-        dialog.setWindowTitle("Reset Completed")
+        dialog.setWindowTitle("✅ Clear Data Complete")
         dialog.setIcon(QMessageBox.Icon.Question)
-        dialog.setText(f"Reset completed successfully!")
-        dialog.setInformativeText(f"Open {display_name} now?")
+        dialog.setText(f"🎉 {display_name} data cleared successfully!")
+        dialog.setInformativeText(f"Would you like to open {display_name} now?")
         dialog.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         dialog.setDefaultButton(QMessageBox.StandardButton.Yes)
         
         # Apply dark theme
         self.apply_dark_theme_to_dialog(dialog)
         
+        debug_print("[DEBUG] Showing launch dialog...")
         # Show dialog and handle response
         reply = dialog.exec()
+        debug_print(f"[DEBUG] Dialog reply: {reply}")
+        
         if reply == QMessageBox.StandardButton.Yes:
+            debug_print(f"[DEBUG] User chose Yes, launching {display_name}")
             self.launch_application(app_name, display_name)
+        else:
+            debug_print("[DEBUG] User chose No or closed dialog")
     
     def show_launch_dialog_after_restore(self, app_name: str):
         """Show dialog to launch application after backup restoration."""
@@ -514,10 +569,10 @@ class ResetTab(QWidget):
         
         # Create custom dialog
         dialog = QMessageBox(self)
-        dialog.setWindowTitle("Backup Restored")
+        dialog.setWindowTitle("✅ Restore Complete")
         dialog.setIcon(QMessageBox.Icon.Question)
-        dialog.setText(f"Backup restored successfully!")
-        dialog.setInformativeText(f"Open {display_name} now?")
+        dialog.setText(f"🎉 {display_name} backup restored successfully!")
+        dialog.setInformativeText(f"Would you like to open {display_name} now?")
         dialog.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         dialog.setDefaultButton(QMessageBox.StandardButton.Yes)
         
@@ -531,14 +586,25 @@ class ResetTab(QWidget):
     
     def launch_application(self, app_name: str, display_name: str):
         """Launch the specified application."""
+        debug_print(f"[DEBUG] launch_application called for {app_name} ({display_name})")
         try:
+            debug_print(f"[DEBUG] Calling app_manager.launch_application({app_name})")
             success, message = self.app_manager.launch_application(app_name)
+            debug_print(f"[DEBUG] Launch result - success: {success}, message: {message}")
             if success:
                 self.log(f"🚀 {message}")
-                self.status_bar.showMessage(f"Launched {display_name}", 3000)
+                
+                # Safely update status bar
+                try:
+                    if self.status_bar and not self.status_bar.isHidden():
+                        self.status_bar.showMessage(f"Launched {display_name}", 3000)
+                except RuntimeError:
+                    debug_print("[DEBUG] Status bar already deleted")
+                
+                debug_print(f"[DEBUG] Application {display_name} launched successfully")
             else:
                 self.log(f"⚠️ {message}")
-                # Show error dialog
+                debug_print(f"[DEBUG] Launch failed: {message}")
                 error_dialog = QMessageBox(self)
                 error_dialog.setWindowTitle("Launch Failed")
                 error_dialog.setIcon(QMessageBox.Icon.Warning)
@@ -546,7 +612,12 @@ class ResetTab(QWidget):
                 error_dialog.setInformativeText(message)
                 self.apply_dark_theme_to_dialog(error_dialog)
                 error_dialog.exec()
+                debug_print("[DEBUG] Launch failed dialog closed")
         except Exception as e:
+            debug_print(f"[DEBUG] Exception in launch_application: {str(e)}")
+            if DEBUG_MODE:
+                import traceback
+                traceback.print_exc()
             self.log(f"❌ Failed to launch {display_name}: {str(e)}")
     
     def enable_all_buttons(self):

@@ -6,7 +6,6 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple
-from .path_utils import get_resource_path
 
 
 class BackupManager:
@@ -14,7 +13,7 @@ class BackupManager:
     
     def __init__(self, config_path: str = "config/config.json"):
         """Initialize BackupManager with configuration."""
-        self.config = self._load_config(get_resource_path(config_path))
+        self.config = self._load_config(config_path)
         self.backup_base_dir = self._get_backup_directory()
         self._ensure_backup_dir()
     

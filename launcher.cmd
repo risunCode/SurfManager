@@ -2,6 +2,16 @@
 REM SurfManager Launcher CMD
 REM Handles admin elevation, venv setup, dependency checking, and GUI launch
 
+REM ============================================================
+REM CONFIGURATION
+REM ============================================================
+REM Set DEBUG=YES to enable debug logging in the application
+set DEBUG=NO
+
+REM Set SHOW_TERMINAL=YES to keep the terminal window visible
+set SHOW_TERMINAL=NO
+REM ============================================================
+
 cd /d "%~dp0"
 
 REM Check for admin privileges
@@ -110,7 +120,19 @@ echo Launching SurfManager GUI...
 echo ============================================================
 echo.
 
-REM Launch the GUI (hidden console)
-python main.py
+REM Set environment variables for the Python application
+set SURFMANAGER_DEBUG=%DEBUG%
+set SURFMANAGER_SHOW_TERMINAL=%SHOW_TERMINAL%
+
+REM Launch the GUI
+if /i "%SHOW_TERMINAL%"=="YES" (
+    echo [DEBUG] Terminal window will remain visible
+    python main.py
+    pause
+) else (
+    REM Launch with hidden console
+    start /b pythonw main.py
+)
+
 exit /b %errorLevel%
 

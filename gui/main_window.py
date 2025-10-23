@@ -2,7 +2,7 @@
 import sys
 import os
 from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QTabWidget, QStatusBar, QPushButton
+    QMainWindow, QWidget, QVBoxLayout, QTabWidget, QStatusBar, QPushButton, QMessageBox
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QIcon
@@ -62,7 +62,8 @@ class MainWindow(QMainWindow):
             self.app_manager, 
             self.backup_manager, 
             self.statusBar(), 
-            self.log
+            self.log,
+            self.scan_applications  # Add refresh callback
         )
         self.tabs.addTab(self.reset_tab, "🔄 Reset Data")
         
@@ -144,3 +145,18 @@ class MainWindow(QMainWindow):
             webbrowser.open("https://github.com/risunCode/SurfManager")
         except Exception as e:
             print(f"Error opening GitHub: {e}")
+    
+    def closeEvent(self, event):
+        """Handle window close event."""
+        reply = QMessageBox.question(
+            self, 
+            'Exit SurfManager', 
+            'Are you sure you want to exit?',
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            event.accept()
+        else:
+            event.ignore()

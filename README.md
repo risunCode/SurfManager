@@ -54,8 +54,34 @@ The build script will:
 - Build an optimized executable
 - Output to `dist/SurfManager.exe`
 
+### Build Configuration (`build_app_windows.cmd`)
+
+You can configure the build type by editing the configuration at the top of `build_app_windows.cmd`:
+
+```cmd
+REM Set DEBUG_BUILD=YES to build with console and debug symbols
+REM Set DEBUG_BUILD=NO for production build (no console, optimized)
+set DEBUG_BUILD=NO
+```
+
+**Build Modes:**
+
+- **Production Build** (`DEBUG_BUILD=NO`) - Default
+  - Output: `dist/SurfManager.exe`
+  - Console window hidden
+  - Optimized for size
+  - No debug symbols
+  - Ready for distribution
+
+- **Debug Build** (`DEBUG_BUILD=YES`)
+  - Output: `dist/SurfManager_Debug.exe`
+  - Console window visible
+  - Debug symbols included
+  - Verbose logging enabled
+  - Useful for troubleshooting
+
 ### Build Optimizations
-The build process includes several optimizations to keep the executable size under 10MB:
+The production build includes several optimizations:
 - Excludes unused PyQt6 modules
 - Removes unnecessary standard library modules
 - Strips debug symbols
@@ -68,6 +94,38 @@ The build process includes several optimizations to keep the executable size und
 - **Storage:** 50 MB free space
 - **Dependencies:** None (standalone executable)
 - **Permissions:** Administrator rights for some operations
+
+## ⚙️ Configuration
+
+### Launcher Configuration (`launcher.cmd`)
+
+You can configure the application behavior by editing the configuration variables at the top of `launcher.cmd`:
+
+```cmd
+REM Set DEBUG=YES to enable debug logging in the application
+set DEBUG=NO
+
+REM Set SHOW_TERMINAL=YES to keep the terminal window visible
+set SHOW_TERMINAL=NO
+```
+
+**Configuration Options:**
+
+- **DEBUG** (YES/NO)
+  - `YES`: Enables detailed debug logging throughout the application
+  - `NO`: Disables debug output (default, production mode)
+  - Useful for troubleshooting issues or development
+
+- **SHOW_TERMINAL** (YES/NO)
+  - `YES`: Keeps the terminal window visible to see logs and debug output
+  - `NO`: Hides the terminal window for clean user experience (default)
+  - When enabled, terminal will pause after application closes
+
+**Example - Enable Debug Mode:**
+```cmd
+set DEBUG=YES
+set SHOW_TERMINAL=YES
+```
 
 ## 📚 Usage
 

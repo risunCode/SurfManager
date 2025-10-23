@@ -193,10 +193,16 @@ class ResetThread(QThread):
     def find_directories_by_name(self, root_path, dir_name):
         """Find directories with a specific name."""
         result = []
-        for root, dirs, _ in os.walk(root_path):
-            for d in dirs:
-                if d == dir_name or d.lower() == dir_name.lower():
-                    result.append(os.path.join(root, d))
+        try:
+            for root, dirs, _ in os.walk(root_path, followlinks=False):
+                try:
+                    for d in dirs:
+                        if d == dir_name or d.lower() == dir_name.lower():
+                            result.append(os.path.join(root, d))
+                except (PermissionError, OSError):
+                    continue
+        except (PermissionError, OSError):
+            pass
         return result
     
     def calculate_total_size(self, directories):
@@ -209,20 +215,32 @@ class ResetThread(QThread):
     def get_directory_size(self, path):
         """Get directory size in bytes."""
         total_size = 0
-        for dirpath, _, filenames in os.walk(path):
-            for f in filenames:
-                fp = os.path.join(dirpath, f)
-                if os.path.exists(fp) and os.path.isfile(fp):
-                    total_size += os.path.getsize(fp)
+        try:
+            for dirpath, _, filenames in os.walk(path, followlinks=False):
+                try:
+                    for f in filenames:
+                        fp = os.path.join(dirpath, f)
+                        if os.path.exists(fp) and os.path.isfile(fp):
+                            total_size += os.path.getsize(fp)
+                except (PermissionError, OSError):
+                    continue
+        except (PermissionError, OSError):
+            pass
         return total_size
     
     def find_telemetry_files(self, app_path):
         """Find files that might contain telemetry data."""
         result = []
-        for root, _, files in os.walk(app_path):
-            for file in files:
-                if file.endswith(('.json', '.vscdb', '.db', '.sqlite', '.sqlite3')):
-                    result.append(os.path.join(root, file))
+        try:
+            for root, _, files in os.walk(app_path, followlinks=False):
+                try:
+                    for file in files:
+                        if file.endswith(('.json', '.vscdb', '.db', '.sqlite', '.sqlite3')):
+                            result.append(os.path.join(root, file))
+                except (PermissionError, OSError):
+                    continue
+        except (PermissionError, OSError):
+            pass
         return result
     
     def process_json_file(self, file_path):
@@ -361,10 +379,16 @@ class ResetThread(QThread):
     def find_database_files(self, app_path):
         """Find database files in the application path."""
         result = []
-        for root, _, files in os.walk(app_path):
-            for file in files:
-                if file.endswith(('.vscdb', '.db', '.sqlite', '.sqlite3')):
-                    result.append(os.path.join(root, file))
+        try:
+            for root, _, files in os.walk(app_path, followlinks=False):
+                try:
+                    for file in files:
+                        if file.endswith(('.vscdb', '.db', '.sqlite', '.sqlite3')):
+                            result.append(os.path.join(root, file))
+                except (PermissionError, OSError):
+                    continue
+        except (PermissionError, OSError):
+            pass
         return result
     
     def reset_database(self, db_path):

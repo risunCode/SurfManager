@@ -9,6 +9,11 @@
       "data_paths": [
         "%APPDATA%/Cursor",
         "%LOCALAPPDATA%/Cursor"
+      ],
+      "exe_paths": [
+        "%LOCALAPPDATA%/Programs/cursor/Cursor.exe",
+        "%APPDATA%/Cursor/Cursor.exe",
+        "C:/Program Files/Cursor/Cursor.exe"
       ]
     },
     "windsurf": {
@@ -18,6 +23,11 @@
         "%APPDATA%/Windsurf",
         "%LOCALAPPDATA%/Windsurf",
         "%APPDATA%/Codeium/Windsurf"
+      ],
+      "exe_paths": [
+        "%LOCALAPPDATA%/Programs/Windsurf/Windsurf.exe",
+        "%APPDATA%/Codeium/Windsurf/Windsurf.exe",
+        "C:/Program Files/Windsurf/Windsurf.exe"
       ]
     }
   },
