@@ -48,8 +48,8 @@ if not exist "dist\" mkdir dist
 
 REM Clean previous builds
 echo Cleaning previous builds...
-if exist "build\*" rmdir /s /q build
-if exist "dist\*" rmdir /s /q dist
+if exist "build\" rmdir /s /q build
+if exist "dist\" rmdir /s /q dist
 if exist "*.spec" del /q *.spec
 
 REM Check for application icon
@@ -90,6 +90,7 @@ if defined ICON_FILE (
         --hidden-import "PyQt6.QtCore" ^
         --hidden-import "PyQt6.QtGui" ^
         --hidden-import "PyQt6.QtWidgets" ^
+        --hidden-import "core.path_utils" ^
         --exclude-module "PyQt6.QtNetwork" ^
         --exclude-module "PyQt6.QtOpenGL" ^
         --exclude-module "PyQt6.QtPrintSupport" ^
@@ -134,6 +135,7 @@ if defined ICON_FILE (
         --hidden-import "PyQt6.QtCore" ^
         --hidden-import "PyQt6.QtGui" ^
         --hidden-import "PyQt6.QtWidgets" ^
+        --hidden-import "core.path_utils" ^
         --exclude-module "PyQt6.QtNetwork" ^
         --exclude-module "PyQt6.QtOpenGL" ^
         --exclude-module "PyQt6.QtPrintSupport" ^

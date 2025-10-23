@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QTimer
 from gui.splash_screen import SplashScreen
 from gui.main_window import MainWindow
+from core.path_utils import get_resource_path, is_frozen
 
 # Hide console window on Windows
 if sys.platform == 'win32':

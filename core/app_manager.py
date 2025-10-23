@@ -4,6 +4,7 @@ import psutil
 import json
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from .path_utils import get_resource_path
 
 
 class AppManager:
@@ -11,7 +12,7 @@ class AppManager:
     
     def __init__(self, config_path: str = "config/config.json"):
         """Initialize AppManager with configuration."""
-        self.config = self._load_config(config_path)
+        self.config = self._load_config(get_resource_path(config_path))
         self.detected_apps: Dict[str, Dict] = {}
         
     def _load_config(self, config_path: str) -> Dict:
