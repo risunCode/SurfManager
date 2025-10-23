@@ -1,0 +1,30 @@
+{
+  "version": "1.0.0",
+  "app_name": "SurfManager",
+  "backup_location": "Documents/SurfManager/Backups",
+  "applications": {
+    "cursor": {
+      "display_name": "Cursor",
+      "process_names": ["cursor.exe", "Cursor.exe"],
+      "data_paths": [
+        "%APPDATA%/Cursor",
+        "%LOCALAPPDATA%/Cursor"
+      ]
+    },
+    "windsurf": {
+      "display_name": "Windsurf",
+      "process_names": ["windsurf.exe", "Windsurf.exe"],
+      "data_paths": [
+        "%APPDATA%/Windsurf",
+        "%LOCALAPPDATA%/Windsurf",
+        "%APPDATA%/Codeium/Windsurf"
+      ]
+    }
+  },
+  "cleaning_options": {
+    "create_backup": true,
+    "backup_compression": true,
+    "clear_cache": true,
+    "reset_machine_id": true
+  }
+}
