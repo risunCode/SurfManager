@@ -9,6 +9,9 @@
 
 ---
 
+<img width="1308" height="912" alt="image" src="https://github.com/user-attachments/assets/0326e2cc-1780-4a3d-9250-6522e2d74c33" />
+
+
 ## 📖 Apa itu SurfManager?
 
 **SurfManager** adalah aplikasi manajemen sesi dan data untuk development tools seperti Windsurf, Cursor, VS Code, dan Claude. Aplikasi ini memungkinkan Anda untuk:
