@@ -1,0 +1,232 @@
+{
+  "windsurf": {
+    "backup_items": [
+      {
+        "type": "file",
+        "path": "User/settings.json",
+        "description": "User settings (includes theme preferences)"
+      },
+      {
+        "type": "file",
+        "path": "User/keybindings.json",
+        "description": "Keyboard shortcuts"
+      },
+      {
+        "type": "folder",
+        "path": "User/snippets",
+        "description": "Code snippets"
+      },
+      {
+        "type": "folder",
+        "path": "User/extensions",
+        "description": "Installed extensions (includes theme extensions)"
+      },
+      {
+        "type": "file",
+        "path": "storage.json",
+        "description": "Storage data"
+      },
+      {
+        "type": "file",
+        "path": "User/globalStorage/storage.json",
+        "description": "Global storage (theme state)"
+      },
+      {
+        "type": "folder",
+        "path": "User/globalStorage/state.vscdb",
+        "description": "VS Code state database"
+      }
+    ],
+    "restore_items": [
+      {
+        "type": "file",
+        "source": "User/settings.json",
+        "target": "User/settings.json",
+        "overwrite": true
+      },
+      {
+        "type": "file",
+        "source": "User/keybindings.json",
+        "target": "User/keybindings.json",
+        "overwrite": true
+      },
+      {
+        "type": "folder",
+        "source": "User/snippets",
+        "target": "User/snippets",
+        "overwrite": true
+      },
+      {
+        "type": "folder",
+        "source": "User/extensions",
+        "target": "User/extensions",
+        "overwrite": false
+      },
+      {
+        "type": "file",
+        "source": "storage.json",
+        "target": "storage.json",
+        "overwrite": true
+      }
+    ],
+    "exclude_patterns": [
+      "*.log",
+      "*.tmp",
+      "__pycache__",
+      "node_modules"
+    ]
+  },
+  "cursor": {
+    "backup_items": [
+      {
+        "type": "file",
+        "path": "User/settings.json",
+        "description": "User settings (includes theme preferences)"
+      },
+      {
+        "type": "file",
+        "path": "User/keybindings.json",
+        "description": "Keyboard shortcuts"
+      },
+      {
+        "type": "folder",
+        "path": "User/snippets",
+        "description": "Code snippets"
+      },
+      {
+        "type": "folder",
+        "path": "User/extensions",
+        "description": "Installed extensions (includes theme extensions)"
+      },
+      {
+        "type": "file",
+        "path": "storage.json",
+        "description": "Storage data"
+      },
+      {
+        "type": "file",
+        "path": "User/globalStorage/storage.json",
+        "description": "Global storage (theme state)"
+      },
+      {
+        "type": "folder",
+        "path": "User/globalStorage/state.vscdb",
+        "description": "VS Code state database"
+      }
+    ],
+    "restore_items": [
+      {
+        "type": "file",
+        "source": "User/settings.json",
+        "target": "User/settings.json",
+        "overwrite": true
+      },
+      {
+        "type": "file",
+        "source": "User/keybindings.json",
+        "target": "User/keybindings.json",
+        "overwrite": true
+      },
+      {
+        "type": "folder",
+        "source": "User/snippets",
+        "target": "User/snippets",
+        "overwrite": true
+      },
+      {
+        "type": "folder",
+        "source": "User/extensions",
+        "target": "User/extensions",
+        "overwrite": false
+      },
+      {
+        "type": "file",
+        "source": "storage.json",
+        "target": "storage.json",
+        "overwrite": true
+      }
+    ],
+    "exclude_patterns": [
+      "*.log",
+      "*.tmp",
+      "__pycache__",
+      "node_modules"
+    ]
+  },
+  "claude": {
+    "backup_items": [
+      {
+        "type": "folder",
+        "path": "Session Storage",
+        "description": "Session storage data"
+      },
+      {
+        "type": "folder",
+        "path": "Network",
+        "description": "Network cache and data"
+      },
+      {
+        "type": "folder",
+        "path": "Preferences",
+        "description": "User preferences"
+      },
+      {
+        "type": "folder",
+        "path": "SharedStorage",
+        "description": "Shared storage data"
+      },
+      {
+        "type": "file",
+        "path": "window-state.json",
+        "description": "Window state and position"
+      },
+      {
+        "type": "folder",
+        "path": "Shared Dictionary",
+        "description": "Shared dictionary data"
+      }
+    ],
+    "restore_items": [
+      {
+        "type": "folder",
+        "source": "Session Storage",
+        "target": "Session Storage",
+        "overwrite": true
+      },
+      {
+        "type": "folder",
+        "source": "Network",
+        "target": "Network",
+        "overwrite": true
+      },
+      {
+        "type": "folder",
+        "source": "Preferences",
+        "target": "Preferences",
+        "overwrite": true
+      },
+      {
+        "type": "folder",
+        "source": "SharedStorage",
+        "target": "SharedStorage",
+        "overwrite": true
+      },
+      {
+        "type": "file",
+        "source": "window-state.json",
+        "target": "window-state.json",
+        "overwrite": true
+      },
+      {
+        "type": "folder",
+        "source": "Shared Dictionary",
+        "target": "Shared Dictionary",
+        "overwrite": true
+      }
+    ],
+    "exclude_patterns": [
+      "*.log",
+      "*.tmp"
+    ]
+  }
+}

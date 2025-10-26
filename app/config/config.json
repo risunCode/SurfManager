@@ -1,0 +1,158 @@
+{
+  "app_name": "SurfManager",
+  "version": "2.0.0",
+  "backup_location": "Documents/SurfManager",
+  "detected_apps": {
+    "windsurf": {
+      "installed": true,
+      "path": "C:\\Users\\LovelyLova\\AppData\\Roaming\\Windsurf",
+      "exe_path": "C:\\Users\\LovelyLova\\AppData\\Local\\Programs\\Windsurf\\Windsurf.exe"
+    },
+    "cursor": {
+      "installed": true,
+      "path": "C:\\Users\\LovelyLova\\AppData\\Roaming\\Cursor",
+      "exe_path": "C:\\Users\\LovelyLova\\AppData\\Local\\Programs\\cursor\\Cursor.exe"
+    },
+    "vscode": {
+      "installed": false,
+      "path": null,
+      "exe_path": ""
+    },
+    "claude": {
+      "installed": true,
+      "path": "C:\\Users\\LovelyLova\\AppData\\Roaming\\Claude",
+      "exe_path": "C:\\Users\\LovelyLova\\AppData\\Local\\AnthropicClaude\\claude.exe"
+    }
+  },
+  "applications": {
+    "windsurf": {
+      "display_name": "Windsurf",
+      "process_names": [
+        "windsurf.exe",
+        "Windsurf.exe"
+      ],
+      "data_paths": [
+        "%APPDATA%/Windsurf",
+        "%LOCALAPPDATA%/Windsurf",
+        "%APPDATA%/Codeium/Windsurf"
+      ],
+      "exe_paths": [
+        "%LOCALAPPDATA%/Programs/Windsurf/Windsurf.exe",
+        "%APPDATA%/Codeium/Windsurf/Windsurf.exe",
+        "C:/Program Files/Windsurf/Windsurf.exe"
+      ],
+      "cache_dirs": [
+        "Cache",
+        "CachedData",
+        "CachedExtensions",
+        "CachedExtensionVSIXs",
+        "Code Cache",
+        "GPUCache",
+        "Service Worker",
+        "Session Storage",
+        "User/workspaceStorage",
+        "User/History",
+        "logs"
+      ]
+    },
+    "cursor": {
+      "display_name": "Cursor",
+      "process_names": [
+        "cursor.exe",
+        "Cursor.exe"
+      ],
+      "data_paths": [
+        "%APPDATA%/Cursor",
+        "%LOCALAPPDATA%/Cursor"
+      ],
+      "exe_paths": [
+        "%LOCALAPPDATA%/Programs/cursor/Cursor.exe",
+        "%LOCALAPPDATA%/Programs/cursor/cursor.exe",
+        "%APPDATA%/Cursor/Cursor.exe",
+        "C:/Program Files/Cursor/Cursor.exe"
+      ],
+      "cache_dirs": [
+        "Cache",
+        "CachedData",
+        "CachedExtensions",
+        "CachedExtensionVSIXs",
+        "Code Cache",
+        "GPUCache",
+        "Service Worker",
+        "Session Storage",
+        "User/workspaceStorage",
+        "User/History",
+        "logs"
+      ]
+    },
+    "vscode": {
+      "display_name": "VS Code",
+      "process_names": [
+        "Code.exe",
+        "code.exe"
+      ],
+      "data_paths": [
+        "%APPDATA%/Code",
+        "%LOCALAPPDATA%/Programs/Microsoft VS Code"
+      ],
+      "exe_paths": [
+        "%LOCALAPPDATA%/Programs/Microsoft VS Code/Code.exe",
+        "C:/Program Files/Microsoft VS Code/Code.exe",
+        "C:/Program Files (x86)/Microsoft VS Code/Code.exe"
+      ],
+      "cache_dirs": [
+        "Cache",
+        "CachedData",
+        "CachedExtensions",
+        "Code Cache",
+        "GPUCache",
+        "logs"
+      ]
+    },
+    "claude": {
+      "display_name": "Claude",
+      "process_names": [
+        "claude.exe",
+        "Claude.exe"
+      ],
+      "data_paths": [
+        "%APPDATA%/Claude",
+        "%LOCALAPPDATA%/Claude"
+      ],
+      "exe_paths": [
+        "%LOCALAPPDATA%/AnthropicClaude/claude.exe",
+        "%LOCALAPPDATA%/Programs/Claude/Claude.exe",
+        "C:/Program Files/Claude/Claude.exe"
+      ],
+      "cache_dirs": [
+        "Cache",
+        "GPUCache",
+        "Service Worker",
+        "Session Storage",
+        "logs"
+      ]
+    }
+  },
+  "cleaning_options": {
+    "create_backup": true,
+    "backup_compression": true,
+    "clear_cache": true,
+    "reset_machine_id": true,
+    "clear_telemetry": true,
+    "clear_session": true,
+    "vacuum_databases": true
+  },
+  "telemetry_keys": [
+    "telemetry.machineId",
+    "telemetry.macMachineId",
+    "telemetry.devDeviceId",
+    "telemetry.sqmId",
+    "telemetry.firstSessionDate",
+    "telemetry.lastSessionDate"
+  ],
+  "session_keys": [
+    "window.sessionId",
+    "workspace.sessionId",
+    "terminal.sessionId"
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "title": "SurfManager Documentation",
+  "version": "2.0.0",
+  "sections": [
+    {
+      "title": "📋 Overview",
+      "content": "<b>SurfManager</b> is an advanced session and data manager for development tools.<br><br>This application provides:<br>• Clean interface for data management<br>• Session backup and restore functionality<br>• Audio feedback system<br>• Dark theme optimized for long usage<br>• Multi-application support (Windsurf, Cursor, Claude)"
+    },
+    {
+      "title": "🔄 Reset Data",
+      "content": "<b>Purpose:</b> Manage application data for Windsurf, Cursor, and Claude.<br><br><b>Features:</b><br>• View application installation paths<br>• Quick access to application folders<br>• Launch applications directly<br>• Reset application data (placeholder)<br>• Generate new machine IDs (placeholder)<br>• Cleanup build artifacts<br><br><b>Audio Controls:</b><br>Toggle audio feedback on/off with the audio button at the bottom of the Actions panel."
+    },
+    {
+      "title": "👤 Account Manager",
+      "content": "<b>Purpose:</b> Create and manage multiple user sessions for different applications.<br><br><b>Session Management:</b><br>• Create backups of current application state<br>• Restore previous sessions quickly<br>• Switch between different user profiles<br>• Rename and organize sessions<br>• View session details and sizes<br><br><b>Data Backed Up:</b><br>• User settings and preferences<br>• Key bindings and shortcuts<br>• Code snippets and templates<br>• Workspace configurations<br>• Extension settings<br>• Authentication data"
+    },
+    {
+      "title": "🔊 Audio System",
+      "content": "<b>Audio Configuration:</b> All audio settings can be customized via <code>app/audio/audio_config.json</code><br><br><b>Available Sounds:</b><br>• Startup sound when app launches<br>• Success sound for completed actions<br>• App launch sound<br>• Random sounds (optional)<br><br><b>Audio Files:</b> Located in <code>app/audio/sound/</code><br>• startup.ogg - Application startup<br>• mambo.mp3 - Success actions<br>• akh.mp3 - App launches<br>• Plus 4 more random sound effects<br><br><b>Controls:</b> Use the audio toggle button in Reset Data tab to enable/disable all sounds."
+    },
+    {
+      "title": "⚙️ Configuration",
+      "content": "<b>Config Files:</b><br>• <code>app/audio/audio_config.json</code> - Audio settings<br>• <code>Documents/SurfManager/sessions.json</code> - Session data<br><br><b>Storage Locations:</b><br>• Session backups: <code>Documents/SurfManager/</code><br>• Application data: System default paths<br><br><b>Debug Mode:</b> Launch with debug mode to see detailed logs in the terminal window."
+    },
+    {
+      "title": "🎨 Customization",
+      "content": "<b>Theme:</b> The application uses a custom dark theme defined in <code>app/gui/styles.py</code><br><br><b>Audio Customization:</b><br>Edit <code>audio_config.json</code> to:<br>• Enable/disable specific sounds<br>• Adjust volume levels (0.0 - 1.0)<br>• Enable random sound effects<br>• Change audio file paths<br><br><b>Launcher Options:</b><br>• Normal mode - Hidden terminal<br>• Debug mode - Visible terminal with logs"
+    },
+    {
+      "title": "📝 Tips & Best Practices",
+      "content": "<b>Session Backups:</b><br>• Use descriptive names for easy identification<br>• Create backups before major updates<br>• Test restore functionality with non-critical sessions<br>• Keep backups of different development environments<br><br><b>Performance:</b><br>• Close applications before creating backups<br>• Regularly clean up old sessions<br>• Use debug mode only when troubleshooting<br><br><b>Audio:</b><br>• Disable audio if it becomes distracting<br>• Adjust volume in config file for comfort<br>• Random sounds add variety to your workflow"
+    },
+    {
+      "title": "📜 Changelog",
+      "content": "<h3>Version 2.0.0 - Minimal Build Edition (2025-10-25)</h3><b>Major Optimization:</b><br>• Removed pywin32 dependency (~8 MB saved)<br>• Kept pygame for multi-format audio support<br>• Only 4 core packages required<br>• 30-40% smaller executable size (~60-70 MB)<br>• Binary stripping enabled<br>• Aggressive module exclusion (20+ modules)<br><br><h3>Version 1.5.0 - Optimized Edition</h3><b>Core Refactoring:</b><br>• Unified build system<br>• Singleton pattern for ConfigManager<br>• User-defined backup names<br>• Fixed Qt6 compatibility issues<br><br><h3>Version 1.0.0 - Initial Release</h3><b>Initial Features:</b><br>• Application detection (Windsurf, Cursor, VS Code, Claude)<br>• Reset operations with backup<br>• Device ID management<br>• PyQt6 modern GUI<br>• Audio feedback system"
+    }
+  ]
+}

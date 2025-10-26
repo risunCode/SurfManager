@@ -1,0 +1,62 @@
+{
+  "audio_enabled": true,
+  "audio_directory": "audio/sound",
+  "random_sounds_enabled": true,
+  "sounds": {
+    "startup": {
+      "enabled": true,
+      "filename": "trimakasih-pak-jokowi.mp3",
+      "description": "Plays when application starts",
+      "volume": 1.0
+    },
+    "reset_windsurf": {
+      "enabled": true,
+      "first_play": "hey-antek-antek-asing-prabowo.mp3",
+      "subsequent_play": "random",
+      "exclude": ["startup.ogg"],
+      "volume": 0.8
+    },
+    "reset_cursor": {
+      "enabled": true,
+      "first_play": "hey-antek-antek-asing-prabowo.mp3",
+      "subsequent_play": "random",
+      "exclude": ["startup.ogg"],
+      "volume": 0.8
+    },
+    "reset_claude": {
+      "enabled": true,
+      "first_play": "hey-antek-antek-asing-prabowo.mp3",
+      "subsequent_play": "random",
+      "exclude": ["startup.ogg"],
+      "volume": 0.8
+    },
+    "clear_data": {
+      "enabled": true,
+      "first_play": "fart-with-extra-reverb.mp3",
+      "subsequent_play": "random",
+      "exclude": ["startup.ogg"],
+      "volume": 0.8
+    },
+    "cleanup": {
+      "enabled": true,
+      "first_play": "fart-with-extra-reverb.mp3",
+      "subsequent_play": "random",
+      "exclude": ["startup.ogg"],
+      "volume": 0.8
+    },
+    "generate_new_id": {
+      "enabled": true,
+      "first_play": "hey-antek-antek-asing-prabowo.mp3",
+      "subsequent_play": "random",
+      "exclude": ["startup.ogg"],
+      "volume": 0.8
+    },
+    "open_folder": {
+      "enabled": true,
+      "first_play": "hey-antek-antek-asing-prabowo.mp3",
+      "subsequent_play": "random",
+      "exclude": ["startup.ogg"],
+      "volume": 0.8
+    }
+  }
+}

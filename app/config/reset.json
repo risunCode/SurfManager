@@ -1,0 +1,59 @@
+{
+  "windsurf": {
+    "reset_folder": "%USERPROFILE%\\AppData\\Roaming\\Windsurf",
+    "backup_items": [
+      "Network",
+      "User",
+      "Local Storage",
+      "Shared Dictionary",
+      "Cache",
+      "Code Cache",
+      "CachedData",
+      "DIPS",
+      "DIPS-wal",
+      "machineid",
+      "SharedStorage-wal",
+      "SharedStorage",
+      "Preferences",
+      "languagepacks.json",
+      "Local State"
+    ]
+  },
+  "cursor": {
+    "reset_folder": "%USERPROFILE%\\AppData\\Roaming\\Cursor",
+    "backup_items": [
+      "Network",
+      "User",
+      "Local Storage",
+      "Shared Dictionary",
+      "Cache",
+      "Code Cache",
+      "CachedData",
+      "DIPS",
+      "DIPS-wal",
+      "machineid",
+      "SharedStorage-wal",
+      "SharedStorage",
+      "Preferences",
+      "languagepacks.json",
+      "Local State"
+    ]
+  },
+  "claude": {
+    "reset_folder": "%USERPROFILE%\\AppData\\Roaming\\Claude",
+    "backup_items": [
+      "Network",
+      "ant-did",
+      "DIPS",
+      "extensions-blocklist.json",
+      "lockfile",
+      "SharedStorage",
+      "window-state.json",
+      "SharedStorage-wal",
+      "Preferences",
+      "Local State",
+      "DIPS-wal",
+      "config"
+    ]
+  }
+}

@@ -1,172 +1,273 @@
-# 🏄 SurfManager
+# SurfManager v2.0.0 - Minimal Build Edition
 
-**Advanced Application Data Manager**
+🚀 **Advanced session and data management tool for (Windsurf, Cursor and Claude App windows)**
 
-Created by: **risunCode**  
-GitHub: [github.com/risuncode](https://github.com/risuncode)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/risunCode/SurfManager)
+[![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/risunCode/SurfManager)
+[![Python](https://img.shields.io/badge/python-3.8+-yellow.svg)](https://www.python.org/)
+[![Size](https://img.shields.io/badge/size-~60--70MB-green.svg)](https://github.com/risunCode/SurfManager)
 
-## 📋 Overview
+---
 
-SurfManager is a powerful Windows application for managing application data, user profiles, and system processes. It provides a clean, modern interface for safely resetting application data with automatic backups and managing multiple user accounts.
+## 📖 Apa itu SurfManager?
 
-## ✨ Features
+**SurfManager** adalah aplikasi manajemen sesi dan data untuk development tools seperti Windsurf, Cursor, VS Code, dan Claude. Aplikasi ini memungkinkan Anda untuk:
 
-- 🔄 **Data Reset & Cleanup** - Safely clean application data with automatic backups
-- 👤 **Account Management** - Switch between multiple user profiles easily  
-- 🔍 **Auto Detection** - Automatically finds installed applications
-- 💾 **Backup System** - Creates backups before any data operations
-- ⚡ **Process Control** - Monitor and manage running processes
-- 🎨 **Modern UI** - Clean, dark theme with intuitive design
-- 🛡️ **Safe Operations** - All operations include safety checks
-- 📊 **Real-time Status** - Live updates on operation progress
+- 🔄 **Reset data aplikasi** dengan aman
+- 💾 **Backup & restore** sesi/akun berbeda
+- 🆔 **Generate device ID baru** untuk reset identitas
+- 🗑️ **Cleanup cache** dan file temporary
+- 📁 **Quick access** ke folder aplikasi
+- 🔊 **Audio feedback** untuk setiap aksi
 
-## 🚀 Quick Start
+---
 
-### Option 1: Use Pre-built Executable
-1. Download `SurfManager.exe` from releases
-2. Run the executable (no installation required)
-3. Grant administrator permissions when prompted
+## ✨ Fitur Utama
 
-### Option 2: Build from Source
-1. Clone the repository
-2. Run `build_app_windows.cmd`
-3. Find the executable in `dist/SurfManager.exe`
+### 🔄 Reset Data Tab
+Kelola data aplikasi development Anda dengan mudah:
 
-## 🔧 Building
+- **Detect Installed Apps** - Auto-detect Windsurf, Cursor, Claude, VS Code
+- **Reset Application Data** - Hapus data aplikasi dengan backup otomatis
+- **Generate New Device ID** - Buat device ID baru untuk reset identitas
+- **Cleanup Cache** - Bersihkan __pycache__ dan file temporary
+- **Open Folder** - Quick access ke folder data aplikasi
+- **Clear Log** - Bersihkan log output
+- **Audio Toggle** - Enable/disable sound effects
 
-### Prerequisites
-- Windows 10/11 (64-bit)
-- Python 3.8+ (for building from source)
+### 👤 Account Manager Tab
+Manajemen multi-sesi untuk berbagai akun:
 
-### Build Instructions
+- **Create Session Backup** - Backup sesi aktif dengan nama custom
+- **Restore Session** - Load backup sesi sebelumnya
+- **Update Backup** - Update backup dengan data terbaru
+- **Session Management** - Rename, delete, set active session
+- **Multi-App Support** - Kelola sesi Cursor, Windsurf, dan Claude
+- **Search & Filter** - Cari sesi dengan mudah
+- **Size Tracking** - Lihat ukuran setiap backup
+
+ 
+## 🔊 Audio System
+
+SurfManager dilengkapi dengan audio feedback untuk setiap aksi:
+
+### Sound Configuration
+Setiap button punya sound sendiri dengan mode **first-then-random**:
+
+- **First Play**: Sound khusus untuk pertama kali
+- **Subsequent Plays**: Random sound (exclude startup)
+
+### Supported Actions
+- Reset Windsurf/Cursor/Claude
+- Clear Data
+- Cleanup Cache
+- Generate New ID
+- Open Folder
+- Startup Sound
+
+### Audio Config Location
+`app/audio/audio_config.json` - Edit untuk customize sounds
+
+---
+
+## 📦 Instalasi
+
+### Requirements
+- **OS**: Windows 10/11
+- **Python**: 3.8+ (untuk build dari source)
+- **Disk Space**: ~100 MB
+
+### Download Pre-built
+1. Download `SurfManager.exe` dari [Releases](https://github.com/risunCode/SurfManager/releases)
+2. Jalankan langsung, no installation needed!
+
+### Build dari Source
 ```cmd
-# Clone the repository
-git clone https://github.com/risuncode/SurfManager.git
+# Clone repository
+git clone https://github.com/risunCode/SurfManager.git
 cd SurfManager
 
-# Run the build script
-build_app_windows.cmd
+# Setup virtual environment
+setup.bat
+
+# Build executable
+python scripts/build_installer.py --type stable
 ```
 
-The build script will:
-- Create a virtual environment
-- Install dependencies
-- Build an optimized executable
-- Output to `dist/SurfManager.exe`
+---
 
-### Build Configuration (`build_app_windows.cmd`)
+## 🚀 Cara Pakai
 
-You can configure the build type by editing the configuration at the top of `build_app_windows.cmd`:
+### 1. Reset Data
+1. Buka tab **Reset Data**
+2. Pilih aplikasi yang ingin direset
+3. Klik tombol reset (akan ada konfirmasi backup)
+4. Tunggu proses selesai
 
-```cmd
-REM Set DEBUG_BUILD=YES to build with console and debug symbols
-REM Set DEBUG_BUILD=NO for production build (no console, optimized)
-set DEBUG_BUILD=NO
-```
+### 2. Backup Session
+1. Buka tab **Account Manager**
+2. Klik **Backup Cursor/Windsurf/Claude**
+3. Masukkan nama session (misal: "Project-A")
+4. Backup akan disimpan di `Documents/SurfManager/`
 
-**Build Modes:**
+### 3. Restore Session
+1. Buka tab **Account Manager**
+2. Right-click pada session yang ingin direstore
+3. Pilih **Load Backup**
+4. Aplikasi akan otomatis close dan restore data
 
-- **Production Build** (`DEBUG_BUILD=NO`) - Default
-  - Output: `dist/SurfManager.exe`
-  - Console window hidden
-  - Optimized for size
-  - No debug symbols
-  - Ready for distribution
+### 4. Generate New Device ID
+1. Buka tab **Reset Data**
+2. Klik **Generate New ID**
+3. Pilih aplikasi (Windsurf/Cursor)
+4. Device ID baru akan digenerate
 
-- **Debug Build** (`DEBUG_BUILD=YES`)
-  - Output: `dist/SurfManager_Debug.exe`
-  - Console window visible
-  - Debug symbols included
-  - Verbose logging enabled
-  - Useful for troubleshooting
-
-### Build Optimizations
-The production build includes several optimizations:
-- Excludes unused PyQt6 modules
-- Removes unnecessary standard library modules
-- Strips debug symbols
-- Uses optimized PyInstaller configuration
-
-## 💻 System Requirements
-
-- **Operating System:** Windows 10/11 (64-bit)
-- **Memory:** 4 GB RAM minimum
-- **Storage:** 50 MB free space
-- **Dependencies:** None (standalone executable)
-- **Permissions:** Administrator rights for some operations
+---
 
 ## ⚙️ Configuration
 
-### Launcher Configuration (`launcher.cmd`)
+### Config Files
+- `app/config/config.json` - Main configuration
+- `app/audio/audio_config.json` - Audio settings
+- `Documents/SurfManager/sessions.json` - Session data
 
-You can configure the application behavior by editing the configuration variables at the top of `launcher.cmd`:
+### Storage Locations
+- **Session Backups**: `Documents/SurfManager/`
+- **App Data**: System default paths (AppData)
 
+---
+
+## 🏗️ Build System
+
+### Build Options
 ```cmd
-REM Set DEBUG=YES to enable debug logging in the application
-set DEBUG=NO
+# Stable build (no console, optimized)
+python scripts/build_installer.py --type stable
 
-REM Set SHOW_TERMINAL=YES to keep the terminal window visible
-set SHOW_TERMINAL=NO
+# Debug build (with console)
+python scripts/build_installer.py --type debug
+
+# Build both versions
+python scripts/build_installer.py --type both
+
+# Clean build directories
+python scripts/build_installer.py --clean-only
 ```
 
-**Configuration Options:**
+### Build Features
+- ✅ Minimal dependencies (4 packages only)
+- ✅ Aggressive module exclusion (20+ modules)
+- ✅ Binary stripping for smaller size
+- ✅ Expected size: ~60-70 MB
 
-- **DEBUG** (YES/NO)
-  - `YES`: Enables detailed debug logging throughout the application
-  - `NO`: Disables debug output (default, production mode)
-  - Useful for troubleshooting issues or development
+---
 
-- **SHOW_TERMINAL** (YES/NO)
-  - `YES`: Keeps the terminal window visible to see logs and debug output
-  - `NO`: Hides the terminal window for clean user experience (default)
-  - When enabled, terminal will pause after application closes
+## 📊 Dependencies
 
-**Example - Enable Debug Mode:**
-```cmd
-set DEBUG=YES
-set SHOW_TERMINAL=YES
+### Core (Minimal)
+```txt
+PyQt6==6.7.0          # Modern GUI framework
+pygame==2.6.1         # Multi-format audio support
+psutil==5.9.8         # Process management
+pyinstaller==6.3.0    # Build tool
 ```
 
-## 📚 Usage
+### Size Comparison
+- **v1.0.0**: ~100 MB
+- **v1.5.0**: ~80 MB  
+- **v2.0.0**: ~60-70 MB (30-40% reduction!)
 
-### Reset Data Tab
-- Select applications to reset
-- Create automatic backups
-- Monitor reset progress
-- View operation logs
+---
 
-### Account Manager Tab
-- Manage multiple user profiles
-- Switch between accounts
-- Import/export account data
-- Session management
+## 🎨 Customization
 
-### Info Tab
-- View documentation
-- Creator information
-- System requirements
-- Feature overview
+### Audio Customization
+Edit `app/audio/audio_config.json`:
+```json
+{
+  "audio_enabled": true,
+  "sounds": {
+    "reset_windsurf": {
+      "enabled": true,
+      "first_play": "your-sound.mp3",
+      "subsequent_play": "random",
+      "volume": 0.8
+    }
+  }
+}
+```
 
-## 🛡️ Safety Features
+### Theme
+Dark theme by default. Edit `app/gui/styles.py` untuk customize.
 
-- **Automatic Backups:** All operations create backups before making changes
-- **Process Detection:** Warns if target applications are running
-- **Confirmation Dialogs:** Requires confirmation for destructive operations
-- **Rollback Support:** Can restore from backups if needed
+---
+
+## 🐛 Troubleshooting
+
+### Audio tidak bunyi?
+- Cek `audio_enabled: true` di config
+- Pastikan file audio ada di `app/audio/sound/`
+- Format supported: MP3, OGG, WAV
+
+### Aplikasi tidak terdeteksi?
+- Pastikan aplikasi terinstall di lokasi default
+- Check `app/config/config.json` untuk path detection
+
+### Build gagal?
+- Jalankan `setup.bat` terlebih dahulu
+- Pastikan Python 3.8+ terinstall
+- Check dependencies: `pip install -r requirements.txt`
+
+---
+
+## 📝 Tips & Best Practices
+
+### Session Backups
+- ✅ Gunakan nama deskriptif (misal: "Project-Client-A")
+- ✅ Backup sebelum update major
+- ✅ Test restore dengan session non-critical dulu
+- ✅ Cleanup backup lama secara berkala
+
+### Performance
+- ✅ Close aplikasi sebelum backup/restore
+- ✅ Disable audio jika mengganggu
+- ✅ Gunakan debug mode hanya untuk troubleshooting
+
+---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit issues and pull requests.
+Contributions welcome! Please:
+1. Fork repository
+2. Create feature branch
+3. Commit changes
+4. Push to branch
+5. Open Pull Request
 
-## 📄 License
+---
 
-This project is open source. See the repository for license details.
+## 📜 License
 
-## 📞 Support
+Distributed under the MIT License.
 
-- **GitHub Issues:** [Report bugs or request features](https://github.com/risuncode/SurfManager/issues)
-- **GitHub Profile:** [github.com/risuncode](https://github.com/risuncode)
+---
+
+## 👨‍💻 Author
+
+**risunCode**
+
+- GitHub: [@risunCode](https://github.com/risunCode)
+
+---
+
+## 🙏 Acknowledgments
+
+- PyQt6 for excellent GUI framework
+- pygame for audio support
+- Community contributors and testers
 
 ---
 
 **Made with ❤️ by risunCode**
+
+*Minimal build, maximum functionality*
