@@ -142,13 +142,7 @@ python scripts/build_installer.py --type stable  # No console
 python scripts/build_installer.py --type debug   # With console 
 python scripts/build_installer.py --clean-only   # Clean only
 ```
-
-**Build Features:**
-- Minimal dependencies (3 core packages)
-- Aggressive module exclusion
-- Binary stripping
-- Expected size: 60-70 MB
-
+ 
 ---
 
 ## Dependencies
@@ -160,15 +154,7 @@ psutil==5.9.8         # Process management
 pyinstaller==6.3.0    # Build tool
 ```
 
-**Audio:** Native Windows winsound (no external dependency)
-
-**Size History:**
-- v1.0.0: ~100 MB
-- v1.5.0: ~80 MB
-- v2.0.0: ~60-70 MB
-- v2.1.0: ~60-70 MB (optimized code, same size)
-
----
+**Audio:** Native Windows winsound (no external dependency) 
 
 ## Keyboard Shortcuts
 
@@ -229,13 +215,7 @@ Contributions welcome:
 2. Create feature branch
 3. Commit changes
 4. Open Pull Request
-
----
-
-## License
-
-MIT License - see LICENSE file for details
-
+ 
 ---
 
 ## Author
