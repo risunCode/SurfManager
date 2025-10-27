@@ -167,13 +167,13 @@
   "detected_apps": {
     "windsurf": {
       "installed": true,
-      "path": "C:\\Users\\Phoebe\\AppData\\Roaming\\Windsurf",
-      "exe_path": "C:\\Users\\Phoebe\\AppData\\Local\\Programs\\Windsurf\\Windsurf.exe"
+      "path": "C:\\Users\\LovelyLova\\AppData\\Roaming\\Windsurf",
+      "exe_path": "C:\\Users\\LovelyLova\\AppData\\Local\\Programs\\Windsurf\\Windsurf.exe"
     },
     "cursor": {
-      "installed": false,
-      "path": null,
-      "exe_path": ""
+      "installed": true,
+      "path": "C:\\Users\\LovelyLova\\AppData\\Roaming\\Cursor",
+      "exe_path": "C:\\Users\\LovelyLova\\AppData\\Local\\Programs\\cursor\\Cursor.exe"
     },
     "vscode": {
       "installed": false,
@@ -181,9 +181,9 @@
       "exe_path": ""
     },
     "claude": {
-      "installed": false,
-      "path": null,
-      "exe_path": ""
+      "installed": true,
+      "path": "C:\\Users\\LovelyLova\\AppData\\Roaming\\Claude",
+      "exe_path": "C:\\Users\\LovelyLova\\AppData\\Local\\AnthropicClaude\\claude.exe"
     }
   }
 }

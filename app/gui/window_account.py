@@ -75,77 +75,51 @@ class AccountTab(QWidget):
         QShortcut(QKeySequence("Ctrl+1"), self).activated.connect(lambda: self.create_backup("cursor"))
         QShortcut(QKeySequence("Ctrl+2"), self).activated.connect(lambda: self.create_backup("windsurf"))
         QShortcut(QKeySequence("Ctrl+3"), self).activated.connect(lambda: self.create_backup("claude"))
+        
+        # Delete: Delete selected sessions
+        QShortcut(QKeySequence("Delete"), self).activated.connect(self.batch_delete_sessions)
+        
+        # Ctrl+A: Select all
+        QShortcut(QKeySequence("Ctrl+A"), self).activated.connect(lambda: self.session_table.selectAll())
     
     def create_session_table(self, layout):
         """Create session table group."""
         table_group = QGroupBox("📅 Sessions")
-        table_layout = QVBoxLayout()
-        table_layout.setSpacing(5)
-        table_layout.setContentsMargins(8, 8, 8, 8)
-        table_group.setLayout(table_layout)
+        main_h_layout = QHBoxLayout()
+        main_h_layout.setSpacing(10)
+        main_h_layout.setContentsMargins(8, 8, 8, 8)
+        table_group.setLayout(main_h_layout)
         
-        # Top bar: Backup Actions + Stats + Search + Refresh
+        # Left side: Table with search
+        left_layout = QVBoxLayout()
+        left_layout.setSpacing(8)
+        
+        # Stats and search bar
         top_bar = QHBoxLayout()
-        top_bar.setSpacing(5)
+        top_bar.setSpacing(8)
         
-        # Backup buttons (left side)
-        self.backup_cursor_btn = QPushButton("💾 Cursor")
-        self.backup_cursor_btn.setToolTip("Create backup for Cursor (Ctrl+1)")
-        self.backup_cursor_btn.setMaximumWidth(90)
-        self.backup_cursor_btn.clicked.connect(lambda: self.create_backup("cursor"))
-        top_bar.addWidget(self.backup_cursor_btn)
-        
-        self.backup_windsurf_btn = QPushButton("💾 Windsurf")
-        self.backup_windsurf_btn.setToolTip("Create backup for Windsurf (Ctrl+2)")
-        self.backup_windsurf_btn.setMaximumWidth(100)
-        self.backup_windsurf_btn.clicked.connect(lambda: self.create_backup("windsurf"))
-        top_bar.addWidget(self.backup_windsurf_btn)
-        
-        self.backup_claude_btn = QPushButton("💾 Claude")
-        self.backup_claude_btn.setToolTip("Create backup for Claude (Ctrl+3)")
-        self.backup_claude_btn.setMaximumWidth(90)
-        self.backup_claude_btn.clicked.connect(lambda: self.create_backup("claude"))
-        top_bar.addWidget(self.backup_claude_btn)
-        
-        # Separator
-        separator = QLabel("|")
-        separator.setStyleSheet("color: #555; font-weight: bold;")
-        top_bar.addWidget(separator)
-        
-        # Stats
         self.session_count_label = QLabel("")
         self.session_count_label.setStyleSheet("color: #aaa; font-size: 11px;")
         top_bar.addWidget(self.session_count_label)
         
+        self.selection_count_label = QLabel("")
+        self.selection_count_label.setStyleSheet("color: #4CAF50; font-size: 11px; font-weight: bold;")
+        top_bar.addWidget(self.selection_count_label)
+        
         top_bar.addStretch()
         
-        # Search
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("🔍 Search sessions...")
         self.search_input.setToolTip("Search sessions (Ctrl+F to focus)")
-        self.search_input.setMaximumWidth(200)
+        self.search_input.setMaximumWidth(250)
         self.search_input.textChanged.connect(self.filter_sessions)
         top_bar.addWidget(self.search_input)
         
-        # Refresh
-        refresh_btn = QPushButton("🔄 Refresh")
-        refresh_btn.setMaximumWidth(90)
-        refresh_btn.setToolTip("Refresh session list (F5)")
-        refresh_btn.clicked.connect(self.refresh_list)
-        top_bar.addWidget(refresh_btn)
-        
-        # Open Folder
-        self.open_folder_btn = QPushButton("📁 Folder")
-        self.open_folder_btn.setMaximumWidth(80)
-        self.open_folder_btn.setToolTip("Open backup folder (Ctrl+O)")
-        self.open_folder_btn.clicked.connect(self.open_folder)
-        top_bar.addWidget(self.open_folder_btn)
-        
-        table_layout.addLayout(top_bar)
+        left_layout.addLayout(top_bar)
         
         # Session Table
         self.session_table = QTableWidget()
-        self.session_table.setMinimumHeight(350)  # Force table to be tall
+        self.session_table.setMinimumHeight(350)
         self.session_table.setColumnCount(5)
         self.session_table.setHorizontalHeaderLabels(["#", "App", "Session Name", "Created", "Status"])
         
@@ -160,6 +134,8 @@ class AccountTab(QWidget):
         self.session_table.setSortingEnabled(True)
         self.session_table.setAlternatingRowColors(True)
         self.session_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.session_table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
+        self.session_table.itemSelectionChanged.connect(self.update_selection_count)
         
         # Column widths
         header = self.session_table.horizontalHeader()
@@ -175,7 +151,98 @@ class AccountTab(QWidget):
         self.session_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.session_table.customContextMenuRequested.connect(self.show_context_menu)
         
-        table_layout.addWidget(self.session_table)
+        left_layout.addWidget(self.session_table)
+        main_h_layout.addLayout(left_layout, stretch=4)
+        
+        # Right side: Actions in vertical layout with spacing
+        right_layout = QVBoxLayout()
+        right_layout.setSpacing(8)
+        
+        # Backup Actions Section
+        backup_label = QLabel("💾 Create Backup")
+        backup_label.setStyleSheet("font-weight: bold; color: #4CAF50; font-size: 12px;")
+        right_layout.addWidget(backup_label)
+        
+        self.backup_cursor_btn = QPushButton("Cursor")
+        self.backup_cursor_btn.setToolTip("Create backup for Cursor (Ctrl+1)")
+        self.backup_cursor_btn.setMinimumWidth(120)
+        self.backup_cursor_btn.setMinimumHeight(40)
+        self.backup_cursor_btn.clicked.connect(lambda: self.create_backup("cursor"))
+        right_layout.addWidget(self.backup_cursor_btn)
+        
+        right_layout.addSpacing(5)
+        
+        self.backup_windsurf_btn = QPushButton("Windsurf")
+        self.backup_windsurf_btn.setToolTip("Create backup for Windsurf (Ctrl+2)")
+        self.backup_windsurf_btn.setMinimumWidth(120)
+        self.backup_windsurf_btn.setMinimumHeight(40)
+        self.backup_windsurf_btn.clicked.connect(lambda: self.create_backup("windsurf"))
+        right_layout.addWidget(self.backup_windsurf_btn)
+        
+        right_layout.addSpacing(5)
+        
+        self.backup_claude_btn = QPushButton("Claude")
+        self.backup_claude_btn.setToolTip("Create backup for Claude (Ctrl+3)")
+        self.backup_claude_btn.setMinimumWidth(120)
+        self.backup_claude_btn.setMinimumHeight(40)
+        self.backup_claude_btn.clicked.connect(lambda: self.create_backup("claude"))
+        right_layout.addWidget(self.backup_claude_btn)
+        
+        right_layout.addSpacing(15)
+        
+        # Actions Section
+        actions_label = QLabel("⚙️ Actions")
+        actions_label.setStyleSheet("font-weight: bold; color: #4CAF50; font-size: 12px;")
+        right_layout.addWidget(actions_label)
+        
+        refresh_btn = QPushButton("🔄 Refresh")
+        refresh_btn.setMinimumWidth(120)
+        refresh_btn.setMinimumHeight(40)
+        refresh_btn.setToolTip("Refresh session list (F5)")
+        refresh_btn.clicked.connect(self.refresh_list)
+        right_layout.addWidget(refresh_btn)
+        
+        right_layout.addSpacing(5)
+        
+        self.open_folder_btn = QPushButton("📁 Folder")
+        self.open_folder_btn.setMinimumWidth(120)
+        self.open_folder_btn.setMinimumHeight(40)
+        self.open_folder_btn.setToolTip("Open backup folder (Ctrl+O)")
+        self.open_folder_btn.clicked.connect(self.open_folder)
+        right_layout.addWidget(self.open_folder_btn)
+        
+        right_layout.addSpacing(15)
+        
+        # Delete All button
+        delete_all_label = QLabel("🗑️ Delete")
+        delete_all_label.setStyleSheet("font-weight: bold; color: #4CAF50; font-size: 12px;")
+        right_layout.addWidget(delete_all_label)
+        
+        self.delete_all_btn = QPushButton("Delete All")
+        self.delete_all_btn.setMinimumWidth(120)
+        self.delete_all_btn.setMinimumHeight(40)
+        self.delete_all_btn.setToolTip("Delete ALL backup sessions")
+        self.delete_all_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #8B0000;
+                color: white;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #A52A2A;
+            }
+            QPushButton:disabled {
+                background-color: #555;
+                color: #888;
+            }
+        """)
+        self.delete_all_btn.clicked.connect(self.delete_all_sessions)
+        self.delete_all_btn.setEnabled(False)
+        right_layout.addWidget(self.delete_all_btn)
+        
+        right_layout.addStretch()
+        
+        main_h_layout.addLayout(right_layout, stretch=1)
         layout.addWidget(table_group)
     
     def init_sessions(self):
@@ -245,6 +312,9 @@ class AccountTab(QWidget):
         total = len(all_sessions)
         count_text = f"Total: {total} | Cursor: {counts['cursor']} | Windsurf: {counts['windsurf']} | Claude: {counts['claude']}"
         self.session_count_label.setText(count_text)
+        
+        # Enable/disable Delete All button based on total sessions
+        self.delete_all_btn.setEnabled(total > 0)
         
         # Update table
         self.session_table.setSortingEnabled(False)
@@ -323,44 +393,56 @@ class AccountTab(QWidget):
             return
         
         row = self.session_table.row(item)
-        app_item = self.session_table.item(row, 1)
-        name_item = self.session_table.item(row, 2)
-        
-        if not app_item or not name_item:
-            return
-        
-        app = app_item.text().lower()
-        session = name_item.text().replace("⭐ ", "").split(" - ")[0]
+        selected_rows = self.session_table.selectionModel().selectedRows()
         
         menu = QMenu(self)
         menu.setStyleSheet(StyleHelper.CONTEXT_MENU)
         
-        restore = menu.addAction("🔄 Restore Session")
-        update = menu.addAction("💾 Update Backup")
-        menu.addSeparator()
-        activate = menu.addAction("⭐ Set as Active")
-        rename = menu.addAction("✏️ Rename")
-        menu.addSeparator()
-        open_f = menu.addAction("📂 Open Folder")
-        menu.addSeparator()
-        delete = menu.addAction("🗑️ Delete")
-        
-        action = menu.exec(self.session_table.mapToGlobal(pos))
-        
-        if action == restore:
-            self.restore_session(app, session)
-        elif action == update:
-            self.update_backup(app, session)
-        elif action == activate:
-            self.set_active(app, session)
-        elif action == rename:
-            self.rename_session(app, session)
-        elif action == open_f:
-            path = os.path.join(self.session_backup_path, app, session)
-            open_folder_in_explorer(path)
-            self.log(f"📂 Opened: {session}")
-        elif action == delete:
-            self.delete_session(app, session)
+        # Check if multiple items are selected
+        if len(selected_rows) > 1:
+            # Multiple selection menu - only show delete
+            delete_action = menu.addAction(f"🗑️ Delete {len(selected_rows)} Sessions")
+            action = menu.exec(self.session_table.mapToGlobal(pos))
+            
+            if action == delete_action:
+                self.batch_delete_sessions()
+        else:
+            # Single selection menu - full options
+            app_item = self.session_table.item(row, 1)
+            name_item = self.session_table.item(row, 2)
+            
+            if not app_item or not name_item:
+                return
+            
+            app = app_item.text().lower()
+            session = name_item.text().replace("⭐ ", "").split(" - ")[0]
+            
+            restore = menu.addAction("🔄 Restore Session")
+            update = menu.addAction("💾 Update Backup")
+            menu.addSeparator()
+            activate = menu.addAction("⭐ Set as Active")
+            rename = menu.addAction("✏️ Rename")
+            menu.addSeparator()
+            open_f = menu.addAction("📂 Open Folder")
+            menu.addSeparator()
+            delete = menu.addAction("🗑️ Delete")
+            
+            action = menu.exec(self.session_table.mapToGlobal(pos))
+            
+            if action == restore:
+                self.restore_session(app, session)
+            elif action == update:
+                self.update_backup(app, session)
+            elif action == activate:
+                self.set_active(app, session)
+            elif action == rename:
+                self.rename_session(app, session)
+            elif action == open_f:
+                path = os.path.join(self.session_backup_path, app, session)
+                open_folder_in_explorer(path)
+                self.log(f"📂 Opened: {session}")
+            elif action == delete:
+                self.delete_session(app, session)
     
     def create_backup(self, app_name):
         """Create new backup."""
@@ -541,8 +623,129 @@ class AccountTab(QWidget):
                 except Exception as e:
                     self.log(f"❌ Rename failed: {e}")
     
+    def update_selection_count(self):
+        """Update selection count label."""
+        selected_rows = self.session_table.selectionModel().selectedRows()
+        count = len(selected_rows)
+        
+        if count > 0:
+            self.selection_count_label.setText(f"Selected: {count}")
+        else:
+            self.selection_count_label.setText("")
+    
+    def delete_all_sessions(self):
+        """Delete ALL backup sessions (wipe all data)."""
+        # Count total sessions
+        total = 0
+        for app in ['cursor', 'windsurf', 'claude']:
+            app_folder = os.path.join(self.session_backup_path, app)
+            if os.path.exists(app_folder):
+                try:
+                    total += len([d for d in os.listdir(app_folder) if os.path.isdir(os.path.join(app_folder, d))])
+                except PermissionError:
+                    pass
+        
+        if total == 0:
+            DialogHelper.show_info(self, "No Sessions", "No backup sessions found.")
+            return
+        
+        # Confirm deletion
+        if not DialogHelper.confirm(
+            self, 
+            "⚠️ DELETE ALL SESSIONS", 
+            f"⚠️ WARNING: This will delete ALL {total} backup session(s)!\n\n"
+            f"This action cannot be undone.\n\n"
+            f"Are you absolutely sure you want to delete everything?"
+        ):
+            return
+        
+        self.log(f"🗑️ Deleting ALL sessions...")
+        
+        # Delete all sessions
+        deleted_count = 0
+        failed_count = 0
+        
+        for app in ['cursor', 'windsurf', 'claude']:
+            app_folder = os.path.join(self.session_backup_path, app)
+            if os.path.exists(app_folder):
+                try:
+                    for session_name in os.listdir(app_folder):
+                        session_path = os.path.join(app_folder, session_name)
+                        if os.path.isdir(session_path):
+                            try:
+                                shutil.rmtree(session_path)
+                                deleted_count += 1
+                            except Exception as e:
+                                failed_count += 1
+                                self.log(f"❌ Failed to delete {session_name}: {e}")
+                except PermissionError:
+                    self.log(f"⚠️ Cannot access {app} folder")
+        
+        # Show summary
+        if deleted_count > 0:
+            self.log(f"✅ Successfully deleted {deleted_count} session(s)")
+            DialogHelper.show_info(self, "Success", f"Deleted {deleted_count} session(s)")
+        if failed_count > 0:
+            self.log(f"⚠️ Failed to delete {failed_count} session(s)")
+        
+        # Refresh list
+        self.refresh_list()
+    
+    def batch_delete_sessions(self):
+        """Delete multiple selected sessions."""
+        selected_rows = self.session_table.selectionModel().selectedRows()
+        
+        if not selected_rows:
+            return
+        
+        count = len(selected_rows)
+        
+        # Confirm deletion
+        if not DialogHelper.confirm(
+            self, 
+            "Confirm Batch Delete", 
+            f"Delete {count} selected session(s)?\n\nThis action cannot be undone."
+        ):
+            return
+        
+        # Collect sessions to delete
+        sessions_to_delete = []
+        for index in selected_rows:
+            row = index.row()
+            app_item = self.session_table.item(row, 1)
+            name_item = self.session_table.item(row, 2)
+            
+            if app_item and name_item:
+                app = app_item.text().lower()
+                session = name_item.text().replace("⭐ ", "").split(" - ")[0]
+                sessions_to_delete.append((app, session))
+        
+        # Delete sessions
+        deleted_count = 0
+        failed_count = 0
+        
+        for app, session in sessions_to_delete:
+            path = os.path.join(self.session_backup_path, app, session)
+            if os.path.exists(path):
+                try:
+                    shutil.rmtree(path)
+                    deleted_count += 1
+                    self.log(f"🗑️ Deleted: {session}")
+                except Exception as e:
+                    failed_count += 1
+                    self.log(f"❌ Delete failed for {session}: {e}")
+        
+        # Show summary
+        if deleted_count > 0:
+            self.log(f"✅ Successfully deleted {deleted_count} session(s)")
+        if failed_count > 0:
+            self.log(f"⚠️ Failed to delete {failed_count} session(s)")
+        
+        # Refresh list
+        self.refresh_list()
+    
     def delete_session(self, app, session):
-        """Delete session."""
+        """Delete single session."""
         if DialogHelper.confirm(self, "Confirm Delete", f"Delete session '{session}'?\n\nThis action cannot be undone."):
             path = os.path.join(self.session_backup_path, app, session)
             if os.path.exists(path):
