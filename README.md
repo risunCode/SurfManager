@@ -9,6 +9,8 @@ Advanced session and data management tool for Windsurf, Cursor, and Claude.
 
 ---
 
+<img width="1233" height="852" alt="image" src="https://github.com/user-attachments/assets/77d5777d-e116-4a39-9bd0-e38cf9d31d48" />
+
 ## What is SurfManager?
 
 Session and data management tool for development applications like Windsurf, Cursor, and Claude.
