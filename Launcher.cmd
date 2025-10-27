@@ -1,6 +1,6 @@
 @echo off
 REM ================================================================
-REM SurfManager Main Launcher v2.0.0 by risunCode
+REM SurfManager Main Launcher v2.1.0 by risunCode
 REM ================================================================
 
 REM Check for admin privileges
@@ -15,7 +15,7 @@ setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
 REM ===== Configuration =====
-set APP_VERSION=2.0.0
+set APP_VERSION=2.1.0
 set APP_NAME=SurfManager
 set PYTHON_MIN_VERSION=3.8
 set LAUNCHED_FROM_LAUNCHER=1

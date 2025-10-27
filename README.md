@@ -1,276 +1,254 @@
-# SurfManager v2.0.0 - Minimal Build Edition
+# SurfManager v2.1.0 - Optimized Edition
 
-🚀 **Advanced session and data management tool for (Windsurf, Cursor and Claude App windows)**
+Advanced session and data management tool for Windsurf, Cursor, and Claude.
 
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/risunCode/SurfManager)
+[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](https://github.com/risunCode/SurfManager)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/risunCode/SurfManager)
 [![Python](https://img.shields.io/badge/python-3.8+-yellow.svg)](https://www.python.org/)
 [![Size](https://img.shields.io/badge/size-~60--70MB-green.svg)](https://github.com/risunCode/SurfManager)
 
 ---
 
-<img width="1308" height="912" alt="image" src="https://github.com/user-attachments/assets/0326e2cc-1780-4a3d-9250-6522e2d74c33" />
+## What is SurfManager?
 
+Session and data management tool for development applications like Windsurf, Cursor, and Claude.
 
-## 📖 Apa itu SurfManager?
-
-**SurfManager** adalah aplikasi manajemen sesi dan data untuk development tools seperti Windsurf, Cursor, VS Code, dan Claude. Aplikasi ini memungkinkan Anda untuk:
-
-- 🔄 **Reset data aplikasi** dengan aman
-- 💾 **Backup & restore** sesi/akun berbeda
-- 🆔 **Generate device ID baru** untuk reset identitas
-- 🗑️ **Cleanup cache** dan file temporary
-- 📁 **Quick access** ke folder aplikasi
-- 🔊 **Audio feedback** untuk setiap aksi
+**Key Features:**
+- Reset application data safely
+- Backup and restore sessions
+- Generate new device IDs
+- Quick folder access
+- Audio feedback for actions
+- Keyboard shortcuts for productivity
 
 ---
 
-## ✨ Fitur Utama
+## Main Features
 
-### 🔄 Reset Data Tab
-Kelola data aplikasi development Anda dengan mudah:
+### Reset Data Tab
+- Auto-detect installed applications (Windsurf, Cursor, Claude)
+- Reset application data with automatic backup
+- Generate new device IDs
+- Cleanup cache and temporary files
+- Quick access to application folders
+- Keyboard shortcuts: Ctrl+L (clear log), F5 (refresh), Ctrl+M (toggle audio), Ctrl+G (generate ID)
 
-- **Detect Installed Apps** - Auto-detect Windsurf, Cursor, Claude, VS Code
-- **Reset Application Data** - Hapus data aplikasi dengan backup otomatis
-- **Generate New Device ID** - Buat device ID baru untuk reset identitas
-- **Cleanup Cache** - Bersihkan __pycache__ dan file temporary
-- **Open Folder** - Quick access ke folder data aplikasi
-- **Clear Log** - Bersihkan log output
-- **Audio Toggle** - Enable/disable sound effects
+### Account Manager Tab
+- Create session backups with custom names
+- Restore previous sessions
+- Update existing backups
+- Session management (rename, delete, set active)
+- Multi-app support (Cursor, Windsurf, Claude)
+- Search and filter sessions
+- Keyboard shortcuts: F5 (refresh), Ctrl+O (open folder), Ctrl+F (search), Ctrl+1/2/3 (quick backup)
 
-### 👤 Account Manager Tab
-Manajemen multi-sesi untuk berbagai akun:
+### Advanced Settings Tab
+- Configure backup locations
+- Edit configuration files
+- Manage application paths
+- Export and import settings
 
-- **Create Session Backup** - Backup sesi aktif dengan nama custom
-- **Restore Session** - Load backup sesi sebelumnya
-- **Update Backup** - Update backup dengan data terbaru
-- **Session Management** - Rename, delete, set active session
-- **Multi-App Support** - Kelola sesi Cursor, Windsurf, dan Claude
-- **Search & Filter** - Cari sesi dengan mudah
-- **Size Tracking** - Lihat ukuran setiap backup
 
- 
-## 🔊 Audio System
+## What's New in v2.1.0
 
-SurfManager dilengkapi dengan audio feedback untuk setiap aksi:
+**Code Optimization**
+- 10% code reduction through file merging and optimization
+- External CSS stylesheets for better maintainability
+- JSON-based configuration system
+- Eliminated 300+ lines of duplicate code
 
-### Sound Configuration
-Setiap button punya sound sendiri dengan mode **first-then-random**:
+**Enhanced UX**
+- 10 keyboard shortcuts for faster workflow
+- Enhanced tooltips with shortcut hints
+- Improved UI layout (less clutter, better accessibility)
+- Table headers with descriptive tooltips
 
-- **First Play**: Sound khusus untuk pertama kali
-- **Subsequent Plays**: Random sound (exclude startup)
-
-### Supported Actions
-- Reset Windsurf/Cursor/Claude
-- Clear Data
-- Cleanup Cache
-- Generate New ID
-- Open Folder
-- Startup Sound
-
-### Audio Config Location
-`app/audio/audio_config.json` - Edit untuk customize sounds
+**Code Quality**
+- Fixed all bare except statements (better debugging)
+- Specific exception handling throughout
+- Improved error logging
+- Better maintainability
 
 ---
 
-## 📦 Instalasi
+## Installation
 
-### Requirements
-- **OS**: Windows 10/11
-- **Python**: 3.8+ (untuk build dari source)
-- **Disk Space**: ~100 MB
+**Requirements:**
+- Windows 10/11
+- Python 3.8+ (for building from source)
+- Disk space: ~100 MB
 
-### Download Pre-built
-1. Download `SurfManager.exe` dari [Releases](https://github.com/risunCode/SurfManager/releases)
-2. Jalankan langsung, no installation needed!
+**Pre-built Binary:**
+1. Download `SurfManager.exe` from [Releases](https://github.com/risunCode/SurfManager/releases)
+2. Run directly, no installation needed
 
-### Build dari Source
+**Build from Source:**
 ```cmd
-# Clone repository
 git clone https://github.com/risunCode/SurfManager.git
 cd SurfManager
-
-# Setup virtual environment
 setup.bat
-
-# Build executable
 python scripts/build_installer.py --type stable
 ```
 
 ---
 
-## 🚀 Cara Pakai
+## Usage
 
-### 1. Reset Data
-1. Buka tab **Reset Data**
-2. Pilih aplikasi yang ingin direset
-3. Klik tombol reset (akan ada konfirmasi backup)
-4. Tunggu proses selesai
+**Reset Application Data:**
+1. Open Reset Data tab
+2. Click Reset button next to the application
+3. Confirm the action (automatic backup will be created)
+4. Wait for process to complete
 
-### 2. Backup Session
-1. Buka tab **Account Manager**
-2. Klik **Backup Cursor/Windsurf/Claude**
-3. Masukkan nama session (misal: "Project-A")
-4. Backup akan disimpan di `Documents/SurfManager/`
+**Create Backup:**
+1. Open Account Manager tab
+2. Click Backup button for desired app (or use Ctrl+1/2/3)
+3. Enter session name
+4. Backup saved to Documents/SurfManager/
 
-### 3. Restore Session
-1. Buka tab **Account Manager**
-2. Right-click pada session yang ingin direstore
-3. Pilih **Load Backup**
-4. Aplikasi akan otomatis close dan restore data
+**Restore Session:**
+1. Open Account Manager tab
+2. Right-click on session
+3. Select Restore Session
+4. Application closes and restores data automatically
 
-### 4. Generate New Device ID
-1. Buka tab **Reset Data**
-2. Klik **Generate New ID**
-3. Pilih aplikasi (Windsurf/Cursor)
-4. Device ID baru akan digenerate
-
----
-
-## ⚙️ Configuration
-
-### Config Files
-- `app/config/config.json` - Main configuration
-- `app/audio/audio_config.json` - Audio settings
-- `Documents/SurfManager/sessions.json` - Session data
-
-### Storage Locations
-- **Session Backups**: `Documents/SurfManager/`
-- **App Data**: System default paths (AppData)
+**Generate New Device ID:**
+1. Open Reset Data tab
+2. Click Generate ID (or press Ctrl+G)
+3. Select application
+4. New device ID will be generated
 
 ---
 
-## 🏗️ Build System
+## Configuration
 
-### Build Options
+**Config Files:**
+- app/config/config.json - Main configuration
+- app/config/app_metadata.json - Application metadata
+- app/config/messages.json - Error and success messages
+- app/audio/audio_config.json - Audio settings
+
+**Storage Locations:**
+- Session backups: Documents/SurfManager/
+- Application data: AppData/Roaming/ (system default)
+
+---
+
+## Building
+
+**Build Options:**
 ```cmd
-# Stable build (no console, optimized)
-python scripts/build_installer.py --type stable
-
-# Debug build (with console)
-python scripts/build_installer.py --type debug
-
-# Build both versions
-python scripts/build_installer.py --type both
-
-# Clean build directories
-python scripts/build_installer.py --clean-only
+python scripts/build_installer.py --type stable  # No console
+python scripts/build_installer.py --type debug   # With console 
+python scripts/build_installer.py --clean-only   # Clean only
 ```
 
-### Build Features
-- ✅ Minimal dependencies (4 packages only)
-- ✅ Aggressive module exclusion (20+ modules)
-- ✅ Binary stripping for smaller size
-- ✅ Expected size: ~60-70 MB
+**Build Features:**
+- Minimal dependencies (3 core packages)
+- Aggressive module exclusion
+- Binary stripping
+- Expected size: 60-70 MB
 
 ---
 
-## 📊 Dependencies
+## Dependencies
 
-### Core (Minimal)
+**Core Packages:**
 ```txt
-PyQt6==6.7.0          # Modern GUI framework
-pygame==2.6.1         # Multi-format audio support
-psutil==5.9.8         # Process management
+PyQt6==6.7.0          # GUI framework
+psutil==5.9.8         # Process management  
 pyinstaller==6.3.0    # Build tool
 ```
 
-### Size Comparison
-- **v1.0.0**: ~100 MB
-- **v1.5.0**: ~80 MB  
-- **v2.0.0**: ~60-70 MB (30-40% reduction!)
+**Audio:** Native Windows winsound (no external dependency)
+
+**Size History:**
+- v1.0.0: ~100 MB
+- v1.5.0: ~80 MB
+- v2.0.0: ~60-70 MB
+- v2.1.0: ~60-70 MB (optimized code, same size)
 
 ---
 
-## 🎨 Customization
+## Keyboard Shortcuts
 
-### Audio Customization
-Edit `app/audio/audio_config.json`:
-```json
-{
-  "audio_enabled": true,
-  "sounds": {
-    "reset_windsurf": {
-      "enabled": true,
-      "first_play": "your-sound.mp3",
-      "subsequent_play": "random",
-      "volume": 0.8
-    }
-  }
-}
-```
+**Reset Tab:**
+- Ctrl+L: Clear log
+- F5: Refresh application list
+- Ctrl+M: Toggle audio
+- Ctrl+G: Generate new device ID
 
-### Theme
-Dark theme by default. Edit `app/gui/styles.py` untuk customize.
+**Account Manager:**
+- F5: Refresh session list
+- Ctrl+O: Open backup folder
+- Ctrl+F: Focus search
+- Ctrl+1: Quick backup Cursor
+- Ctrl+2: Quick backup Windsurf
+- Ctrl+3: Quick backup Claude
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
-### Audio tidak bunyi?
-- Cek `audio_enabled: true` di config
-- Pastikan file audio ada di `app/audio/sound/`
-- Format supported: MP3, OGG, WAV
+**Audio not working:**
+- Check audio_enabled: true in config
+- Verify audio files exist in app/audio/sound/
+- Supported formats: WAV only (native Windows)
 
-### Aplikasi tidak terdeteksi?
-- Pastikan aplikasi terinstall di lokasi default
-- Check `app/config/config.json` untuk path detection
+**Application not detected:**
+- Ensure application installed in default location
+- Check app/config/config.json for path detection
+- Try refreshing with F5
 
-### Build gagal?
-- Jalankan `setup.bat` terlebih dahulu
-- Pastikan Python 3.8+ terinstall
-- Check dependencies: `pip install -r requirements.txt`
-
----
-
-## 📝 Tips & Best Practices
-
-### Session Backups
-- ✅ Gunakan nama deskriptif (misal: "Project-Client-A")
-- ✅ Backup sebelum update major
-- ✅ Test restore dengan session non-critical dulu
-- ✅ Cleanup backup lama secara berkala
-
-### Performance
-- ✅ Close aplikasi sebelum backup/restore
-- ✅ Disable audio jika mengganggu
-- ✅ Gunakan debug mode hanya untuk troubleshooting
+**Build fails:**
+- Run setup.bat first
+- Ensure Python 3.8+ installed
+- Install dependencies: pip install -r requirements.txt
 
 ---
 
-## 🤝 Contributing
+## Tips
 
-Contributions welcome! Please:
+**Session Backups:**
+- Use descriptive names (e.g., "Project-ClientA")
+- Backup before major updates
+- Test restore with non-critical sessions first
+- Clean up old backups periodically
+
+**Performance:**
+- Close applications before backup/restore
+- Disable audio if needed (Ctrl+M)
+- Use debug mode only for troubleshooting
+
+---
+
+## Contributing
+
+Contributions welcome:
 1. Fork repository
 2. Create feature branch
 3. Commit changes
-4. Push to branch
-5. Open Pull Request
+4. Open Pull Request
 
 ---
 
-## 📜 License
+## License
 
-Distributed under the MIT License.
-
----
-
-## 👨‍💻 Author
-
-**risunCode**
-
-- GitHub: [@risunCode](https://github.com/risunCode)
+MIT License - see LICENSE file for details
 
 ---
 
-## 🙏 Acknowledgments
+## Author
 
-- PyQt6 for excellent GUI framework
-- pygame for audio support
-- Community contributors and testers
+risunCode - [GitHub](https://github.com/risunCode)
 
 ---
 
-**Made with ❤️ by risunCode**
+## Acknowledgments
 
-*Minimal build, maximum functionality*
+- PyQt6 GUI framework
+- Community contributors
+
+---
+
+**Optimized build, maximum functionality**

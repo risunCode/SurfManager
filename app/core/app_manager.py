@@ -7,8 +7,7 @@ import json
 from pathlib import Path
 from typing import Dict, Optional, List, Tuple
 from app.core.config_manager import ConfigManager
-from app.core.debug_utils import debug_print
-from app.core.path_utils import get_resource_path
+from app.core.core_utils import debug_print, get_resource_path
 
 
 class AppManager:
@@ -20,6 +19,9 @@ class AppManager:
         self.config_path = config_path
         self.config = self._load_config(config_path)
         self.detected_apps: Dict[str, Dict] = {}
+        self.current_user = None  # For multi-user support
+        self.user_appdata_roaming = None
+        self.user_appdata_local = None
         self._load_detected_apps()
         
     def _load_config(self, config_path: str) -> Dict:
@@ -36,9 +38,29 @@ class AppManager:
             debug_print(f"[DEBUG] Config load failed: {e}")
             return {"applications": {}}
     
+    def set_current_user(self, username: str, appdata_roaming: str, appdata_local: str):
+        """Set current user for multi-user operations."""
+        self.current_user = username
+        self.user_appdata_roaming = appdata_roaming
+        self.user_appdata_local = appdata_local
+        
+        # Clear cache when user changes to force fresh scan
+        self.detected_apps = {}
+        
+        debug_print(f"[DEBUG] AppManager user set to: {username}")
+        debug_print(f"[DEBUG] AppManager cache cleared for new user")
+    
     def expand_path(self, path_template: str) -> str:
-        """Expand environment variables in path template."""
-        expanded = os.path.expandvars(path_template)
+        """Expand environment variables in path template with user-specific paths."""
+        if self.current_user and self.user_appdata_roaming and self.user_appdata_local:
+            # Use user-specific paths
+            expanded = path_template.replace('%APPDATA%', self.user_appdata_roaming)
+            expanded = expanded.replace('%LOCALAPPDATA%', self.user_appdata_local)
+            expanded = os.path.expandvars(expanded)  # For other env vars
+        else:
+            # Use default expansion
+            expanded = os.path.expandvars(path_template)
+        
         return expanded.replace('/', os.sep)
     
     def scan_applications(self, force_rescan: bool = False) -> Dict[str, Dict]:
@@ -102,17 +124,36 @@ class AppManager:
             "running": False
         }
     
-    def _get_directory_size(self, path: str) -> int:
-        """Calculate total directory size in bytes."""
+    def _get_directory_size(self, path: str, max_depth: int = 10, current_depth: int = 0) -> int:
+        """Calculate total directory size in bytes with depth limit.
+        
+        Args:
+            path: Directory path to calculate size
+            max_depth: Maximum recursion depth to prevent stack overflow
+            current_depth: Current recursion depth (internal use)
+        
+        Returns:
+            Total size in bytes, 0 if error or depth exceeded
+        """
+        # Prevent infinite recursion
+        if current_depth >= max_depth:
+            debug_print(f"[WARNING] Max depth reached for: {path}")
+            return 0
+        
         try:
             total = 0
             for entry in os.scandir(path):
-                if entry.is_file(follow_symlinks=False):
-                    total += entry.stat().st_size
-                elif entry.is_dir(follow_symlinks=False):
-                    total += self._get_directory_size(entry.path)
+                try:
+                    if entry.is_file(follow_symlinks=False):
+                        total += entry.stat().st_size
+                    elif entry.is_dir(follow_symlinks=False):
+                        total += self._get_directory_size(entry.path, max_depth, current_depth + 1)
+                except (OSError, IOError, PermissionError) as e:
+                    debug_print(f"[WARNING] Cannot access {entry.path}: {e}")
+                    continue
             return total
-        except (OSError, IOError):
+        except (OSError, IOError, PermissionError) as e:
+            debug_print(f"[WARNING] Cannot scan directory {path}: {e}")
             return 0
     
     def is_app_running(self, app_name: str) -> bool:

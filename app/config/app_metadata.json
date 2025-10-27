@@ -1,0 +1,56 @@
+{
+  "apps": {
+    "windsurf": {
+      "display_name": "Windsurf",
+      "color": "#14ffec",
+      "icon": "windsurf.ico",
+      "process_name": "Windsurf.exe",
+      "data_path": "%LOCALAPPDATA%/windsurf"
+    },
+    "cursor": {
+      "display_name": "Cursor",
+      "color": "#2196F3",
+      "icon": "cursor.ico",
+      "process_name": "Cursor.exe",
+      "data_path": "%APPDATA%/Cursor"
+    },
+    "claude": {
+      "display_name": "Claude",
+      "color": "#9C27B0",
+      "icon": "claude.ico",
+      "process_name": "Claude.exe",
+      "data_path": "%LOCALAPPDATA%/Claude"
+    }
+  },
+  "skip_patterns": [
+    "node_modules",
+    "__pycache__",
+    ".git",
+    ".venv",
+    "venv",
+    "*.tmp",
+    "*.log",
+    "*.cache",
+    "Temp",
+    "temp",
+    "tmp"
+  ],
+  "reserved_names": [
+    "CON", "PRN", "AUX", "NUL",
+    "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+    "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+  ],
+  "size_units": ["B", "KB", "MB", "GB", "TB", "PB"],
+  "window": {
+    "min_width": 700,
+    "min_height": 500,
+    "default_width": 1200,
+    "default_height": 570
+  },
+  "timing": {
+    "splash_delay_ms": 500,
+    "scan_delay_ms": 500,
+    "refresh_delay_ms": 100,
+    "process_timeout_seconds": 10
+  }
+}

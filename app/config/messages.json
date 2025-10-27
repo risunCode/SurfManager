@@ -1,0 +1,74 @@
+{
+  "errors": {
+    "app_not_found": "❌ Application not found. Please refresh the app list.",
+    "app_not_installed": "❌ {app_name} is not installed for the current user.",
+    "app_already_running": "⚠️ {app_name} is currently running. Please close it first.",
+    "app_launch_failed": "❌ Failed to launch {app_name}. The executable may be missing or corrupted.",
+    "app_close_failed": "❌ Failed to close {app_name}. Try closing it manually.",
+    
+    "path_not_found": "❌ Path not found: {path}",
+    "path_invalid": "❌ Invalid path: {error}",
+    "path_no_permission": "❌ Permission denied: {path}",
+    "path_too_long": "❌ Path is too long (max {max_length} characters).",
+    "path_dangerous": "❌ Path contains invalid or dangerous characters.",
+    
+    "backup_failed": "❌ Backup failed: {error}",
+    "backup_no_space": "❌ Insufficient disk space. Required: {required}, Available: {available}",
+    "backup_source_not_found": "❌ Source path not found: {path}",
+    "backup_destination_error": "❌ Cannot create backup folder: {error}",
+    
+    "restore_failed": "❌ Restore failed: {error}",
+    "restore_no_backup": "❌ No backup found for {app_name}.",
+    
+    "reset_failed": "❌ Reset failed: {error}",
+    "reset_in_progress": "⚠️ A reset operation is already in progress.",
+    "reset_cancelled": "⚠️ Reset operation was cancelled by user.",
+    
+    "config_load_failed": "⚠️ Failed to load configuration: {error}",
+    "config_save_failed": "❌ Failed to save configuration: {error}",
+    "config_corrupted": "⚠️ Configuration file is corrupted. Using default settings.",
+    "config_import_failed": "❌ Failed to import configuration: {error}",
+    
+    "scan_in_progress": "⏳ Scan already in progress. Please wait...",
+    "scan_failed": "❌ Application scan failed: {error}",
+    
+    "user_switch_failed": "❌ Failed to switch user: {error}",
+    "user_not_found": "❌ User not found: {username}",
+    
+    "file_in_use": "❌ File is in use: {path}",
+    "file_delete_failed": "❌ Failed to delete file: {error}",
+    "file_copy_failed": "❌ Failed to copy file: {error}",
+    
+    "network_error": "❌ Network error: {error}",
+    "download_failed": "❌ Download failed: {error}",
+    
+    "unknown_error": "❌ An unexpected error occurred: {error}",
+    "operation_cancelled": "⚠️ Operation cancelled by user.",
+    "permission_denied": "❌ Permission denied. Please run as administrator."
+  },
+  "success": {
+    "backup_created": "✅ Backup created successfully!\nLocation: {path}",
+    "backup_restored": "✅ Backup restored successfully!",
+    "reset_completed": "✅ Reset completed successfully!\n{app_name} data has been cleared.",
+    "config_saved": "✅ Configuration saved successfully!",
+    "config_imported": "✅ Configuration imported successfully!",
+    "config_exported": "✅ Configuration exported successfully!\nLocation: {path}",
+    "app_launched": "🚀 {app_name} launched successfully!",
+    "folder_opened": "📁 Folder opened: {path}",
+    "scan_completed": "✅ Scan completed: {count} apps detected"
+  },
+  "info": {
+    "scanning": "🔍 Scanning for applications...",
+    "loading": "⏳ Loading...",
+    "processing": "⚙️ Processing...",
+    "ready": "✅ Ready",
+    "initializing": "🚀 Initializing {component}..."
+  },
+  "debug": {
+    "app_starting": "Starting {app_name}...",
+    "config_loading": "Loading configuration from {path}",
+    "stylesheet_loaded": "Loaded stylesheet from {path}",
+    "module_initialized": "Module {name} initialized",
+    "window_shown": "Window {name} displayed"
+  }
+}

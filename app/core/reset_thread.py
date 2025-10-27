@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 from PyQt6.QtCore import QThread, pyqtSignal
 from typing import Optional, Dict
-from app.core.path_utils import get_resource_path
+from app.core.core_utils import get_resource_path
 
 
 class ResetThread(QThread):
@@ -15,12 +15,23 @@ class ResetThread(QThread):
     progress = pyqtSignal(str)
     progress_percent = pyqtSignal(int)  # Emit percentage for progress bar
     finished = pyqtSignal(bool, str)
+    cancelled = pyqtSignal()
     
     def __init__(self, app_manager, app_name: str):
         super().__init__()
         self.app_manager = app_manager
         self.app_name = app_name
         self.reset_config = self._load_reset_config()
+        self._is_cancelled = False
+    
+    def cancel(self):
+        """Request cancellation of the operation."""
+        self._is_cancelled = True
+        self.progress.emit("⚠️ Cancellation requested...")
+    
+    def is_cancelled(self) -> bool:
+        """Check if operation was cancelled."""
+        return self._is_cancelled
     
     def _load_reset_config(self) -> Dict:
         """Load reset configuration from reset.json."""
@@ -41,6 +52,12 @@ class ResetThread(QThread):
     def run(self):
         """Execute the reset operation - simplified version."""
         try:
+            # Check cancellation
+            if self.is_cancelled():
+                self.cancelled.emit()
+                self.finished.emit(False, "Operation cancelled by user")
+                return
+            
             # Get app info
             app_info = self.app_manager.get_app_info(self.app_name)
             if not app_info or not app_info["installed"]:
@@ -62,6 +79,12 @@ class ResetThread(QThread):
             # Phase 1: Starting
             self._emit_progress("Starting", f"Starting reset for {self.app_name}", 0)
             
+            # Check cancellation
+            if self.is_cancelled():
+                self.cancelled.emit()
+                self.finished.emit(False, "Operation cancelled by user")
+                return
+            
             # Phase 2: Kill app processes (always, even if not detected as running)
             # This prevents "file in use" errors when app was launched from SurfManager
             self._emit_progress("Closing", f"Killing {app_info['display_name']} processes...", 10)
@@ -74,7 +97,18 @@ class ResetThread(QThread):
                 self._emit_progress("Closing", f"Warning: {msg}", 15)
             
             # Wait for processes to fully terminate
-            time.sleep(3)
+            for i in range(30):
+                if self.is_cancelled():
+                    self.cancelled.emit()
+                    self.finished.emit(False, "Operation cancelled by user")
+                    return
+                time.sleep(0.1)
+            
+            # Check cancellation before deletion
+            if self.is_cancelled():
+                self.cancelled.emit()
+                self.finished.emit(False, "Operation cancelled by user")
+                return
             
             # Phase 3: Delete reset folder
             self._emit_progress("Deleting", f"Deleting folder: {reset_folder}", 30)
@@ -89,6 +123,12 @@ class ResetThread(QThread):
                     return
             else:
                 self._emit_progress("Deleting", "Folder does not exist, skipping...", 60)
+            
+            # Check cancellation
+            if self.is_cancelled():
+                self.cancelled.emit()
+                self.finished.emit(False, "Operation cancelled by user")
+                return
             
             # Phase 4: Recreate folder
             self._emit_progress("Recreating", f"Recreating folder: {reset_folder}", 80)

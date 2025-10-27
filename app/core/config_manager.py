@@ -3,8 +3,8 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
-from app.core.path_utils import get_resource_path
+from typing import Any, Dict, Optional
+from app.core.core_utils import get_resource_path
 
 
 class ConfigManager:
@@ -13,6 +13,7 @@ class ConfigManager:
     # Singleton instance
     _instance = None
     _config = None
+    _initialized = False
     
     def __new__(cls, *args, **kwargs):
         """Ensure singleton pattern."""
@@ -23,8 +24,10 @@ class ConfigManager:
     def __init__(self, config_path: Optional[str] = None):
         """Initialize the configuration manager (only once)."""
         # Only initialize once
-        if ConfigManager._config is not None:
+        if ConfigManager._initialized:
             return
+        
+        ConfigManager._initialized = True
             
         if config_path:
             self.config_path = Path(config_path)
@@ -49,30 +52,53 @@ class ConfigManager:
         if self.config_path.exists():
             try:
                 with open(self.config_path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            except Exception:
+                    config = json.load(f)
+                    # Validate config structure
+                    if not isinstance(config, dict):
+                        raise ValueError("Config must be a dictionary")
+                    return config
+            except json.JSONDecodeError as e:
+                print(f"WARNING: Config file corrupted ({e}). Creating backup and using defaults.")
+                # Backup corrupted config
+                try:
+                    backup_path = self.config_path.with_suffix('.json.backup')
+                    self.config_path.rename(backup_path)
+                    print(f"Corrupted config backed up to: {backup_path}")
+                except Exception as backup_error:
+                    print(f"Failed to backup corrupted config: {backup_error}")
+                return self._get_default_config()
+            except Exception as e:
+                print(f"WARNING: Failed to load config ({e}). Using defaults.")
                 return self._get_default_config()
         else:
             # Create default config
             config = self._get_default_config()
-            self.save_config(config)
+            try:
+                self.save_config(config)
+            except Exception as e:
+                print(f"WARNING: Failed to save default config: {e}")
             return config
     
     def _get_default_config(self) -> Dict[str, Any]:
         """Get default configuration."""
         return {
+            "app_name": "SurfManager",
             "version": "2.0.0",
             "theme": "dark",
-            "auto_backup": True,
             "compress_backups": True,
             "backup_location": str(Path.home() / "Documents" / "SurfManager" / "Backups"),
-            "debug_mode": os.environ.get('SURFMANAGER_DEBUG', '0') == '1',
-            "show_splash": True,
-            "play_sounds": True,
-            "check_updates": True,
+            "current_user": None,
             "auto_close_apps": True,
-            "telemetry_enabled": True,
+            "play_sounds": True,
+            "show_splash": True,
             "language": "en",
+            "debug_mode": os.environ.get('SURFMANAGER_DEBUG', '0') == '1',
+            "detected_apps": {},
+            "multi_user": {
+                "current_selected_user": None,
+                "available_users": {},
+                "user_paths": {}
+            },
             "window_state": {
                 "maximized": False,
                 "width": 900,
@@ -91,14 +117,29 @@ class ConfigManager:
             ConfigManager._config = config
         
         # Ensure directory exists
-        self.config_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Save config
         try:
-            with open(self.config_path, 'w', encoding='utf-8') as f:
-                json.dump(ConfigManager._config, f, indent=2)
+            self.config_path.parent.mkdir(parents=True, exist_ok=True)
         except Exception as e:
-            print(f"Failed to save config: {e}")
+            print(f"ERROR: Failed to create config directory: {e}")
+            raise
+        
+        # Save config with atomic write (write to temp, then rename)
+        temp_path = self.config_path.with_suffix('.json.tmp')
+        try:
+            with open(temp_path, 'w', encoding='utf-8') as f:
+                json.dump(ConfigManager._config, f, indent=2)
+            
+            # Atomic rename
+            temp_path.replace(self.config_path)
+        except Exception as e:
+            print(f"ERROR: Failed to save config: {e}")
+            # Clean up temp file
+            if temp_path.exists():
+                try:
+                    temp_path.unlink()
+                except (OSError, PermissionError):
+                    pass  # Temp file cleanup failed
+            raise
     
     def get(self, key: str, default: Any = None) -> Any:
         """Get configuration value (supports nested keys with dot notation)."""
@@ -137,8 +178,22 @@ class ConfigManager:
         self.save_config()
     
     def reset_to_defaults(self):
-        """Reset configuration to defaults."""
+        """Reset configuration to defaults and clear AppData config."""
+        import shutil
+        
+        # Delete entire .surfmanager folder to clear all user data
+        appdata_dir = self.config_path.parent
+        if appdata_dir.exists():
+            try:
+                shutil.rmtree(appdata_dir)
+                print(f"Deleted AppData config: {appdata_dir}")
+            except Exception as e:
+                print(f"Warning: Could not delete AppData config: {e}")
+        
+        # Reset in-memory config to defaults
         ConfigManager._config = self._get_default_config()
+        
+        # Save fresh config (will recreate .surfmanager folder)
         self.save_config()
     
     def export_config(self, export_path: str) -> bool:
@@ -182,3 +237,4 @@ class ConfigManager:
         except Exception as e:
             print(f"Warning: Could not load restore files: {e}")
             return []
+    

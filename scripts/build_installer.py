@@ -68,13 +68,13 @@ class InstallerBuilder:
             '--add-data=app/config;app/config',
             '--add-data=app/icons;app/icons',
             '--add-data=app/audio;app/audio',
+            '--add-data=app/gui/styles.qss;app/gui',
             '--add-data=README.md;.',
             # Required imports
             '--hidden-import=PyQt6',
             '--hidden-import=PyQt6.QtCore',
             '--hidden-import=PyQt6.QtGui',
             '--hidden-import=PyQt6.QtWidgets',
-            '--hidden-import=pygame',
             '--hidden-import=psutil',
             '--clean',
             '--noconfirm',
@@ -94,6 +94,27 @@ class InstallerBuilder:
                 'tkinter',
                 'wx',
                 'gtk',
+                # Audio libraries (using native winsound instead)
+                'pygame',
+                'pygame.mixer',
+                # PyQt6 unused modules
+                'PyQt6.QtBluetooth',
+                'PyQt6.QtMultimedia',
+                'PyQt6.QtMultimediaWidgets',
+                'PyQt6.QtNetwork',
+                'PyQt6.QtOpenGL',
+                'PyQt6.QtOpenGLWidgets',
+                'PyQt6.QtPrintSupport',
+                'PyQt6.QtQml',
+                'PyQt6.QtQuick',
+                'PyQt6.QtQuickWidgets',
+                'PyQt6.QtSql',
+                'PyQt6.QtSvg',
+                'PyQt6.QtSvgWidgets',
+                'PyQt6.QtTest',
+                'PyQt6.QtWebEngineCore',
+                'PyQt6.QtWebEngineWidgets',
+                'PyQt6.QtWebChannel',
                 # Testing/dev tools
                 'unittest',
                 'test',
@@ -129,21 +150,24 @@ class InstallerBuilder:
             print("  🗜️  Strip: Removing debug symbols")
         
         # Add debug or stable specific options
+        # NOTE: Only console window visibility differs, main UI is identical
         if self.is_debug:
             pyinstaller_options.append('--console')  # Show console for debug
             pyinstaller_options.append('--debug=all')
             pyinstaller_options.append('--log-level=DEBUG')  # Verbose logging
             os.environ['SURFMANAGER_BUILD_TYPE'] = 'DEBUG'
             os.environ['SURFMANAGER_SHOW_TERMINAL'] = 'YES'
-            print("  🐛 Debug mode: Console window enabled")
-            print("  📝 Verbose logging: ENABLED")
+            print("  Debug mode: Console window enabled for debugging")
+            print("  Verbose logging: ENABLED")
+            print("  Note: Main UI appearance is identical to stable")
         else:
             pyinstaller_options.append('--windowed')  # No console for stable
             pyinstaller_options.append('--log-level=WARN')  # Minimal logging for size
             os.environ['SURFMANAGER_BUILD_TYPE'] = 'STABLE'
             os.environ['SURFMANAGER_SHOW_TERMINAL'] = 'NO'
-            print("  🚀 Stable mode: No console window")
-            print("  📝 Logging: Minimal (WARN level)")
+            print("  Stable mode: No console window (clean launch)")
+            print("  Logging: Minimal (WARN level only)")
+            print("  Note: Main UI appearance is identical to debug")
         
         print("\n📦 Menjalankan PyInstaller...")
         print("=" * 70)
@@ -235,7 +259,7 @@ class InstallerBuilder:
         print(f"\n  📚 Included Modules:")
         included_modules = [
             'PyQt6 (GUI Framework)',
-            'pygame (Audio)',
+            'winsound (Native Windows Audio)',
             'psutil (Process Management)',
         ]
         for module in included_modules:
@@ -243,7 +267,7 @@ class InstallerBuilder:
         
         if not self.is_debug:
             print(f"\n  🚫 Excluded Modules (for size optimization):")
-            excluded = ['matplotlib', 'numpy', 'pandas', 'scipy', 'PIL', 'tkinter', 'unittest', 'sqlite3', 'email']
+            excluded = ['pygame', 'PyQt6.QtMultimedia', 'PyQt6.QtWebEngine', 'matplotlib', 'numpy', 'pandas', 'scipy', 'PIL', 'tkinter', 'unittest', 'sqlite3', 'email']
             for module in excluded:
                 print(f"     • {module}")
         

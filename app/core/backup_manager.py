@@ -8,8 +8,8 @@ import hashlib
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-from app.core.debug_utils import debug_print
-from app.core.path_utils import get_resource_path
+from app.core.core_utils import debug_print, get_resource_path
+from app.core.path_validator import PathValidator
 
 
 class BackupManager:
@@ -49,13 +49,38 @@ class BackupManager:
                      backup_name: Optional[str] = None) -> Tuple[bool, str]:
         """Create backup of application data."""
         try:
-            if not os.path.exists(source_path):
+            # Validate source path
+            is_valid, error, normalized_source = PathValidator.validate_path(
+                source_path, must_exist=True
+            )
+            if not is_valid:
+                return False, f"Invalid source path: {error}"
+            
+            if not normalized_source.exists():
                 return False, f"Source path does not exist: {source_path}"
             
             # Generate backup folder name
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             backup_name = backup_name or f"{app_name}_backup_{timestamp}"
+            
+            # Sanitize backup name
+            backup_name = PathValidator.sanitize_filename(backup_name)
             backup_path = self.base_backup_dir / app_name / backup_name
+            
+            # Validate backup destination
+            is_valid, error = PathValidator.validate_backup_path(str(backup_path))
+            if not is_valid:
+                return False, f"Invalid backup destination: {error}"
+            
+            # Check disk space
+            source_size = self._estimate_directory_size(normalized_source)
+            free_space = self._get_free_disk_space(self.base_backup_dir)
+            
+            # Require 1.5x source size for safety (compression, metadata, etc.)
+            required_space = int(source_size * 1.5)
+            if free_space < required_space:
+                return False, (f"Insufficient disk space. Required: {self._format_size(required_space)}, "
+                             f"Available: {self._format_size(free_space)}")
             
             # Create backup directory
             backup_path.mkdir(parents=True, exist_ok=True)
@@ -113,7 +138,14 @@ class BackupManager:
                                 progress_callback=None) -> Tuple[bool, str]:
         """Create compressed backup as ZIP file - only backup specified items."""
         try:
-            if not os.path.exists(source_path):
+            # Validate source path
+            is_valid, error, normalized_source = PathValidator.validate_path(
+                source_path, must_exist=True
+            )
+            if not is_valid:
+                return False, f"Invalid source path: {error}"
+            
+            if not normalized_source.exists():
                 return False, f"Source path does not exist: {source_path}"
             
             # Reload config to ensure we have latest backup items
@@ -331,3 +363,35 @@ class BackupManager:
                     pass
         
         return hasher.hexdigest()
+    
+    def _estimate_directory_size(self, path: Path) -> int:
+        """Estimate directory size in bytes."""
+        total = 0
+        try:
+            for entry in path.rglob('*'):
+                if entry.is_file():
+                    try:
+                        total += entry.stat().st_size
+                    except (OSError, PermissionError):
+                        pass
+        except Exception as e:
+            debug_print(f"[WARNING] Error estimating size: {e}")
+        return total
+    
+    def _get_free_disk_space(self, path: Path) -> int:
+        """Get free disk space in bytes."""
+        try:
+            import shutil
+            stat = shutil.disk_usage(path)
+            return stat.free
+        except Exception as e:
+            debug_print(f"[WARNING] Cannot get disk space: {e}")
+            return 0
+    
+    def _format_size(self, size: int) -> str:
+        """Format size in human-readable format."""
+        for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+            if size < 1024.0:
+                return f"{size:.2f} {unit}"
+            size /= 1024.0
+        return f"{size:.2f} PB"

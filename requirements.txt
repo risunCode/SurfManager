@@ -1,11 +1,12 @@
-# SurfManager v2.0.0 Dependencies - MINIMAL BUILD EDITION
+# SurfManager v2.1.0 Dependencies - OPTIMIZED EDITION
 
 # Core Dependencies (Minimal)
 PyQt6==6.7.0
 PyQt6-Qt6==6.7.0
-pygame==2.6.1
 psutil==5.9.8
 
 # Build Dependencies
 pyinstaller==6.3.0  # For creating executables
+
+# Note: Audio playback uses native Windows winsound (built-in, no dependencies)
  

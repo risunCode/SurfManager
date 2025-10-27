@@ -6,12 +6,15 @@ import shutil
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox, QLabel,
-    QPushButton, QLineEdit, QProgressBar, QTextEdit, QMessageBox, QCheckBox
+    QPushButton, QLineEdit, QProgressBar, QTextEdit, QCheckBox
 )
-from PyQt6.QtCore import Qt
+from app.gui.ui_helpers import DialogHelper, StyleHelper
+from PyQt6.QtCore import Qt, QMutex, QMutexLocker
+from PyQt6.QtGui import QShortcut, QKeySequence
+import threading
 from app.core.reset_thread import ResetThread
 from app.core.id_manager import IdManager
-from app.core.path_utils import open_folder_in_explorer
+from app.core.core_utils import open_folder_in_explorer, AppOperations
 
 
 class ResetTab(QWidget):
@@ -26,6 +29,10 @@ class ResetTab(QWidget):
         self.log = log_callback
         self.refresh_callback = refresh_callback
         self.detected_apps = {}
+        
+        # Thread safety
+        self.reset_mutex = QMutex()
+        self.detected_apps_lock = threading.Lock()
         
         self.init_ui()
         self.log("✅ Reset tab initialized")
@@ -80,10 +87,10 @@ class ResetTab(QWidget):
             is_enabled = self.audio_manager.audio_config.get('audio_enabled', True)
             if is_enabled:
                 self.toggle_audio_btn.setText("🔇 Disable Audio")
-                self.toggle_audio_btn.setStyleSheet("QPushButton { background-color: #4CAF50; }")
+                StyleHelper.apply_button_style(self.toggle_audio_btn, 'success')
             else:
                 self.toggle_audio_btn.setText("🔊 Enable Audio")
-                self.toggle_audio_btn.setStyleSheet("QPushButton { background-color: #f44336; }")
+                StyleHelper.apply_button_style(self.toggle_audio_btn, 'disabled')
     
     def init_ui(self):
         """Initialize the reset tab UI."""
@@ -95,10 +102,7 @@ class ResetTab(QWidget):
         # Programs grid with status
         self.create_programs_grid(main_layout)
         
-        # Bottom row: Log and Actions side by side
-        bottom_layout = QHBoxLayout()
-        
-        # Log output (full height)
+        # Log output with utilities
         log_group = QGroupBox("📋 Log")
         log_layout = QVBoxLayout()
         log_layout.setSpacing(5)
@@ -132,12 +136,57 @@ class ResetTab(QWidget):
         """)
         log_layout.addWidget(self.log_progress_bar)
         
-        bottom_layout.addWidget(log_group, 2)
+        # Utility buttons row
+        utils_layout = QHBoxLayout()
+        utils_layout.setSpacing(5)
         
-        # Actions
-        self.create_actions_compact(bottom_layout)
+        self.clear_log_btn = QPushButton("🗑️ Clear Log")
+        self.clear_log_btn.setMaximumWidth(110)
+        self.clear_log_btn.setToolTip("Clear log output (Ctrl+L)")
+        self.clear_log_btn.clicked.connect(self.clear_log_with_sound)
+        utils_layout.addWidget(self.clear_log_btn)
         
-        main_layout.addLayout(bottom_layout)
+        self.generate_id_btn = QPushButton("🔑 Generate ID")
+        self.generate_id_btn.setToolTip("Generate new device ID for app (Ctrl+G)")
+        self.generate_id_btn.setMaximumWidth(120)
+        self.generate_id_btn.clicked.connect(self.show_generate_id_placeholder)
+        utils_layout.addWidget(self.generate_id_btn)
+        
+        utils_layout.addStretch()
+        
+        self.toggle_audio_btn = QPushButton("🔇 Disable Audio")
+        self.toggle_audio_btn.setMaximumWidth(130)
+        self.toggle_audio_btn.setToolTip("Toggle sound effects (Ctrl+M)")
+        self.toggle_audio_btn.clicked.connect(self.toggle_audio_enabled)
+        utils_layout.addWidget(self.toggle_audio_btn)
+        self.update_audio_button_text()
+        
+        self.refresh_btn = QPushButton("🔄 Refresh List")
+        self.refresh_btn.setMaximumWidth(120)
+        self.refresh_btn.setToolTip("Refresh app detection list (F5)")
+        self.refresh_btn.clicked.connect(self.refresh_app_list)
+        utils_layout.addWidget(self.refresh_btn)
+        
+        log_layout.addLayout(utils_layout)
+        
+        main_layout.addWidget(log_group)
+        
+        # Setup keyboard shortcuts
+        self.setup_shortcuts()
+    
+    def setup_shortcuts(self):
+        """Setup keyboard shortcuts for common actions."""
+        # Ctrl+L: Clear log
+        QShortcut(QKeySequence("Ctrl+L"), self).activated.connect(self.clear_log_with_sound)
+        
+        # F5: Refresh app list
+        QShortcut(QKeySequence("F5"), self).activated.connect(self.refresh_app_list)
+        
+        # Ctrl+M: Toggle audio
+        QShortcut(QKeySequence("Ctrl+M"), self).activated.connect(self.toggle_audio_enabled)
+        
+        # Ctrl+G: Generate ID
+        QShortcut(QKeySequence("Ctrl+G"), self).activated.connect(self.show_generate_id_placeholder)
     
     def create_programs_grid(self, layout):
         """Create programs as 3-column grid."""
@@ -156,11 +205,22 @@ class ResetTab(QWidget):
         windsurf_actions = QHBoxLayout()
         windsurf_actions.setSpacing(5)
         windsurf_actions.setContentsMargins(0, 0, 0, 0)
-        self.open_windsurf_btn = QPushButton("📁 Open Folder")
+        self.launch_windsurf_btn = QPushButton("🚀 Launch")
+        self.launch_windsurf_btn.setToolTip("Launch Windsurf")
+        self.launch_windsurf_btn.setMaximumWidth(85)
+        self.launch_windsurf_btn.clicked.connect(lambda: self.launch_app("windsurf"))
+        windsurf_actions.addWidget(self.launch_windsurf_btn)
+        self.open_windsurf_btn = QPushButton("📁 Open")
         self.open_windsurf_btn.setToolTip("Open Windsurf data folder")
-        self.open_windsurf_btn.setMaximumWidth(110)
+        self.open_windsurf_btn.setMaximumWidth(75)
         self.open_windsurf_btn.clicked.connect(lambda: self.open_program_folder("windsurf"))
         windsurf_actions.addWidget(self.open_windsurf_btn)
+        self.reset_windsurf_btn = QPushButton("🔄 Reset")
+        self.reset_windsurf_btn.setToolTip("Reset Windsurf data (delete all settings)")
+        self.reset_windsurf_btn.setMaximumWidth(75)
+        self.reset_windsurf_btn.clicked.connect(lambda: self.reset_app_placeholder("windsurf"))
+        StyleHelper.apply_button_style(self.reset_windsurf_btn, 'danger')
+        windsurf_actions.addWidget(self.reset_windsurf_btn)
         windsurf_actions.addStretch()
         grid.addLayout(windsurf_actions, 0, 2)
         
@@ -173,11 +233,22 @@ class ResetTab(QWidget):
         cursor_actions = QHBoxLayout()
         cursor_actions.setSpacing(5)
         cursor_actions.setContentsMargins(0, 0, 0, 0)
-        self.open_cursor_btn = QPushButton("📁 Open Folder")
+        self.launch_cursor_btn = QPushButton("🚀 Launch")
+        self.launch_cursor_btn.setToolTip("Launch Cursor")
+        self.launch_cursor_btn.setMaximumWidth(85)
+        self.launch_cursor_btn.clicked.connect(lambda: self.launch_app("cursor"))
+        cursor_actions.addWidget(self.launch_cursor_btn)
+        self.open_cursor_btn = QPushButton("📁 Open")
         self.open_cursor_btn.setToolTip("Open Cursor data folder")
-        self.open_cursor_btn.setMaximumWidth(110)
+        self.open_cursor_btn.setMaximumWidth(75)
         self.open_cursor_btn.clicked.connect(lambda: self.open_program_folder("cursor"))
         cursor_actions.addWidget(self.open_cursor_btn)
+        self.reset_cursor_btn = QPushButton("🔄 Reset")
+        self.reset_cursor_btn.setToolTip("Reset Cursor data (delete all settings)")
+        self.reset_cursor_btn.setMaximumWidth(75)
+        self.reset_cursor_btn.clicked.connect(lambda: self.reset_app_placeholder("cursor"))
+        StyleHelper.apply_button_style(self.reset_cursor_btn, 'danger')
+        cursor_actions.addWidget(self.reset_cursor_btn)
         cursor_actions.addStretch()
         grid.addLayout(cursor_actions, 1, 2)
         
@@ -191,11 +262,22 @@ class ResetTab(QWidget):
         claude_actions = QHBoxLayout()
         claude_actions.setSpacing(5)
         claude_actions.setContentsMargins(0, 0, 0, 0)
-        self.open_claude_btn = QPushButton("📁 Open Folder")
+        self.launch_claude_btn = QPushButton("🚀 Launch")
+        self.launch_claude_btn.setToolTip("Launch Claude")
+        self.launch_claude_btn.setMaximumWidth(85)
+        self.launch_claude_btn.clicked.connect(lambda: self.launch_app("claude"))
+        claude_actions.addWidget(self.launch_claude_btn)
+        self.open_claude_btn = QPushButton("📁 Open")
         self.open_claude_btn.setToolTip("Open Claude data folder")
-        self.open_claude_btn.setMaximumWidth(110)
+        self.open_claude_btn.setMaximumWidth(75)
         self.open_claude_btn.clicked.connect(lambda: self.open_program_folder("claude"))
         claude_actions.addWidget(self.open_claude_btn)
+        self.reset_claude_btn = QPushButton("🔄 Reset")
+        self.reset_claude_btn.setToolTip("Reset Claude data (delete all settings)")
+        self.reset_claude_btn.setMaximumWidth(75)
+        self.reset_claude_btn.clicked.connect(lambda: self.reset_app_placeholder("claude"))
+        StyleHelper.apply_button_style(self.reset_claude_btn, 'danger')
+        claude_actions.addWidget(self.reset_claude_btn)
         claude_actions.addStretch()
         grid.addLayout(claude_actions, 2, 2)
         
@@ -206,141 +288,45 @@ class ResetTab(QWidget):
         
         layout.addWidget(programs_group)
     
-    def create_actions_compact(self, parent_layout):
-        """Create compact actions section with 3x2 grid layout."""
-        actions_group = QGroupBox("⚡ Actions")
-        actions_main_layout = QVBoxLayout()
-        actions_main_layout.setSpacing(5)
-        actions_main_layout.setContentsMargins(10, 10, 10, 10)
-        actions_group.setLayout(actions_main_layout)
-        
-        # Grid for buttons
-        actions_layout = QGridLayout()
-        actions_layout.setSpacing(5)
-        actions_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Row 1 - Reset buttons
-        self.reset_windsurf_btn = QPushButton("🔄 Reset Windsurf")
-        self.reset_windsurf_btn.clicked.connect(lambda: self.reset_app_placeholder("windsurf"))
-        actions_layout.addWidget(self.reset_windsurf_btn, 0, 0)
-        
-        self.reset_cursor_btn = QPushButton("🔄 Reset Cursor")
-        self.reset_cursor_btn.clicked.connect(lambda: self.reset_app_placeholder("cursor"))
-        actions_layout.addWidget(self.reset_cursor_btn, 0, 1)
-        
-        # Row 2 - Reset Claude & Clear Log
-        self.reset_claude_btn = QPushButton("🔄 Reset Claude")
-        self.reset_claude_btn.clicked.connect(lambda: self.reset_app_placeholder("claude"))
-        actions_layout.addWidget(self.reset_claude_btn, 1, 0)
-        
-        self.clear_log_btn = QPushButton("🗑 Clear Log")
-        self.clear_log_btn.clicked.connect(self.clear_log_with_sound)
-        actions_layout.addWidget(self.clear_log_btn, 1, 1)
-        
-        # Row 3 - Utility buttons
-        self.cleanup_btn = QPushButton("🧹 Cleanup")
-        self.cleanup_btn.clicked.connect(self.run_cleanup_placeholder)
-        actions_layout.addWidget(self.cleanup_btn, 2, 0)
-        
-        self.gen_new_id_btn = QPushButton("🔑 Generate New ID")
-        self.gen_new_id_btn.clicked.connect(self.show_generate_id_placeholder)
-        actions_layout.addWidget(self.gen_new_id_btn, 2, 1)
-        
-        # Row 4 - Refresh App List
-        self.refresh_apps_btn = QPushButton("🔄 Refresh App List")
-        self.refresh_apps_btn.clicked.connect(self.refresh_app_list)
-        actions_layout.addWidget(self.refresh_apps_btn, 3, 0, 1, 2)  # Span 2 columns
-        
-        # Row 5 - Audio toggle (span 2 columns for emphasis)
-        self.toggle_audio_btn = QPushButton("🔇 Disable Audio")
-        self.toggle_audio_btn.clicked.connect(self.toggle_audio_enabled)
-        self.update_audio_button_text()
-        actions_layout.addWidget(self.toggle_audio_btn, 4, 0, 1, 2)  # Span 2 columns
-        
-        actions_main_layout.addLayout(actions_layout)
-        
-        # Add tips section below buttons
-        tips_group = QGroupBox("💡 Tips")
-        tips_layout = QVBoxLayout()
-        tips_layout.setSpacing(3)
-        tips_layout.setContentsMargins(8, 8, 8, 8)
-        tips_group.setLayout(tips_layout)
-        
-        tips = [
-            "⚠️ BACKUP in Account tab BEFORE reset!",
-            "🔊 Disable audio to mute all sound effects",
-            "🔄 Close apps before resetting for best results",
-            "🔑 Generate new ID if you need fresh device identity"
-        ]
-        
-        for tip in tips:
-            tip_label = QLabel(f"• <i>{tip}</i>")
-            tip_label.setWordWrap(True)
-            tip_label.setStyleSheet("""
-                QLabel {
-                    color: #888888;
-                    font-size: 10px;
-                    padding: 2px 0px;
-                }
-            """)
-            tips_layout.addWidget(tip_label)
-        
-        tips_group.setStyleSheet("""
-            QGroupBox {
-                font-size: 11px;
-                font-weight: bold;
-                border: 1px solid #404040;
-                border-radius: 5px;
-                margin-top: 8px;
-                padding-top: 8px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
-            }
-        """)
-        
-        actions_main_layout.addWidget(tips_group)
-        actions_main_layout.addStretch()
-        
-        parent_layout.addWidget(actions_group, 1)  # 33% width
-    
     # ACTION FUNCTIONS
+    
+    def launch_app(self, app_name: str):
+        """Launch application executable."""
+        with self.detected_apps_lock:
+            apps_copy = self.detected_apps.copy()
+        
+        AppOperations.launch_app(app_name, apps_copy, self.log, self.audio_manager)
     
     def open_program_folder(self, app_name: str):
         """Open program data folder."""
-        app_info = self.detected_apps.get(app_name)
-        if app_info and app_info.get('installed'):
-            path = app_info['path']
-            
-            if open_folder_in_explorer(path):
-                self.log(f"📁 Opened {app_name.title()} folder: {path}")
-                if self.audio_manager:
-                    self.audio_manager.play_action_sound('open_folder')
-            else:
-                self.log(f"❌ Failed to open folder: {path}")
-        else:
-            self.log(f"❌ {app_name.title()} not detected")
+        with self.detected_apps_lock:
+            apps_copy = self.detected_apps.copy()
+        
+        AppOperations.open_app_folder(app_name, apps_copy, self.log, self.audio_manager)
     
     def reset_app_placeholder(self, app_name: str):
         """Reset application data."""
-        app_info = self.detected_apps.get(app_name)
+        # Thread-safe check for running reset
+        locker = QMutexLocker(self.reset_mutex)
+        if hasattr(self, 'reset_thread') and self.reset_thread and self.reset_thread.isRunning():
+            self.log("❌ Reset operation already in progress")
+            return
+        locker.unlock()
+        
+        with self.detected_apps_lock:
+            app_info = self.detected_apps.get(app_name)
+        
         if not app_info or not app_info.get('installed'):
             self.log(f"❌ {app_name.title()} not detected")
             return
         
         # Confirmation dialog
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("Confirm Reset")
-        msg_box.setIcon(QMessageBox.Icon.Warning)
-        msg_box.setText(f"⚠️ Reset {app_info['display_name']}?\n\n"
-                       f"This will DELETE all application data.\n\n"
-                       f"💾 Make sure to backup in Account tab first if needed!")
-        msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        msg_box.setDefaultButton(QMessageBox.StandardButton.No)
-        
-        if msg_box.exec() != QMessageBox.StandardButton.Yes:
+        if not DialogHelper.confirm_warning(
+            self, "Confirm Reset",
+            f"⚠️ Reset {app_info['display_name']}?\n\n"
+            f"This will DELETE all application data.\n\n"
+            f"💾 Make sure to backup in Account tab first if needed!"
+        ):
             self.log(f"❌ Reset cancelled for {app_info['display_name']}")
             return
         
@@ -404,8 +390,8 @@ class ResetTab(QWidget):
                 try:
                     shutil.rmtree(pycache)
                     cleaned += 1
-                except:
-                    pass
+                except (OSError, PermissionError):
+                    pass  # Expected - folder may be in use
             
             self.log(f"✅ Cleaned {cleaned} cache directories")
             if self.audio_manager:
@@ -416,22 +402,13 @@ class ResetTab(QWidget):
     def show_generate_id_placeholder(self):
         """Generate new machine ID."""
         # Show app selection dialog
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("Generate New Device ID")
-        msg_box.setText("Select application to generate new device ID:")
+        app_key = DialogHelper.choose_app(
+            self,
+            "Generate New Device ID",
+            "Select application to generate new device ID:"
+        )
         
-        windsurf_btn = msg_box.addButton("Windsurf", QMessageBox.ButtonRole.ActionRole)
-        cursor_btn = msg_box.addButton("Cursor", QMessageBox.ButtonRole.ActionRole)
-        cancel_btn = msg_box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
-        
-        msg_box.exec()
-        clicked = msg_box.clickedButton()
-        
-        if clicked == windsurf_btn:
-            app_key = 'windsurf'
-        elif clicked == cursor_btn:
-            app_key = 'cursor'
-        else:
+        if not app_key:
             return
         
         self.log(f"🔑 Generating new device ID for {app_key.title()}...")
@@ -456,7 +433,6 @@ class ResetTab(QWidget):
         
         if self.refresh_callback:
             self.refresh_callback(force_rescan=True)
-            self.log("✅ Application list refreshed")
             if self.audio_manager:
                 self.audio_manager.play_sound('startup')
         else:
@@ -469,21 +445,27 @@ class ResetTab(QWidget):
             apps: Dictionary of detected applications
             log_details: If True, log detailed information. Otherwise just update UI silently.
         """
-        self.detected_apps = apps
+        # Thread-safe update
+        with self.detected_apps_lock:
+            self.detected_apps = apps.copy()
         
-        if log_details:
-            installed_count = sum(1 for app in apps.values() if app.get('installed', False))
-            self.log(f"📊 Detected {installed_count} installed applications")
+        # Clear all path inputs first (clean state)
+        if hasattr(self, 'windsurf_path_input'):
+            self.windsurf_path_input.setText("")
+            self.windsurf_path_input.setStyleSheet("QLineEdit { color: #888; }")
+        if hasattr(self, 'cursor_path_input'):
+            self.cursor_path_input.setText("")
+            self.cursor_path_input.setStyleSheet("QLineEdit { color: #888; }")
+        if hasattr(self, 'claude_path_input'):
+            self.claude_path_input.setText("")
+            self.claude_path_input.setStyleSheet("QLineEdit { color: #888; }")
         
         # Update UI elements based on detected apps
         for app_name, app_info in apps.items():
             if app_info.get('installed'):
                 path = app_info.get('path', 'N/A')
                 
-                if log_details:
-                    self.log(f"  ✓ {app_info.get('display_name', app_name)}: {path}")
-                
-                # Update path inputs
+                # Update path inputs for installed apps only
                 if app_name == 'windsurf' and hasattr(self, 'windsurf_path_input'):
                     self.windsurf_path_input.setText(path)
                     self.windsurf_path_input.setStyleSheet("QLineEdit { color: #FFFF00; font-weight: bold; }")
@@ -493,3 +475,14 @@ class ResetTab(QWidget):
                 elif app_name == 'claude' and hasattr(self, 'claude_path_input'):
                     self.claude_path_input.setText(path)
                     self.claude_path_input.setStyleSheet("QLineEdit { color: #FFFF00; font-weight: bold; }")
+            else:
+                # App not installed - ensure path is cleared and styled as not available
+                if app_name == 'windsurf' and hasattr(self, 'windsurf_path_input'):
+                    self.windsurf_path_input.setText("Not installed for current user")
+                    self.windsurf_path_input.setStyleSheet("QLineEdit { color: #888; font-style: italic; }")
+                elif app_name == 'cursor' and hasattr(self, 'cursor_path_input'):
+                    self.cursor_path_input.setText("Not installed for current user")
+                    self.cursor_path_input.setStyleSheet("QLineEdit { color: #888; font-style: italic; }")
+                elif app_name == 'claude' and hasattr(self, 'claude_path_input'):
+                    self.claude_path_input.setText("Not installed for current user")
+                    self.claude_path_input.setStyleSheet("QLineEdit { color: #888; font-style: italic; }")

@@ -1,6 +1,66 @@
 # SurfManager - Changelog
 
-Complete version history from v1.0.0 to v2.0.0
+Complete version history and release notes.
+
+---
+
+## Version 2.1.0 - Optimized Edition (2025-10-27)
+
+### Major Improvements
+
+**Code Optimization**
+- Reduced Python files from 24 to 22 (-8%)
+- Merged 4 utility files into unified core_utils.py
+- Externalized CSS to styles.qss (reduced theme.py by 85%)
+- Moved configurations to JSON files for better maintainability
+- Total code reduction: approximately 10%
+
+**Duplicate Code Elimination**
+- Created centralized DialogHelper class (eliminates 50+ duplicate QMessageBox calls)
+- Added StyleHelper for reusable button styles (eliminates 15+ inline styles)
+- Removed 300+ lines of duplicate dialog code
+- Better code maintainability and consistency
+
+**Enhanced User Experience**
+- Added 10 keyboard shortcuts for faster workflow
+- Reset Tab: Ctrl+L (clear log), F5 (refresh), Ctrl+M (toggle audio), Ctrl+G (generate ID)
+- Account Manager: F5 (refresh), Ctrl+O (open folder), Ctrl+F (search), Ctrl+1/2/3 (quick backup)
+- Enhanced tooltips with keyboard shortcut hints
+- Table headers now have descriptive tooltips
+
+**UI Improvements**
+- Reset Tab: Action buttons moved inline with programs (Launch, Open, Reset side-by-side)
+- Account Manager: Backup buttons moved to toolbar for better accessibility
+- Log area now full width for better readability
+- Table height optimized for more visible rows
+- Cleaner, less cluttered interface
+
+**Code Quality**
+- Fixed all 14 bare except statements with specific exceptions
+- Added proper error logging for debugging
+- Better exception handling (OSError, PermissionError, etc.)
+- Improved error messages with context
+
+### Technical Details
+ 
+**Keyboard Shortcuts**
+- Reset Tab: Ctrl+L, F5, Ctrl+M, Ctrl+G
+- Account Manager: F5, Ctrl+O, Ctrl+F, Ctrl+1, Ctrl+2, Ctrl+3
+- Total: 10 shortcuts for power users
+
+**Dependencies**
+- No changes from v2.0.0
+- Still minimal: PyQt6, psutil, pyinstaller only
+- Audio uses native Windows winsound (no external dependency)
+
+### Bug Fixes
+- Fixed all bare except statements for better debugging
+- Improved error handling throughout the application
+- Fixed import errors after utility file merging
+- Better exception specificity for easier troubleshooting
+
+### Breaking Changes
+- None, fully backward compatible with v2.0.0
 
 ---
 

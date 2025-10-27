@@ -5,57 +5,78 @@
   "sounds": {
     "startup": {
       "enabled": true,
-      "filename": "trimakasih-pak-jokowi.mp3",
+      "filename": "lampu-kaka.wav",
       "description": "Plays when application starts",
       "volume": 1.0
     },
     "reset_windsurf": {
       "enabled": true,
-      "first_play": "hey-antek-antek-asing-prabowo.mp3",
+      "first_play": "hey-antek-antek-asing-prabowo.wav",
       "subsequent_play": "random",
-      "exclude": ["startup.ogg"],
+      "exclude": [
+        "lampu-kaka",
+        "let-me-know"
+      ],
       "volume": 0.8
     },
     "reset_cursor": {
       "enabled": true,
-      "first_play": "hey-antek-antek-asing-prabowo.mp3",
+      "first_play": "hey-antek-antek-asing-prabowo.wav",
       "subsequent_play": "random",
-      "exclude": ["startup.ogg"],
+      "exclude": [
+        "lampu-kaka",
+        "let-me-know"
+      ],
       "volume": 0.8
     },
     "reset_claude": {
       "enabled": true,
-      "first_play": "hey-antek-antek-asing-prabowo.mp3",
+      "first_play": "hey-antek-antek-asing-prabowo.wav",
       "subsequent_play": "random",
-      "exclude": ["startup.ogg"],
+      "exclude": [
+        "lampu-kaka",
+        "let-me-know"
+      ],
       "volume": 0.8
     },
     "clear_data": {
       "enabled": true,
-      "first_play": "fart-with-extra-reverb.mp3",
+      "first_play": "fart-with-extra-reverb.wav",
       "subsequent_play": "random",
-      "exclude": ["startup.ogg"],
+      "exclude": [
+        "lampu-kaka",
+        "let-me-know"
+      ],
       "volume": 0.8
     },
     "cleanup": {
       "enabled": true,
-      "first_play": "fart-with-extra-reverb.mp3",
+      "first_play": "fart-with-extra-reverb.wav",
       "subsequent_play": "random",
-      "exclude": ["startup.ogg"],
+      "exclude": [
+        "lampu-kaka",
+        "let-me-know"
+      ],
       "volume": 0.8
     },
     "generate_new_id": {
       "enabled": true,
-      "first_play": "hey-antek-antek-asing-prabowo.mp3",
+      "first_play": "hey-antek-antek-asing-prabowo.wav",
       "subsequent_play": "random",
-      "exclude": ["startup.ogg"],
+      "exclude": [
+        "lampu-kaka",
+        "let-me-know"
+      ],
       "volume": 0.8
     },
     "open_folder": {
       "enabled": true,
-      "first_play": "hey-antek-antek-asing-prabowo.mp3",
+      "first_play": "hey-antek-antek-asing-prabowo.wav",
       "subsequent_play": "random",
-      "exclude": ["startup.ogg"],
+      "exclude": [
+        "lampu-kaka",
+        "let-me-know"
+      ],
       "volume": 0.8
     }
   }

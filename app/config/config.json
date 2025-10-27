@@ -2,28 +2,14 @@
   "app_name": "SurfManager",
   "version": "2.0.0",
   "backup_location": "Documents/SurfManager",
-  "detected_apps": {
-    "windsurf": {
-      "installed": true,
-      "path": "C:\\Users\\LovelyLova\\AppData\\Roaming\\Windsurf",
-      "exe_path": "C:\\Users\\LovelyLova\\AppData\\Local\\Programs\\Windsurf\\Windsurf.exe"
-    },
-    "cursor": {
-      "installed": true,
-      "path": "C:\\Users\\LovelyLova\\AppData\\Roaming\\Cursor",
-      "exe_path": "C:\\Users\\LovelyLova\\AppData\\Local\\Programs\\cursor\\Cursor.exe"
-    },
-    "vscode": {
-      "installed": false,
-      "path": null,
-      "exe_path": ""
-    },
-    "claude": {
-      "installed": true,
-      "path": "C:\\Users\\LovelyLova\\AppData\\Roaming\\Claude",
-      "exe_path": "C:\\Users\\LovelyLova\\AppData\\Local\\AnthropicClaude\\claude.exe"
-    }
-  },
+  "current_user": null,
+  "theme": "dark",
+  "compress_backups": true,
+  "auto_close_apps": true,
+  "play_sounds": true,
+  "show_splash": true,
+  "language": "en",
+  "debug_mode": false,
   "applications": {
     "windsurf": {
       "display_name": "Windsurf",
@@ -142,6 +128,29 @@
     "clear_session": true,
     "vacuum_databases": true
   },
+  "multi_user": {
+    "current_selected_user": null,
+    "available_users": {},
+    "user_paths": {}
+  },
+  "multi_users": {
+    "windsurf": {
+      "appdata_roaming": "%APPDATA%/Windsurf",
+      "appdata_local": "%LOCALAPPDATA%/Windsurf"
+    },
+    "cursor": {
+      "appdata_roaming": "%APPDATA%/Cursor",
+      "appdata_local": "%LOCALAPPDATA%/Cursor"
+    },
+    "vscode": {
+      "appdata_roaming": "%APPDATA%/Code",
+      "appdata_local": "%LOCALAPPDATA%/Programs/Microsoft VS Code"
+    },
+    "claude": {
+      "appdata_roaming": "%APPDATA%/Claude",
+      "appdata_local": "%LOCALAPPDATA%/Claude"
+    }
+  },
   "telemetry_keys": [
     "telemetry.machineId",
     "telemetry.macMachineId",
@@ -154,5 +163,27 @@
     "window.sessionId",
     "workspace.sessionId",
     "terminal.sessionId"
-  ]
+  ],
+  "detected_apps": {
+    "windsurf": {
+      "installed": true,
+      "path": "C:\\Users\\Phoebe\\AppData\\Roaming\\Windsurf",
+      "exe_path": "C:\\Users\\Phoebe\\AppData\\Local\\Programs\\Windsurf\\Windsurf.exe"
+    },
+    "cursor": {
+      "installed": false,
+      "path": null,
+      "exe_path": ""
+    },
+    "vscode": {
+      "installed": false,
+      "path": null,
+      "exe_path": ""
+    },
+    "claude": {
+      "installed": false,
+      "path": null,
+      "exe_path": ""
+    }
+  }
 }

@@ -1,12 +1,19 @@
-"""Audio Manager for MinimalSurfGUI - handles audio playback configuration."""
+"""Audio Manager for SurfManager - Native Windows audio using winsound."""
 import os
+import sys
 import json
-import threading
 import random
-from .debug_utils import debug_print
+from .core_utils import debug_print
+
+# Windows-only audio support
+if sys.platform == 'win32':
+    import winsound
+else:
+    winsound = None
+
 
 class AudioManager:
-    """Manages audio playback for the application."""
+    """Manages audio playback using native Windows winsound (WAV only)."""
     
     def __init__(self):
         """Initialize audio manager."""
@@ -16,17 +23,15 @@ class AudioManager:
         self.audio_directory = os.path.join(base_path, 'audio', 'sound')
         
         self.audio_config = self.load_config()
-        self.current_sound = None
-        self.sound_start_time = None
-        self.initialized = False
+        self.initialized = (winsound is not None)
         
         # Track first play for each action
         self._action_play_count = {}
         
-        # Initialize pygame in a separate thread to avoid blocking UI
-        self._init_thread = threading.Thread(target=self._initialize_pygame)
-        self._init_thread.daemon = True
-        self._init_thread.start()
+        if self.initialized:
+            debug_print("[AudioManager] Initialized with winsound (native Windows)")
+        else:
+            debug_print("[AudioManager] winsound not available (non-Windows platform)")
     
     def load_config(self):
         """Load audio configuration from JSON."""
@@ -54,18 +59,6 @@ class AudioManager:
             }
         }
     
-    def _initialize_pygame(self):
-        """Initialize pygame mixer for audio playback."""
-        try:
-            debug_print("[AudioManager] Initializing pygame mixer...")
-            import pygame
-            pygame.mixer.pre_init(frequency=22050, size=-16, channels=2, buffer=512)
-            pygame.mixer.init()
-            debug_print("[AudioManager] Pygame mixer initialized")
-            self.initialized = True
-        except Exception as e:
-            debug_print(f"[AudioManager] Failed to initialize pygame mixer: {e}")
-            self.initialized = False
     
     def is_audio_enabled(self):
         """Check if audio is enabled globally."""
@@ -85,12 +78,15 @@ class AudioManager:
         return sound_config.get('enabled', False)
     
     def get_sound_path(self, sound_name):
-        """Get full path to a sound file."""
+        """Get full path to a sound file (WAV only)."""
         sound_config = self.get_sound_config(sound_name)
         filename = sound_config.get('filename')
         
         if filename:
+            # Convert .mp3/.ogg to .wav extension
+            filename = os.path.splitext(filename)[0] + '.wav'
             sound_path = os.path.join(self.audio_directory, filename)
+            
             if os.path.exists(sound_path):
                 return sound_path
             else:
@@ -108,28 +104,24 @@ class AudioManager:
             debug_print(f"[AudioManager] Sound file not found: {sound_name}")
             return False
         
-        sound_config = self.get_sound_config(sound_name)
-        volume = sound_config.get('volume', 1.0)
-        
-        return self.play_audio_file(sound_path, volume, blocking)
+        # Note: winsound doesn't support volume control
+        return self.play_audio_file(sound_path, blocking=blocking)
     
     def play_random_sound(self, exclude_sounds=None, blocking=False):
-        """Play a random sound from available audio files, excluding specified sounds."""
+        """Play a random sound from available WAV files, excluding specified sounds."""
         if not self.is_audio_enabled():
             return False
         
         if exclude_sounds is None:
             exclude_sounds = ['startup']  # Default exclude startup
         
-        # Get all audio files from directory
+        # Get all WAV files from directory
         if not os.path.exists(self.audio_directory):
             return False
         
-        audio_extensions = ('.mp3', '.ogg', '.wav', '.flac', '.m4a')
         audio_files = []
-        
         for file in os.listdir(self.audio_directory):
-            if file.lower().endswith(audio_extensions):
+            if file.lower().endswith('.wav'):
                 # Check if file should be excluded
                 file_base = os.path.splitext(file)[0].lower()
                 if not any(exclude in file_base for exclude in exclude_sounds):
@@ -144,7 +136,7 @@ class AudioManager:
         random_path = os.path.join(self.audio_directory, random_file)
         
         debug_print(f"[AudioManager] Playing random sound: {random_file}")
-        return self.play_audio_file(random_path, 0.8, blocking)  # Default volume 0.8 for random sounds
+        return self.play_audio_file(random_path, blocking=blocking)
     
     
     def play_action_sound(self, action_name, blocking=False):
@@ -164,8 +156,6 @@ class AudioManager:
         if not action_config or not action_config.get('enabled', False):
             return False
         
-        volume = action_config.get('volume', 0.8)
-        
         # Initialize play count for this action
         if action_name not in self._action_play_count:
             self._action_play_count[action_name] = 0
@@ -175,77 +165,64 @@ class AudioManager:
             first_play_file = action_config.get('first_play')
             
             if first_play_file:
+                # Convert to .wav
+                first_play_file = os.path.splitext(first_play_file)[0] + '.wav'
                 sound_path = os.path.join(self.audio_directory, first_play_file)
+                
                 if os.path.exists(sound_path):
                     debug_print(f"[AudioManager] Playing first {action_name} sound: {first_play_file}")
                     self._action_play_count[action_name] += 1
-                    return self.play_audio_file(sound_path, volume, blocking)
+                    return self.play_audio_file(sound_path, blocking=blocking)
         
         # Subsequent plays - random mode
         subsequent_mode = action_config.get('subsequent_play')
         if subsequent_mode == 'random':
-            exclude_list = action_config.get('exclude', ['startup.ogg'])
+            exclude_list = action_config.get('exclude', ['startup'])
             debug_print(f"[AudioManager] Playing random {action_name} sound (excluding: {exclude_list})")
             self._action_play_count[action_name] += 1
             return self.play_random_sound(exclude_list, blocking)
         
         return False
     
-    def play_audio_file(self, audio_path, volume=1.0, blocking=False):
-        """Play an audio file using pygame."""
+    def play_audio_file(self, audio_path, blocking=False):
+        """Play a WAV audio file using native Windows winsound.
+        
+        Args:
+            audio_path: Path to WAV file
+            blocking: If True, wait for sound to finish (SND_SYNC), else async (SND_ASYNC)
+        """
+        if not self.initialized:
+            debug_print("[AudioManager] winsound not available")
+            return False
+        
+        if not os.path.exists(audio_path):
+            debug_print(f"[AudioManager] Audio file not found: {audio_path}")
+            return False
+        
         try:
-            import pygame
-            import time
-            
-            # Wait for initialization if needed (max 2 seconds)
-            wait_count = 0
-            while not self.initialized and wait_count < 20:
-                time.sleep(0.1)
-                wait_count += 1
-            
-            if not pygame.mixer.get_init():
-                debug_print("[AudioManager] Mixer not initialized, skipping sound")
-                return False
-            
             debug_print(f"[AudioManager] Playing audio: {audio_path}")
             
-            # Load and play sound
-            sound = pygame.mixer.Sound(audio_path)
-            sound.set_volume(volume)
-            
-            # Track current sound and start time
-            self.current_sound = sound
-            self.sound_start_time = time.time()
-            
+            # Play sound with winsound
+            flags = winsound.SND_FILENAME
             if blocking:
-                channel = sound.play()
-                if channel is None:
-                    raise Exception("Failed to get audio channel")
-                # Wait for sound to finish
-                while pygame.mixer.get_busy():
-                    pygame.time.wait(100)
-                # Clear tracking when done
-                self.current_sound = None
-                self.sound_start_time = None
+                flags |= winsound.SND_SYNC  # Wait for sound to finish
             else:
-                channel = sound.play()
-                if channel is None:
-                    raise Exception("Failed to get audio channel")
+                flags |= winsound.SND_ASYNC  # Play asynchronously
             
+            winsound.PlaySound(audio_path, flags)
             debug_print(f"[AudioManager] Audio playback successful")
             return True
+            
         except Exception as e:
             debug_print(f"[AudioManager] Error playing audio: {e}")
             return False
     
     def is_audio_playing(self):
-        """Check if audio is currently playing."""
-        try:
-            import pygame
-            if pygame.mixer.get_init() and pygame.mixer.get_busy():
-                return True
-        except:
-            pass
+        """Check if audio is currently playing.
+        
+        Note: winsound doesn't provide a way to check playback status.
+        Always returns False for async sounds.
+        """
         return False
     
     def save_config(self):
