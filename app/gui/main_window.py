@@ -260,6 +260,10 @@ class MainWindow(QMainWindow):
             
             # Enable/disable button based on user count
             self.user_btn.setEnabled(len(self.all_users) > 0)
+            
+            # Notify Account Manager tab about current user
+            if hasattr(self, 'account_tab'):
+                self.account_tab.set_current_user(self.current_user)
                     
         except Exception as e:
             debug_print(f"[DEBUG] Error refreshing user list: {e}")
@@ -308,6 +312,10 @@ class MainWindow(QMainWindow):
             
             # Update config
             self.config_manager.set('current_user', username)
+            
+            # Notify Account Manager tab about user change
+            if hasattr(self, 'account_tab'):
+                self.account_tab.set_current_user(username)
             
             # Trigger app scan
             QTimer.singleShot(REFRESH_SCAN_DELAY_MS, lambda: self.scan_applications(force_rescan=True))

@@ -566,18 +566,12 @@ class AccountTab(QWidget):
     def set_current_user(self, username):
         """Set current user and update paths accordingly."""
         try:
-            backup_loc = self.config_manager.get('backup_location')
-            
-            # Use backup_location from config (which should be set by Advanced tab)
-            if backup_loc and os.path.isabs(backup_loc):
-                self.session_backup_path = backup_loc
+            # Always construct path for selected user (don't use config backup_location)
+            if username != os.environ.get('USERNAME'):
+                profile = os.path.join(os.getenv('SystemDrive', 'C:'), 'Users', username)
             else:
-                # Fallback: construct path for selected user
-                if username != os.environ.get('USERNAME'):
-                    profile = os.path.join(os.getenv('SystemDrive', 'C:'), 'Users', username)
-                else:
-                    profile = os.path.expanduser("~")
-                self.session_backup_path = os.path.join(profile, "Documents", "SurfManager", "Backups")
+                profile = os.path.expanduser("~")
+            self.session_backup_path = os.path.join(profile, "Documents", "SurfManager", "Backups")
             
             # Update current user
             self.current_user = username

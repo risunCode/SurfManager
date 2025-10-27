@@ -5,7 +5,7 @@ Advanced session and data management tool for Windsurf, Cursor, and Claude.
 [![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](https://github.com/risunCode/SurfManager)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/risunCode/SurfManager)
 [![Python](https://img.shields.io/badge/python-3.8+-yellow.svg)](https://www.python.org/)
-[![Size](https://img.shields.io/badge/size-~30--40MB-green.svg)](https://github.com/risunCode/SurfManager)
+[![Size](https://img.shields.io/badge/size-~60--70MB-green.svg)](https://github.com/risunCode/SurfManager)
 
 ---
 
@@ -142,7 +142,13 @@ python scripts/build_installer.py --type stable  # No console
 python scripts/build_installer.py --type debug   # With console 
 python scripts/build_installer.py --clean-only   # Clean only
 ```
- 
+
+**Build Features:**
+- Minimal dependencies (3 core packages)
+- Aggressive module exclusion
+- Binary stripping
+- Expected size: 60-70 MB
+
 ---
 
 ## Dependencies
@@ -154,7 +160,15 @@ psutil==5.9.8         # Process management
 pyinstaller==6.3.0    # Build tool
 ```
 
-**Audio:** Native Windows winsound (no external dependency) 
+**Audio:** Native Windows winsound (no external dependency)
+
+**Size History:**
+- v1.0.0: ~100 MB
+- v1.5.0: ~80 MB
+- v2.0.0: ~60-70 MB
+- v2.1.0: ~60-70 MB (optimized code, same size)
+
+---
 
 ## Keyboard Shortcuts
 
@@ -215,7 +229,13 @@ Contributions welcome:
 2. Create feature branch
 3. Commit changes
 4. Open Pull Request
- 
+
+---
+
+## License
+
+MIT License - see LICENSE file for details
+
 ---
 
 ## Author
