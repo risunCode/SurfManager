@@ -5,7 +5,7 @@ Advanced session and data management tool for Windsurf, Cursor, and Claude.
 [![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](https://github.com/risunCode/SurfManager)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/risunCode/SurfManager)
 [![Python](https://img.shields.io/badge/python-3.8+-yellow.svg)](https://www.python.org/)
-[![Size](https://img.shields.io/badge/size-~60--70MB-green.svg)](https://github.com/risunCode/SurfManager)
+[![Size](https://img.shields.io/badge/size-~30--40MB-green.svg)](https://github.com/risunCode/SurfManager)
 
 ---
 
