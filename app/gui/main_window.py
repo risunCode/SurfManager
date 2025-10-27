@@ -264,6 +264,10 @@ class MainWindow(QMainWindow):
             # Notify Account Manager tab about current user
             if hasattr(self, 'account_tab'):
                 self.account_tab.set_current_user(self.current_user)
+            
+            # Notify Advanced tab about current user
+            if hasattr(self, 'advanced_tab'):
+                self.advanced_tab.set_current_user(self.current_user)
                     
         except Exception as e:
             debug_print(f"[DEBUG] Error refreshing user list: {e}")
@@ -316,6 +320,10 @@ class MainWindow(QMainWindow):
             # Notify Account Manager tab about user change
             if hasattr(self, 'account_tab'):
                 self.account_tab.set_current_user(username)
+            
+            # Notify Advanced tab about user change
+            if hasattr(self, 'advanced_tab'):
+                self.advanced_tab.set_current_user(username)
             
             # Trigger app scan
             QTimer.singleShot(REFRESH_SCAN_DELAY_MS, lambda: self.scan_applications(force_rescan=True))

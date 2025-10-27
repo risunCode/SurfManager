@@ -38,17 +38,20 @@ class ConfigManager:
         ConfigManager._config = self._load_config()
     
     def _get_config_path(self) -> Path:
-        """Get appropriate config path based on environment."""
-        if getattr(sys, 'frozen', False):
-            # Running as compiled executable
-            # Use ProgramData for installed version
-            return Path(os.environ.get('PROGRAMDATA', 'C:\\ProgramData')) / 'SurfManager' / 'config.json'
-        else:
-            # Development mode - use local config
-            return Path.home() / ".surfmanager" / "config.json"
+        """Get appropriate config path based on environment.
+        
+        Always uses user home directory for per-user configuration.
+        This ensures each Windows user has their own config.
+        """
+        # Always use user home directory (both dev and frozen mode)
+        return Path.home() / ".surfmanager" / "config.json"
     
     def _load_config(self) -> Dict[str, Any]:
-        """Load configuration from file or create default."""
+        """Load configuration from file or create default.
+        
+        User config at ~/.surfmanager/config.json takes priority.
+        Falls back to defaults if config doesn't exist or is corrupted.
+        """
         if self.config_path.exists():
             try:
                 with open(self.config_path, 'r', encoding='utf-8') as f:
@@ -56,6 +59,7 @@ class ConfigManager:
                     # Validate config structure
                     if not isinstance(config, dict):
                         raise ValueError("Config must be a dictionary")
+                    print(f"✓ Loaded user config from: {self.config_path}")
                     return config
             except json.JSONDecodeError as e:
                 print(f"WARNING: Config file corrupted ({e}). Creating backup and using defaults.")
@@ -72,6 +76,7 @@ class ConfigManager:
                 return self._get_default_config()
         else:
             # Create default config
+            print(f"✓ Creating new user config at: {self.config_path}")
             config = self._get_default_config()
             try:
                 self.save_config(config)

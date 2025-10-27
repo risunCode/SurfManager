@@ -571,8 +571,27 @@ class AccountTab(QWidget):
         if DialogHelper.confirm(self, "Update Backup", f"Update backup '{session}' with current {app.title()} data?", default_no=False):
             app_info = self.app_manager.get_app_info(app)
             if app_info:
-                self.backup_data(app, session, app_info["path"])
-                self.log(f"✅ Updated: {session}")
+                # Kill app if running
+                if app_info.get("running"):
+                    self.log(f"⛔ Closing {app.title()} for safe backup update...")
+                    success, message = self.app_manager.kill_app_process(app)
+                    self.log(message)
+                    if not success:
+                        DialogHelper.show_error(self, "Error", f"Failed to close {app.title()}:\n{message}")
+                        return
+                    
+                    # Wait 1.2 seconds for app to fully close
+                    self.log(f"⏳ Waiting 1.2s for {app.title()} to close...")
+                    QTimer.singleShot(1200, lambda: self._complete_backup_update(app, session, app_info["path"]))
+                else:
+                    # App not running, update immediately
+                    self._complete_backup_update(app, session, app_info["path"])
+    
+    def _complete_backup_update(self, app, session, app_path):
+        """Complete backup update after app is closed."""
+        self.backup_data(app, session, app_path)
+        self.log(f"✅ Updated: {session}")
+        self.refresh_list()
     
     def set_active(self, app, session):
         """Set session as active using .active marker file."""

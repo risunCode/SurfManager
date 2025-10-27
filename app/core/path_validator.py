@@ -8,14 +8,10 @@ from typing import Tuple, Optional
 class PathValidator:
     """Validates file paths and user inputs for security and correctness."""
     
-    # Dangerous path patterns
+    # Dangerous path patterns - simplified, less strict
     DANGEROUS_PATTERNS = [
         r'\.\.[\\/]',  # Parent directory traversal
-        r'^[\\/]',     # Root directory
-        r'[<>:"|?*]',  # Invalid Windows characters
-        r'^\w:[\\/]Windows[\\/]',  # Windows system directory
-        r'^\w:[\\/]Program Files',  # Program Files
-        r'CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9]',  # Reserved names
+        r'[<>"|?*]',  # Invalid Windows characters (removed colon - valid for drive letters)
     ]
     
     # Maximum path length (Windows limit)
@@ -46,8 +42,15 @@ class PathValidator:
         
         # Check for dangerous patterns
         for pattern in PathValidator.DANGEROUS_PATTERNS:
-            if re.search(pattern, path, re.IGNORECASE):
-                return False, f"Path contains invalid or dangerous pattern: {pattern}", None
+            match = re.search(pattern, path, re.IGNORECASE)
+            if match:
+                # Show the actual problematic character/pattern, not the regex
+                if pattern == r'[<>"|?*]':
+                    return False, f"Path contains invalid characters: {match.group()}", None
+                elif pattern == r'\.\.[\\/]':
+                    return False, "Path contains parent directory traversal (..)", None
+                else:
+                    return False, f"Path contains invalid pattern: {match.group()}", None
         
         # Try to normalize path
         try:

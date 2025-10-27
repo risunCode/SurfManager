@@ -81,6 +81,7 @@ class AdvancedTab(QWidget):
         self.app_manager = app_manager
         self.log_callback = log_callback
         self.config_manager = ConfigManager()
+        self.current_user = None  # Track current selected user
         
         self.init_ui()
         self.load_current_config()
@@ -355,20 +356,27 @@ class AdvancedTab(QWidget):
         self.tabs.addTab(editor_widget, "📝 Config Editor")
     
     def load_current_config(self):
-        """Load current configuration values into UI."""
-        config = self.config_manager.config
+        """Load current configuration values into UI.
         
-        # Path settings
-        backup_path = config.get('backup_location', '')
+        Updates paths based on current selected user.
+        """
+        # Determine user profile path
+        if self.current_user:
+            # Multi-user mode - use selected user's path
+            system_drive = os.getenv('SystemDrive', 'C:')
+            if not system_drive.endswith('\\'):
+                system_drive += '\\'
+            user_home = os.path.join(system_drive, 'Users', self.current_user)
+        else:
+            # Default to current logged-in user
+            user_home = os.path.expanduser("~")
         
-        # If backup_location is not set or relative, construct default path
-        if not backup_path or not os.path.isabs(backup_path):
-            backup_path = os.path.join(os.path.expanduser("~"), "Documents", "SurfManager", "Backups")
-            self.config_manager.set('backup_location', backup_path)
-        
+        # Backup path - always construct from selected user
+        backup_path = os.path.join(user_home, "Documents", "SurfManager", "Backups")
         self.backup_path_edit.setText(backup_path)
         
-        config_path = str(self.config_manager.config_path.parent)
+        # Config path - show user's .surfmanager folder
+        config_path = os.path.join(user_home, ".surfmanager")
         self.config_path_edit.setText(config_path)
         
         # Load first config file
@@ -541,3 +549,13 @@ class AdvancedTab(QWidget):
                 DialogHelper.show_info(self, "Reset Complete", "Configuration has been reset to default values.")
             except Exception as e:
                 DialogHelper.show_warning(self, "Reset Error", f"Error resetting configuration:\n{str(e)}")
+    
+    def set_current_user(self, username: str):
+        """Update current user and refresh paths.
+        
+        Args:
+            username: Windows username
+        """
+        self.current_user = username
+        self.load_current_config()
+        self.log(f"Advanced Settings updated for user: {username}")

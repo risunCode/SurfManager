@@ -22,7 +22,10 @@ class AppManager:
         self.current_user = None  # For multi-user support
         self.user_appdata_roaming = None
         self.user_appdata_local = None
-        self._load_detected_apps()
+        
+        # Don't load detected apps from config on init
+        # Apps will be scanned when user is properly set
+        debug_print("[DEBUG] AppManager initialized - apps will be scanned on first scan")
         
     def _load_config(self, config_path: str) -> Dict:
         """Load configuration from JSON file."""
@@ -45,9 +48,12 @@ class AppManager:
         self.user_appdata_local = appdata_local
         
         # Clear cache when user changes to force fresh scan
-        self.detected_apps = {}
+        # This ensures exe paths are re-scanned for the new user
+        self.detected_apps.clear()
         
         debug_print(f"[DEBUG] AppManager user set to: {username}")
+        debug_print(f"[DEBUG] Roaming: {appdata_roaming}")
+        debug_print(f"[DEBUG] Local: {appdata_local}")
         debug_print(f"[DEBUG] AppManager cache cleared for new user")
     
     def expand_path(self, path_template: str) -> str:
@@ -242,8 +248,19 @@ class AppManager:
         return self.close_application(app_name)
     
     def _load_detected_apps(self):
-        """Load previously detected apps from config."""
-        detected = self.config.get("detected_apps", {})
+        """Load previously detected apps from user config.
+        
+        Note: Only loads if no current_user is set (default user).
+        For multi-user scenarios, apps are always re-scanned.
+        """
+        # Skip loading from config if user is explicitly set
+        # This prevents using wrong user's paths
+        if self.current_user:
+            debug_print("[DEBUG] Skipping config load - user explicitly set")
+            return
+        
+        # Load detected_apps from user config via ConfigManager
+        detected = self.config_manager.get("detected_apps", {})
         for app_name, app_data in detected.items():
             if app_data.get("installed"):
                 app_config = self.config.get("applications", {}).get(app_name, {})
@@ -256,32 +273,35 @@ class AppManager:
                     "size": 0,
                     "running": False
                 }
+        
+        if self.detected_apps:
+            debug_print(f"[DEBUG] Loaded {len(self.detected_apps)} detected apps from user config")
     
     def _save_detected_apps(self):
-        """Save detected apps to config file."""
+        """Save detected apps to user config.
+        
+        Saves to user's ~/.surfmanager/config.json via ConfigManager.
+        Skips if multi-user mode is active (explicit user set).
+        """
         try:
-            # Get config file path
-            if getattr(sys, 'frozen', False):
-                # Don't save in frozen mode
+            # Don't save detected apps if user is explicitly set
+            # This prevents saving wrong user's paths
+            if self.current_user:
+                debug_print("[DEBUG] Skipping save - multi-user mode active")
                 return
             
-            config_path = self.config_path
-            if not os.path.isabs(config_path):
-                current_dir = Path(__file__).parents[2]
-                config_path = current_dir / config_path
-            
-            # Update detected_apps section
-            self.config["detected_apps"] = {}
+            # Update detected_apps in ConfigManager
+            detected_apps_data = {}
             for app_name, app_info in self.detected_apps.items():
-                self.config["detected_apps"][app_name] = {
+                detected_apps_data[app_name] = {
                     "installed": app_info.get("installed", False),
                     "path": app_info.get("path", ""),
                     "exe_path": app_info.get("exe_path", "")
                 }
             
-            # Save to file
-            with open(config_path, 'w', encoding='utf-8') as f:
-                json.dump(self.config, f, indent=2)
+            # Save via ConfigManager (to user config)
+            self.config_manager.set('detected_apps', detected_apps_data)
+            debug_print(f"[DEBUG] Saved detected apps to user config")
                 
         except Exception as e:
             debug_print(f"[DEBUG] Failed to save detected apps: {e}")
