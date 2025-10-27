@@ -278,6 +278,9 @@ class AccountTab(QWidget):
         all_sessions = []
         counts = {'cursor': 0, 'windsurf': 0, 'claude': 0}
         
+        # Log current backup path for debugging
+        self.log(f"🔍 Scanning backup path: {self.session_backup_path}")
+        
         # Scan backup folders for each app
         for app in ['cursor', 'windsurf', 'claude']:
             app_folder = os.path.join(self.session_backup_path, app)
@@ -294,7 +297,7 @@ class AccountTab(QWidget):
                                 created_time = os.path.getctime(session_path)
                                 created_dt = datetime.fromtimestamp(created_time)
                             except (OSError, ValueError) as e:
-                                self.log(f"Warning: Could not get creation time for {session}: {e}")
+                                self.log(f"⚠️ Could not get creation time for {session_name}: {e}")
                                 created_dt = datetime.now()
                             
                             # Check if this is active session (has .active marker file)
@@ -302,8 +305,10 @@ class AccountTab(QWidget):
                             
                             all_sessions.append((app, session_name, created_dt, is_active))
                             counts[app] += 1
-                except PermissionError:
-                    pass  # Skip if can't access folder
+                except PermissionError as e:
+                    self.log(f"⚠️ Cannot access {app} folder: {e}")
+                except Exception as e:
+                    self.log(f"⚠️ Error scanning {app} folder: {e}")
         
         # Sort: active first, then by date (newest first)
         all_sessions.sort(key=lambda x: (not x[3], -x[2].timestamp()))
@@ -789,10 +794,11 @@ class AccountTab(QWidget):
         """Set current user and update paths accordingly."""
         try:
             # Always construct path for selected user (don't use config backup_location)
-            if username != os.environ.get('USERNAME'):
-                profile = os.path.join(os.getenv('SystemDrive', 'C:'), 'Users', username)
-            else:
-                profile = os.path.expanduser("~")
+            # Use manual path construction to ensure correct path for ANY selected user
+            system_drive = os.getenv('SystemDrive', 'C:')
+            if not system_drive.endswith('\\'):
+                system_drive += '\\'
+            profile = os.path.join(system_drive, 'Users', username)
             self.session_backup_path = os.path.join(profile, "Documents", "SurfManager", "Backups")
             
             # Update current user
