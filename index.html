@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SurfManager v2.1.0 - Advanced Session Management Tool</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏄</text></svg>">
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --border-color: #e2e8f0;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --accent-color: #60a5fa;
+            --accent-hover: #3b82f6;
+            --success-color: #34d399;
+            --warning-color: #fbbf24;
+            --danger-color: #f87171;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background-color: var(--bg-primary);
+            transition: all 0.3s ease;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent-color);
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--accent-color);
+        }
+
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .theme-toggle:hover {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 4rem 0;
+            text-align: center;
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--accent-color), var(--success-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .badges {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+
+        .badge {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .cta-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-secondary {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-tertiary);
+        }
+
+        /* Main Content */
+        .main {
+            padding: 4rem 0;
+        }
+
+        .section {
+            margin-bottom: 4rem;
+        }
+
+        .section h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .section h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .grid {
+            display: grid;
+            gap: 2rem;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            transition: all 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .card h3 {
+            color: var(--accent-color);
+            margin-bottom: 1rem;
+        }
+
+        .feature-icon {
+            width: 3rem;
+            height: 3rem;
+            background: var(--accent-color);
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-list {
+            list-style: none;
+            margin: 1rem 0;
+        }
+
+        .feature-list li {
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .feature-list li::before {
+            content: "✓";
+            color: var(--success-color);
+            font-weight: bold;
+        }
+
+        /* Code blocks */
+        .code-block {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        /* Changelog */
+        .changelog-item {
+            border-left: 3px solid var(--accent-color);
+            padding-left: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .version {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--accent-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .date {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            padding: 2rem 0;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .nav-links {
+                gap: 1rem;
+            }
+
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Selection */
+        ::selection {
+            background: var(--accent-color);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <nav class="nav container">
+            <a href="#" class="logo">
+                🏄 SurfManager
+            </a>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#installation">Installation</a></li>
+                <li><a href="#changelog">Changelog</a></li>
+                <li><a href="#credits">Credits</a></li>
+            </ul>
+            <button class="theme-toggle" onclick="toggleTheme()">
+                <span id="theme-icon">🌙</span>
+            </button>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <h1>SurfManager v2.1.0</h1>
+            <p>Advanced session and data management tool for Windsurf, Cursor, and Claude development environments</p>
+            
+            <div class="badges">
+                <span class="badge">v2.1.0 - Optimized Edition</span>
+                <span class="badge">Windows 10/11</span>
+                <span class="badge">Python 3.8+</span>
+                <span class="badge">~60-70MB</span>
+            </div>
+
+            <div class="cta-buttons">
+                <a href="#installation" class="btn btn-primary">
+                    📥 Download
+                </a>
+                <a href="#features" class="btn btn-secondary">
+                    📖 Learn More
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <main class="main container">
+        <section id="about" class="section">
+            <h2>What is SurfManager?</h2>
+            <p>SurfManager is a powerful session and data management tool designed specifically for development applications like Windsurf, Cursor, and Claude. It provides safe data reset capabilities, backup and restore functionality, device ID management, and productivity features with audio feedback and keyboard shortcuts.</p>
+        </section>
+
+        <section id="features" class="section">
+            <h2>Key Features</h2>
+            <div class="grid grid-3">
+                <div class="card">
+                    <div class="feature-icon">🔄</div>
+                    <h3>Reset Data Tab</h3>
+                    <ul class="feature-list">
+                        <li>Auto-detect installed applications</li>
+                        <li>Reset application data with automatic backup</li>
+                        <li>Generate new device IDs</li>
+                        <li>Cleanup cache and temporary files</li>
+                        <li>Quick access to application folders</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="feature-icon">💾</div>
+                    <h3>Account Manager</h3>
+                    <ul class="feature-list">
+                        <li>Create session backups with custom names</li>
+                        <li>Restore previous sessions</li>
+                        <li>Update existing backups</li>
+                        <li>Session management (rename, delete, set active)</li>
+                        <li>Multi-app support</li>
+                        <li>Search and filter sessions</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="feature-icon">⚙️</div>
+                    <h3>Advanced Settings</h3>
+                    <ul class="feature-list">
+                        <li>Configure backup locations</li>
+                        <li>Edit configuration files</li>
+                        <li>Manage application paths</li>
+                        <li>Export and import settings</li>
+                        <li>Audio feedback configuration</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>Keyboard Shortcuts</h2>
+            <div class="grid grid-2">
+                <div class="card">
+                    <h3>Reset Tab</h3>
+                    <ul class="feature-list">
+                        <li><strong>Ctrl+L:</strong> Clear log</li>
+                        <li><strong>F5:</strong> Refresh application list</li>
+                        <li><strong>Ctrl+M:</strong> Toggle audio</li>
+                        <li><strong>Ctrl+G:</strong> Generate new device ID</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h3>Account Manager</h3>
+                    <ul class="feature-list">
+                        <li><strong>F5:</strong> Refresh session list</li>
+                        <li><strong>Ctrl+O:</strong> Open backup folder</li>
+                        <li><strong>Ctrl+F:</strong> Focus search</li>
+                        <li><strong>Ctrl+1/2/3:</strong> Quick backup</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="installation" class="section">
+            <h2>Installation</h2>
+            <div class="grid grid-2">
+                <div class="card">
+                    <h3>📦 Pre-built Binary</h3>
+                    <p>Download and run directly, no installation needed:</p>
+                    <div class="code-block">
+1. Download SurfManager.exe from Releases
+2. Run directly, no installation needed
+3. Enjoy! 🎉
+                    </div>
+                    <p><strong>Requirements:</strong> Windows 10/11, ~100 MB disk space</p>
+                </div>
+
+                <div class="card">
+                    <h3>🔧 Build from Source</h3>
+                    <p>For developers who want to build from source:</p>
+                    <div class="code-block">
+git clone https://github.com/risunCode/SurfManager.git
+cd SurfManager
+setup.bat
+python scripts/build_installer.py --type stable
+                    </div>
+                    <p><strong>Requirements:</strong> Python 3.8+, Git</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="changelog" class="section">
+            <h2>Changelog</h2>
+            
+            <div class="changelog-item">
+                <div class="version">Version 2.1.0 - Optimized Edition</div>
+                <div class="date">October 27, 2025</div>
+                <div class="card">
+                    <h3>🚀 Major Improvements</h3>
+                    <ul class="feature-list">
+                        <li><strong>Code Optimization:</strong> 10% code reduction through file merging</li>
+                        <li><strong>Enhanced UX:</strong> 10 keyboard shortcuts for faster workflow</li>
+                        <li><strong>UI Improvements:</strong> Better layout, less clutter, enhanced tooltips</li>
+                        <li><strong>Code Quality:</strong> Fixed all bare except statements, better error handling</li>
+                        <li><strong>External CSS:</strong> Stylesheets moved to external files</li>
+                        <li><strong>JSON Configuration:</strong> Better maintainability</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="changelog-item">
+                <div class="version">Version 2.0.0 - Minimal Build Edition</div>
+                <div class="date">October 25, 2025</div>
+                <div class="card">
+                    <h3>🎯 Major Optimization</h3>
+                    <ul class="feature-list">
+                        <li><strong>Size Reduction:</strong> ~60-70 MB (down from ~100 MB)</li>
+                        <li><strong>Dependencies:</strong> Reduced to 4 core packages</li>
+                        <li><strong>Audio System:</strong> Complete overhaul with config-based sounds</li>
+                        <li><strong>Build Optimization:</strong> Aggressive module exclusion, binary stripping</li>
+                        <li><strong>Performance:</strong> 30-40% smaller, faster startup, lower memory</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="changelog-item">
+                <div class="version">Version 1.5.0 - Optimized Edition</div>
+                <div class="date">October 25, 2025</div>
+                <div class="card">
+                    <h3>🎉 Major Changes</h3>
+                    <ul class="feature-list">
+                        <li><strong>Unified Build System:</strong> Single build script</li>
+                        <li><strong>User-Defined Backup Names:</strong> Custom backup naming</li>
+                        <li><strong>Centralized Launcher:</strong> Complete menu system</li>
+                        <li><strong>Bug Fixes:</strong> Qt6 compatibility, Unicode support</li>
+                        <li><strong>New Features:</strong> Desktop shortcuts, portable installation</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="changelog-item">
+                <div class="version">Version 1.0.0 - Initial Release</div>
+                <div class="date">October 20, 2025</div>
+                <div class="card">
+                    <h3>🎉 Initial Features</h3>
+                    <ul class="feature-list">
+                        <li><strong>Core Functionality:</strong> Application detection, reset operations</li>
+                        <li><strong>GUI Features:</strong> PyQt6 interface, dark theme, sound effects</li>
+                        <li><strong>Build System:</strong> PyInstaller integration</li>
+                        <li><strong>Supported Apps:</strong> Windsurf, Cursor, VS Code, Claude</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="credits" class="section">
+            <h2>Credits & Acknowledgments</h2>
+            <div class="grid grid-2">
+                <div class="card">
+                    <h3>👨‍💻 Developer</h3>
+                    <p><strong>risunCode</strong></p>
+                    <p>Main developer and maintainer of SurfManager</p>
+                    <a href="https://github.com/risunCode" class="btn btn-secondary">GitHub Profile</a>
+                </div>
+
+                <div class="card">
+                    <h3>🛠️ Technologies</h3>
+                    <ul class="feature-list">
+                        <li><strong>PyQt6:</strong> GUI framework</li>
+                        <li><strong>psutil:</strong> Process management</li>
+                        <li><strong>PyInstaller:</strong> Build tool</li>
+                        <li><strong>Python:</strong> Core language</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>🎵 Audio System</h3>
+                    <p>Native Windows winsound for audio feedback</p>
+                    <p>Custom sound effects and configuration system</p>
+                </div>
+
+                <div class="card">
+                    <h3>🤝 Community</h3>
+                    <p>Thanks to all contributors and users who provided feedback and suggestions for improvements.</p>
+                    <a href="https://github.com/risunCode/SurfManager/issues" class="btn btn-secondary">Report Issues</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>License & Support</h2>
+            <div class="card">
+                <h3>📄 MIT License</h3>
+                <p>SurfManager is open source software released under the MIT License. You are free to use, modify, and distribute this software.</p>
+                
+                <h3 style="margin-top: 2rem;">📞 Support</h3>
+                <p>Need help? Found a bug? Have a feature request?</p>
+                <div style="margin-top: 1rem;">
+                    <a href="https://github.com/risunCode/SurfManager" class="btn btn-primary">GitHub Repository</a>
+                    <a href="https://github.com/risunCode/SurfManager/issues" class="btn btn-secondary">Report Issues</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 SurfManager by risunCode. Released under MIT License.</p>
+            <p>Optimized build, maximum functionality 🚀</p>
+        </div>
+    </footer>
+
+    <script>
+        // Theme toggle functionality
+        function toggleTheme() {
+            const html = document.documentElement;
+            const themeIcon = document.getElementById('theme-icon');
+            
+            if (html.getAttribute('data-theme') === 'dark') {
+                html.removeAttribute('data-theme');
+                themeIcon.textContent = '🌙';
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.setAttribute('data-theme', 'dark');
+                themeIcon.textContent = '☀️';
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        // Load saved theme
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const html = document.documentElement;
+            const themeIcon = document.getElementById('theme-icon');
+            
+            if (savedTheme === 'dark') {
+                html.setAttribute('data-theme', 'dark');
+                themeIcon.textContent = '☀️';
+            } else {
+                html.removeAttribute('data-theme');
+                themeIcon.textContent = '🌙';
+            }
+        }
+
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Initialize theme on page load
+        document.addEventListener('DOMContentLoaded', loadTheme);
+
+        // Add scroll effect to header
+        window.addEventListener('scroll', function() {
+            const header = document.querySelector('.header');
+            if (window.scrollY > 100) {
+                header.style.backgroundColor = 'var(--bg-secondary)';
+                header.style.backdropFilter = 'blur(10px)';
+            } else {
+                header.style.backgroundColor = 'var(--bg-secondary)';
+            }
+        });
+
+        // Add animation on scroll for cards
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver(function(entries) {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        // Observe all cards for animation
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.card');
+            cards.forEach(card => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+                observer.observe(card);
+            });
+        });
+    </script>
+</body>
+</html>
