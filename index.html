@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth" prefix="og: https://ogp.me/ns#">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SurfManager | Reset IDE data, Create backup and restore, manage multi-account</title>
+    <meta name="description"
+        content="Reset IDE data, Create backup and restore, manage multi-account easily. Work for VS-C**e/fork based app like Cur**r, Wind**rf. Advanced session management tool for AI coding applications.">
+    <meta name="keywords"
+        content="cur**r, reset-trial, agentic, agentic-ai, cur**r-pro, cur**r-ai, free-trial-reset, cur**r-reset, wind**rf-reset, reset-cur**r, reset-wind**rf, surfmanager, milkforge-pro, session management, backup restore, multi-account, vsc**e, ide">
+    <meta name="author" content="risunCode">
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://github.com/risunCode/SurfManager">
+    <meta property="og:title" content="SurfManager - IDE Session & Data Management Tool">
+    <meta property="og:description"
+        content="Reset IDE data, Create backup and restore, manage multi-account easily. Work for VS-Code/fork based app.">
+    <meta property="og:image"
+        content="https://raw.githubusercontent.com/risunCode/SurfManager/main/assets/images/v1.jpg">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://github.com/risunCode/SurfManager">
+    <meta property="twitter:title" content="SurfManager - IDE Session & Data Management Tool">
+    <meta property="twitter:description"
+        content="Reset IDE data, Create backup and restore, manage multi-account easily.">
+    <meta property="twitter:image"
+        content="https://raw.githubusercontent.com/risunCode/SurfManager/main/assets/images/v1.jpg">
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://github.com/risunCode/SurfManager">
+
+    <!-- JSON-LD Structured Data for Google -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "SurfManager",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Windows, Linux, macOS",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "description": "Reset IDE data, Create backup and restore, manage multi-account easily. Work for VS-C**e/fork based app like Cur**r, Wind**rf. Advanced session and data management tool for AI coding applications.",
+        "softwareVersion": "5.2.0",
+        "license": "https://opensource.org/licenses/MIT",
+        "author": {
+            "@type": "Person",
+            "name": "risunCode",
+            "url": "https://github.com/risunCode"
+        },
+        "publisher": {
+            "@type": "Organization",
+            "name": "risunCode",
+            "url": "https://github.com/risunCode"
+        },
+        "downloadUrl": "https://github.com/risunCode/SurfManager/releases",
+        "url": "https://github.com/risunCode/SurfManager",
+        "screenshot": "https://raw.githubusercontent.com/risunCode/SurfManager/main/assets/images/v1.jpg",
+        "keywords": "cur**r, reset-trial, agentic-ai, cur**r-pro, cur**r-ai, free-trial-reset, cur**r-reset, wind**rf-reset, surfmanager, session management, backup restore, multi-account management, vsc**e, ide management"
+    }
+    </script>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Custom Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        terminal: {
+                            bg: '#0a0e27',
+                            dark: '#050810',
+                            border: '#1a1f3a',
+                            green: '#00ff41',
+                            cyan: '#00d4ff',
+                            gray: '#8b949e',
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['Courier New', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom animations */
+        @keyframes blink {
+
+            0%,
+            50% {
+                opacity: 1;
+            }
+
+            51%,
+            100% {
+                opacity: 0;
+            }
+        }
+
+        .cursor-blink::after {
+            content: '▋';
+            animation: blink 1s infinite;
+            color: #00ff41;
+        }
+
+        .scan-line {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .scan-line::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00ff41, transparent);
+            animation: scan 3s linear infinite;
+        }
+
+        @keyframes scan {
+            0% {
+                left: -100%;
+            }
+
+            100% {
+                left: 100%;
+            }
+        }
+
+        .terminal-text {
+            text-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
+        }
+
+        .glow-border {
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.3),
+                0 0 20px rgba(0, 255, 65, 0.1);
+        }
+
+        .glow-border:hover {
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.5),
+                0 0 30px rgba(0, 255, 65, 0.2);
+        }
+
+        /* Scanline effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(0deg,
+                    rgba(0, 0, 0, 0.15),
+                    rgba(0, 0, 0, 0.15) 1px,
+                    transparent 1px,
+                    transparent 2px);
+            pointer-events: none;
+            z-index: 9999;
+        }
+    </style>
+</head>
+
+<body class="bg-terminal-dark text-terminal-gray font-mono antialiased">
+
+    <canvas id="matrix-canvas" class="fixed top-0 left-0 w-full h-full pointer-events-none opacity-20 z-0"></canvas>
+
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 right-0 z-50 bg-terminal-bg/95 backdrop-blur-sm border-b border-terminal-border">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <div class="flex items-center space-x-3">
+                    <span class="text-2xl text-terminal-green">❯</span>
+                    <span class="text-xl font-bold text-terminal-green terminal-text">SURFMANAGER</span>
+                    <span class="text-xs text-terminal-cyan border border-terminal-cyan px-2 py-1">v5.2.0</span>
+                </div>
+
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#home"
+                        class="text-terminal-gray hover:text-terminal-green transition-colors duration-300">[ HOME ]</a>
+                    <a href="#features"
+                        class="text-terminal-gray hover:text-terminal-green transition-colors duration-300">[ FEATURES
+                        ]</a>
+                    <a href="#about"
+                        class="text-terminal-gray hover:text-terminal-green transition-colors duration-300">[ ABOUT
+                        ]</a>
+                    <a href="web/docs.html"
+                        class="text-terminal-gray hover:text-terminal-green transition-colors duration-300">[ DOCS ]</a>
+                    <a href="#gallery"
+                        class="text-terminal-gray hover:text-terminal-green transition-colors duration-300">[ GALLERY
+                        ]</a>
+                    <a href="https://github.com/risunCode/SurfManager" target="_blank"
+                        class="bg-terminal-green text-terminal-dark px-4 py-2 hover:bg-terminal-cyan transition-all duration-300 glow-border">
+                        DOWNLOAD
+                    </a>
+                </div>
+
+                <!-- Mobile Menu Button -->
+                <button id="mobile-menu-btn" class="md:hidden text-terminal-green">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden md:hidden border-t border-terminal-border bg-terminal-bg">
+            <div class="px-4 py-4 space-y-2">
+                <a href="#home" class="block text-terminal-gray hover:text-terminal-green py-2">[ HOME ]</a>
+                <a href="#features" class="block text-terminal-gray hover:text-terminal-green py-2">[ FEATURES ]</a>
+                <a href="#about" class="block text-terminal-gray hover:text-terminal-green py-2">[ ABOUT ]</a>
+                <a href="web/docs.html" class="block text-terminal-gray hover:text-terminal-green py-2">[ DOCS ]</a>
+                <a href="#gallery" class="block text-terminal-gray hover:text-terminal-green py-2">[ GALLERY ]</a>
+                <a href="https://github.com/risunCode/SurfManager" target="_blank"
+                    class="block bg-terminal-green text-terminal-dark px-4 py-2 text-center hover:bg-terminal-cyan transition-all duration-300">
+                    DOWNLOAD
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="home" class="min-h-screen flex items-center justify-center pt-16 px-4">
+        <div class="max-w-5xl mx-auto text-center">
+            <!-- Terminal Window -->
+            <div class="border border-terminal-border bg-terminal-bg/50 backdrop-blur-sm mb-8 scan-line">
+                <div class="flex items-center space-x-2 bg-terminal-border px-4 py-2 border-b border-terminal-border">
+                    <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-terminal-green"></div>
+                    <span class="text-xs text-terminal-gray ml-2">root@surfmanager:~</span>
+                </div>
+                <div class="p-8 text-left">
+                    <p class="text-terminal-green mb-2">$ cat /usr/local/surfmanager/about.txt</p>
+                    <p class="text-terminal-gray mb-4">> Initializing SurfManager v5.2.0...</p>
+                    <h1 class="text-4xl md:text-6xl font-bold text-terminal-green terminal-text mb-4">
+                        SURFMANAGER<span class="cursor-blink"></span>
+                    </h1>
+                    <p class="text-xl md:text-2xl text-terminal-cyan mb-6">
+                        Advanced Session & Data Management Tool
+                    </p>
+                    <p class="text-terminal-gray leading-relaxed mb-4">
+                        > Take control of your AI coding environments.<br>
+                        > Backup, restore, and manage sessions with precision.<br>
+                        > Built for developers who demand efficiency.
+                    </p>
+                </div>
+            </div>
+
+            <!-- CTA Buttons -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <a href="https://github.com/risunCode/SurfManager/releases"
+                    class="w-full sm:w-auto bg-terminal-green text-terminal-dark px-8 py-4 text-lg font-bold hover:bg-terminal-cyan transition-all duration-300 glow-border">
+                    [ DOWNLOAD NOW ]
+                </a>
+                <a href="index2.html" target="_blank"
+                    class="w-full sm:w-auto border-2 border-terminal-cyan text-terminal-cyan px-6 py-4 text-sm font-bold hover:bg-terminal-cyan hover:text-terminal-dark transition-all duration-300">
+                    [ MODERN UI ]
+                </a>
+                <a href="#features"
+                    class="w-full sm:w-auto border-2 border-terminal-green text-terminal-green px-8 py-4 text-lg font-bold hover:bg-terminal-green hover:text-terminal-dark transition-all duration-300">
+                    [ EXPLORE FEATURES ]
+                </a>
+            </div>
+
+            <!-- Stats -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12">
+                <div class="border border-terminal-border p-4 bg-terminal-bg/50">
+                    <div class="text-2xl md:text-3xl font-bold text-terminal-green">~1s</div>
+                    <div class="text-xs text-terminal-gray mt-1">STARTUP TIME</div>
+                </div>
+                <div class="border border-terminal-border p-4 bg-terminal-bg/50">
+                    <div class="text-2xl md:text-3xl font-bold text-terminal-green">34MB</div>
+                    <div class="text-xs text-terminal-gray mt-1">BINARY SIZE</div>
+                </div>
+                <div class="border border-terminal-border p-4 bg-terminal-bg/50">
+                    <div class="text-2xl md:text-3xl font-bold text-terminal-green">100%</div>
+                    <div class="text-xs text-terminal-gray mt-1">SAFE OPERATIONS</div>
+                </div>
+                <div class="border border-terminal-border p-4 bg-terminal-bg/50">
+                    <div class="text-2xl md:text-3xl font-bold text-terminal-green">10+</div>
+                    <div class="text-xs text-terminal-gray mt-1">SUPPORTED APPS</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-20 px-4 border-t border-terminal-border">
+        <div class="max-w-6xl mx-auto">
+            <div class="mb-12">
+                <h2 class="text-3xl md:text-5xl font-bold text-terminal-green terminal-text mb-4">
+                    ❯ FEATURES_
+                </h2>
+                <p class="text-terminal-cyan">// What can SurfManager do?</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Feature 1 -->
+                <div
+                    class="border border-terminal-border p-6 bg-terminal-bg/30 hover:bg-terminal-bg/50 hover:border-terminal-green transition-all duration-300">
+                    <div class="text-terminal-green text-2xl mb-3">[ 01 ]</div>
+                    <h3 class="text-xl font-bold text-terminal-green mb-3">Session Management</h3>
+                    <ul class="space-y-2 text-sm text-terminal-gray">
+                        <li>→ Create custom session backups</li>
+                        <li>→ Restore previous sessions instantly</li>
+                        <li>→ Batch operations support</li>
+                        <li>→ Auto-backup before reset</li>
+                    </ul>
+                </div>
+
+                <!-- Feature 2 -->
+                <div
+                    class="border border-terminal-border p-6 bg-terminal-bg/30 hover:bg-terminal-bg/50 hover:border-terminal-green transition-all duration-300">
+                    <div class="text-terminal-green text-2xl mb-3">[ 02 ]</div>
+                    <h3 class="text-xl font-bold text-terminal-green mb-3">Smart Operations</h3>
+                    <ul class="space-y-2 text-sm text-terminal-gray">
+                        <li>→ Real-time process detection</li>
+                        <li>→ Auto-close running apps</li>
+                        <li>→ Intelligent caching system</li>
+                        <li>→ Quick folder access</li>
+                    </ul>
+                </div>
+
+                <!-- Feature 3 -->
+                <div
+                    class="border border-terminal-border p-6 bg-terminal-bg/30 hover:bg-terminal-bg/50 hover:border-terminal-green transition-all duration-300">
+                    <div class="text-terminal-green text-2xl mb-3">[ 03 ]</div>
+                    <h3 class="text-xl font-bold text-terminal-green mb-3">Performance</h3>
+                    <ul class="space-y-2 text-sm text-terminal-gray">
+                        <li>→ Lightning fast startup (~1s)</li>
+                        <li>→ Optimized binary (34MB)</li>
+                        <li>→ Efficient batch processing</li>
+                        <li>→ Smart cache management</li>
+                    </ul>
+                </div>
+
+                <!-- Feature 4 -->
+                <div
+                    class="border border-terminal-border p-6 bg-terminal-bg/30 hover:bg-terminal-bg/50 hover:border-terminal-green transition-all duration-300">
+                    <div class="text-terminal-green text-2xl mb-3">[ 04 ]</div>
+                    <h3 class="text-xl font-bold text-terminal-green mb-3">Cross-Platform</h3>
+                    <ul class="space-y-2 text-sm text-terminal-gray">
+                        <li>→ Windows 10/11 (Full support)</li>
+                        <li>⏳ Linux (Partial support)</li>
+                        <li>⏳ macOS (Partial support)</li>
+                        <li>→ Platform-specific adapters</li>
+                    </ul>
+                </div>
+
+                <!-- Feature 5 -->
+                <div
+                    class="border border-terminal-border p-6 bg-terminal-bg/30 hover:bg-terminal-bg/50 hover:border-terminal-green transition-all duration-300">
+                    <div class="text-terminal-green text-2xl mb-3">[ 05 ]</div>
+                    <h3 class="text-xl font-bold text-terminal-green mb-3">Dynamic Config</h3>
+                    <ul class="space-y-2 text-sm text-terminal-gray">
+                        <li>→ JSON-based configurations</li>
+                        <li>→ Add apps without coding</li>
+                        <li>→ Variable substitution</li>
+                        <li>→ Hot reload capability</li>
+                    </ul>
+                </div>
+
+                <!-- Feature 6 -->
+                <div
+                    class="border border-terminal-border p-6 bg-terminal-bg/30 hover:bg-terminal-bg/50 hover:border-terminal-green transition-all duration-300">
+                    <div class="text-terminal-green text-2xl mb-3">[ 06 ]</div>
+                    <h3 class="text-xl font-bold text-terminal-green mb-3">Safety First</h3>
+                    <ul class="space-y-2 text-sm text-terminal-gray">
+                        <li>→ Automatic backups</li>
+                        <li>→ Safe data operations</li>
+                        <li>→ Comprehensive logging</li>
+                        <li>→ Error recovery system</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="min-h-screen py-20 px-4 border-t border-terminal-border">
+        <div class="max-w-6xl mx-auto">
+            <div class="mb-12">
+                <h2 class="text-3xl md:text-5xl font-bold text-terminal-green terminal-text mb-4">
+                    ❯ ABOUT_
+                </h2>
+                <p class="text-terminal-cyan">// What is SurfManager?</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Main Description -->
+                <div class="space-y-6">
+                    <div class="border border-terminal-border p-6 bg-terminal-bg/30">
+                        <h3 class="text-xl font-bold text-terminal-cyan mb-4">WHAT IS THIS?</h3>
+                        <p class="text-terminal-gray leading-relaxed mb-4">
+                            SurfManager is a powerful session and data management tool designed specifically for AI
+                            coding applications.
+                            It provides developers with complete control over their development environment data.
+                        </p>
+                        <p class="text-terminal-gray leading-relaxed">
+                            Built with efficiency and safety in mind, SurfManager automates the tedious process of
+                            backing up,
+                            restoring, and managing application sessions - allowing you to focus on what matters:
+                            coding.
+                        </p>
+                    </div>
+
+                    <div class="border border-terminal-border p-6 bg-terminal-bg/30">
+                        <h3 class="text-xl font-bold text-terminal-cyan mb-4">SUPPORTED APPLICATIONS</h3>
+                        <div class="space-y-2 text-terminal-gray">
+                            <p>✓ Cur**r</p>
+                            <p>✓ Win**urf</p>
+                            <p>✓ Visual Studio Code</p>
+                            <p>✓ All VSCode-based editors and forks</p>
+                            <p class="text-terminal-green mt-4">+ Easily add custom applications via Manual Add Button in App configuration</p>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Use Cases -->
+                <div class="space-y-6">
+                    <div class="border border-terminal-border p-6 bg-terminal-bg/30">
+                        <h3 class="text-xl font-bold text-terminal-cyan mb-4">USE CASES</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <div class="text-terminal-green mb-2">→ Session Backup & Restore</div>
+                                <p class="text-sm text-terminal-gray">
+                                    Save your current workspace state and restore it later. Perfect for testing
+                                    different configurations.
+                                </p>
+                            </div>
+                            <div>
+                                <div class="text-terminal-green mb-2">→ Multi-Environment Management</div>
+                                <p class="text-sm text-terminal-gray">
+                                    Switch between different development setups instantly. Maintain separate
+                                    configurations for different projects.
+                                </p>
+                            </div>
+                            <div>
+                                <div class="text-terminal-green mb-2">→ Clean Reset</div>
+                                <p class="text-sm text-terminal-gray">
+                                    Reset your application to factory settings while keeping backups safe. Troubleshoot
+                                    issues effectively.
+                                </p>
+                            </div>
+                            <div>
+                                <div class="text-terminal-green mb-2">→ Account Management</div>
+                                <p class="text-sm text-terminal-gray">
+                                    Manage multiple user accounts and sessions. Switch between different authentication
+                                    states seamlessly.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border border-terminal-border p-6 bg-terminal-bg/30">
+                        <h3 class="text-xl font-bold text-terminal-cyan mb-4">TECHNICAL DETAILS</h3>
+                        <div class="space-y-2 text-sm text-terminal-gray font-mono">
+                            <p>→ Language: Python 3.8+</p>
+                            <p>→ GUI Framework: PyQt6</p>
+                            <p>→ Architecture: Modular & Cross-platform</p>
+                            <p>→ Config Format: JSON</p>
+                            <p>→ License: MIT</p>
+                            <p>→ Repository: Open Source</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Why SurfManager -->
+            <div class="mt-8 border border-terminal-border p-8 bg-terminal-bg/30">
+                <h3 class="text-2xl font-bold text-terminal-green mb-6">WHY SURFMANAGER?</h3>
+                <div class="grid md:grid-cols-3 gap-6 text-terminal-gray">
+                    <div>
+                        <div class="text-terminal-cyan mb-2 font-bold">⚡ FAST</div>
+                        <p class="text-sm">Startup in ~1 second. Operations executed instantly with intelligent caching.
+                        </p>
+                    </div>
+                    <div>
+                        <div class="text-terminal-cyan mb-2 font-bold">🛡️ SAFE</div>
+                        <p class="text-sm">Automatic backups before operations. Safe data handling with error recovery.</p>
+                    </div>
+                    <div>
+                        <div class="text-terminal-cyan mb-2 font-bold">⚙️ FLEXIBLE</div>
+                        <p class="text-sm">Dynamic configuration. Add custom applications easily via JSON config.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Gallery Section -->
+    <section id="gallery" class="py-20 px-4 border-t border-terminal-border">
+        <div class="max-w-6xl mx-auto">
+            <div class="mb-12">
+                <h2 class="text-3xl md:text-5xl font-bold text-terminal-green terminal-text mb-4">
+                    ❯ GALLERY_
+                </h2>
+                <p class="text-terminal-cyan">// Screenshots & Interface</p>
+            </div>
+
+            <!-- Screenshot Grid -->
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Screenshot 1 -->
+                <div class="border border-terminal-border bg-terminal-bg/30 overflow-hidden hover:border-terminal-green transition-all duration-300 group">
+                    <div class="bg-terminal-border px-4 py-2 text-xs text-terminal-gray">
+                        screenshot_01.jpg
+                    </div>
+                    <div class="aspect-video bg-terminal-dark overflow-hidden">
+                        <img src="web/assets/images/v1.jpg" alt="SurfManager Main Interface"
+                            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                    </div>
+                    <div class="p-4 text-sm text-terminal-gray">
+                        Main window interface showing Data Management tab with session controls and operations.
+                    </div>
+                </div>
+
+                <!-- Screenshot 2 -->
+                <div class="border border-terminal-border bg-terminal-bg/30 overflow-hidden hover:border-terminal-green transition-all duration-300 group">
+                    <div class="bg-terminal-border px-4 py-2 text-xs text-terminal-gray">
+                        screenshot_02.jpg
+                    </div>
+                    <div class="aspect-video bg-terminal-dark overflow-hidden">
+                        <img src="web/assets/images/v2.jpg" alt="SurfManager Account Manager"
+                            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                    </div>
+                    <div class="p-4 text-sm text-terminal-gray">
+                        Account Manager view with session backup list, restore options, and management controls.
+                    </div>
+                </div>
+
+                <!-- Screenshot 3 -->
+                <div class="border border-terminal-border bg-terminal-bg/30 overflow-hidden hover:border-terminal-green transition-all duration-300 group">
+                    <div class="bg-terminal-border px-4 py-2 text-xs text-terminal-gray">
+                        screenshot_03.jpg
+                    </div>
+                    <div class="aspect-video bg-terminal-dark overflow-hidden">
+                        <img src="web/assets/images/v3.jpg" alt="SurfManager Settings"
+                            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                    </div>
+                    <div class="p-4 text-sm text-terminal-gray">
+                        App Configuration panel for managing supported applications and their settings.
+                    </div>
+                </div>
+
+                <!-- Screenshot 4 -->
+                <div class="border border-terminal-border bg-terminal-bg/30 overflow-hidden hover:border-terminal-green transition-all duration-300 group">
+                    <div class="bg-terminal-border px-4 py-2 text-xs text-terminal-gray">
+                        screenshot_04.jpg
+                    </div>
+                    <div class="aspect-video bg-terminal-dark overflow-hidden">
+                        <img src="web/assets/images/v4.jpg" alt="SurfManager System Info"
+                            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                    </div>
+                    <div class="p-4 text-sm text-terminal-gray">
+                        About App showing version information, author details, and application metadata.
+                    </div>
+                </div>
+            </div>
+
+            <!-- View More -->
+            <div class="mt-8 border border-terminal-green p-6 bg-terminal-bg/30 text-center">
+                <p class="text-terminal-green mb-2 font-bold">
+                    [ VIEW MORE SCREENSHOTS ]
+                </p>
+                <p class="text-terminal-gray text-sm mb-4">
+                    Visit our GitHub repository for more detailed screenshots and documentation
+                </p>
+                <a href="https://github.com/risunCode/SurfManager" target="_blank"
+                    class="inline-block bg-terminal-green text-terminal-dark px-6 py-2 hover:bg-terminal-cyan transition-all duration-300 glow-border">
+                    GITHUB REPOSITORY
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-terminal-border bg-terminal-bg py-12 px-4">
+        <div class="max-w-7xl mx-auto">
+            <div class="grid md:grid-cols-4 gap-8 mb-8">
+                <!-- About -->
+                <div>
+                    <h3 class="text-terminal-green font-bold mb-4">SURFMANAGER</h3>
+                    <p class="text-terminal-gray text-sm">
+                        Advanced session and data management tool for AI coding applications.
+                    </p>
+                    <p class="text-terminal-cyan text-xs mt-2">Version 5.1.2</p>
+                </div>
+
+                <!-- Links -->
+                <div>
+                    <h3 class="text-terminal-green font-bold mb-4">LINKS</h3>
+                    <ul class="space-y-2 text-sm text-terminal-gray">
+                        <li><a href="https://github.com/risunCode/SurfManager"
+                                class="hover:text-terminal-green transition-colors">→ GitHub</a></li>
+                        <li><a href="https://github.com/risunCode/SurfManager/releases"
+                                class="hover:text-terminal-green transition-colors">→ Releases</a></li>
+                        <li><a href="https://github.com/risunCode/SurfManager/issues"
+                                class="hover:text-terminal-green transition-colors">→ Issues</a></li>
+                        <li><a href="https://github.com/risunCode/SurfManager/discussions"
+                                class="hover:text-terminal-green transition-colors">→ Discussions</a></li>
+                    </ul>
+                </div>
+
+                <!-- Resources -->
+                <div>
+                    <h3 class="text-terminal-green font-bold mb-4">RESOURCES</h3>
+                    <ul class="space-y-2 text-sm text-terminal-gray">
+                        <li><a href="#" class="hover:text-terminal-green transition-colors">→ Documentation</a></li>
+                        <li><a href="#" class="hover:text-terminal-green transition-colors">→ User Guide</a></li>
+                        <li><a href="#" class="hover:text-terminal-green transition-colors">→ FAQ</a></li>
+                        <li><a href="#" class="hover:text-terminal-green transition-colors">→ Contributing</a></li>
+                    </ul>
+                </div>
+
+                <!-- Platform -->
+                <div>
+                    <h3 class="text-terminal-green font-bold mb-4">PLATFORM</h3>
+                    <ul class="space-y-2 text-sm text-terminal-gray">
+                        <li>✓ Windows 10/11</li>
+                        <li>⏳ Linux (Partial)</li>
+                        <li>⏳ macOS (Partial)</li>
+                        <li class="text-terminal-cyan mt-4">Python 3.8+</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Copyright -->
+            <div class="border-t border-terminal-border pt-8">
+                <div class="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+                    <p class="text-terminal-gray text-sm">
+                        &copy; 2025 SurfManager. MIT License. Built by <a href="https://github.com/risunCode"
+                            class="text-terminal-green hover:text-terminal-cyan">risunCode</a>
+                    </p>
+                    <div class="flex space-x-4 text-terminal-gray">
+                        <a href="https://github.com/risunCode/SurfManager"
+                            class="hover:text-terminal-green transition-colors">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.840 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.430.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Matrix Background Script -->
+    <script src="web/assets/js/matrix.js"></script>
+
+    <!-- Mobile Menu Script -->
+    <script>
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        
+        if (mobileMenuBtn) {
+            mobileMenuBtn.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+            });
+        }
+    </script>
+</body>
+
+</html>

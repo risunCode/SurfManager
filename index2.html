@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SurfManager - IDE Session Management Tool</title>
+    <meta name="description" content="Advanced IDE session management tool for developers. Backup, restore, and manage multi-account configurations with ease.">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        background: "var(--background)",
+                        foreground: "var(--foreground)",
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        :root {
+            --background: #0a0e1a;
+            --foreground: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            color: var(--foreground);
+            background: var(--background);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* SweetAlert2 Styling */
+        .swal2-popup {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+            border: 2px solid rgba(59, 130, 246, 0.3) !important;
+            border-radius: 1rem !important;
+            padding: 2rem !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+        }
+
+        .swal2-title {
+            color: #60a5fa !important;
+            font-size: 1.875rem !important;
+            font-weight: 700 !important;
+            margin-bottom: 1rem !important;
+        }
+
+        .swal2-html-container {
+            color: #cbd5e1 !important;
+            font-size: 1rem !important;
+            margin: 1rem 0 !important;
+        }
+
+        .swal2-confirm {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+            border: none !important;
+            border-radius: 0.5rem !important;
+            padding: 0.75rem 2rem !important;
+            font-weight: 600 !important;
+            font-size: 1rem !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3) !important;
+        }
+
+        .swal2-confirm:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4) !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
+    <!-- Header -->
+    <header id="header" class="fixed top-0 w-full z-50 transition-all duration-300 bg-transparent">
+        <nav class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+                    SurfManager
+                </div>
+                
+                <ul class="hidden md:flex space-x-6">
+                    <li><button onclick="scrollToSection('home')" class="nav-link capitalize hover:text-blue-400 transition-colors text-white">home</button></li>
+                    <li><button onclick="scrollToSection('about')" class="nav-link capitalize hover:text-blue-400 transition-colors text-white">about</button></li>
+                    <li><button onclick="scrollToSection('features')" class="nav-link capitalize hover:text-blue-400 transition-colors text-white">features</button></li>
+                    <li><button onclick="scrollToSection('gallery')" class="nav-link capitalize hover:text-blue-400 transition-colors text-white">gallery</button></li>
+                    <li><button onclick="scrollToSection('download')" class="nav-link capitalize hover:text-blue-400 transition-colors text-white">download</button></li>
+                    <li><button onclick="scrollToSection('contact')" class="nav-link capitalize hover:text-blue-400 transition-colors text-white">contact</button></li>
+                    <li><button onclick="window.open('index.html', '_blank')" class="nav-link bg-green-600/20 border border-green-400/50 px-3 py-1 rounded text-green-400 hover:bg-green-600/40 transition-all text-sm">Terminal UI</button></li>
+                </ul>
+
+                <button id="mobileMenuToggle" class="md:hidden text-white p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+
+                <div id="mobileMenu" class="md:hidden absolute top-full left-0 right-0 bg-slate-900/95 backdrop-blur-md shadow-lg border-t border-blue-500/20 hidden">
+                    <ul class="px-6 py-4 space-y-2">
+                        <li><button onclick="scrollToSection('home')" class="mobile-nav-link capitalize hover:text-blue-400 transition-colors block w-full text-left py-2 text-white">home</button></li>
+                        <li><button onclick="scrollToSection('about')" class="mobile-nav-link capitalize hover:text-blue-400 transition-colors block w-full text-left py-2 text-white">about</button></li>
+                        <li><button onclick="scrollToSection('features')" class="mobile-nav-link capitalize hover:text-blue-400 transition-colors block w-full text-left py-2 text-white">features</button></li>
+                        <li><button onclick="scrollToSection('gallery')" class="mobile-nav-link capitalize hover:text-blue-400 transition-colors block w-full text-left py-2 text-white">gallery</button></li>
+                        <li><button onclick="scrollToSection('download')" class="mobile-nav-link capitalize hover:text-blue-400 transition-colors block w-full text-left py-2 text-white">download</button></li>
+                        <li><button onclick="scrollToSection('contact')" class="mobile-nav-link capitalize hover:text-blue-400 transition-colors block w-full text-left py-2 text-white">contact</button></li>
+                        <li><button onclick="window.open('index.html', '_blank')" class="mobile-nav-link bg-green-600/20 border border-green-400/50 px-3 py-2 rounded text-green-400 hover:bg-green-600/40 transition-all text-sm block w-full text-left">🖥️ Terminal UI Version</button></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section id="home" class="min-h-screen flex items-center justify-center pt-20 px-6 relative overflow-hidden">
+        <div class="absolute inset-0 opacity-20 blur-sm">
+            <img src="web/assets/images/v1.jpg" alt="SurfManager Background" class="w-full h-full object-cover">
+        </div>
+        <div class="container mx-auto grid md:grid-cols-2 gap-12 items-center relative z-10">
+            <div class="text-center md:text-left">
+                <h1 class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-blue-400 via-cyan-300 to-blue-500 bg-clip-text text-transparent animate-pulse">
+                    SurfManager
+                </h1>
+                <p class="text-xl sm:text-2xl text-blue-200 mb-4">
+                    IDE Session Management Tool
+                </p>
+                <p class="text-lg sm:text-xl text-cyan-300 mb-6 sm:mb-8 font-semibold px-4 md:px-0">
+                    Effortlessly manage your development environment
+                </p>
+                <div class="flex flex-wrap gap-3 justify-center md:justify-start mb-8">
+                    <span class="bg-blue-600/30 border border-blue-400 px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base">🔄 Session Management</span>
+                    <span class="bg-green-600/30 border border-green-400 px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base">💾 Backup & Restore</span>
+                    <span class="bg-purple-600/30 border border-purple-400 px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base">👥 Multi-Account</span>
+                    <span class="bg-yellow-600/30 border border-yellow-400 px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base">⚡ v5.2.0</span>
+                </div>
+                <div class="flex flex-wrap gap-4 justify-center md:justify-start">
+                    <button onclick="window.open('https://github.com/risunCode/SurfManager/releases', '_blank')" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-all transform hover:scale-105 shadow-lg hover:shadow-blue-500/50">
+                        📦 Download Now
+                    </button>
+                    <button onclick="scrollToSection('about')" class="border-2 border-blue-400 text-blue-400 hover:bg-blue-400 hover:text-slate-900 px-8 py-4 rounded-lg text-lg font-semibold transition-all transform hover:scale-105">
+                        Discover More
+                    </button>
+                </div>
+                
+                <!-- Performance Stats -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+                    <div class="bg-slate-800/50 backdrop-blur-sm border border-blue-500/20 p-4 rounded-lg hover:border-blue-400/60 transition-all">
+                        <div class="text-2xl md:text-3xl font-bold text-blue-400 mb-1">~1s</div>
+                        <div class="text-xs text-gray-400 uppercase tracking-wider">Startup Time</div>
+                    </div>
+                    <div class="bg-slate-800/50 backdrop-blur-sm border border-blue-500/20 p-4 rounded-lg hover:border-blue-400/60 transition-all">
+                        <div class="text-2xl md:text-3xl font-bold text-green-400 mb-1">34MB</div>
+                        <div class="text-xs text-gray-400 uppercase tracking-wider">Binary Size</div>
+                    </div>
+                    <div class="bg-slate-800/50 backdrop-blur-sm border border-blue-500/20 p-4 rounded-lg hover:border-blue-400/60 transition-all">
+                        <div class="text-2xl md:text-3xl font-bold text-cyan-400 mb-1">100%</div>
+                        <div class="text-xs text-gray-400 uppercase tracking-wider">Safe Operations</div>
+                    </div>
+                    <div class="bg-slate-800/50 backdrop-blur-sm border border-blue-500/20 p-4 rounded-lg hover:border-blue-400/60 transition-all">
+                        <div class="text-2xl md:text-3xl font-bold text-purple-400 mb-1">10+</div>
+                        <div class="text-xs text-gray-400 uppercase tracking-wider">Supported Apps</div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-center">
+                <div class="relative group">
+                    <div class="absolute inset-0 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl blur-2xl opacity-50 group-hover:opacity-75 transition-opacity"></div>
+                    <img src="web/assets/images/v2.jpg" alt="SurfManager Interface" class="relative rounded-2xl shadow-2xl max-w-md w-full border-2 border-blue-400/30">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="min-h-screen flex items-center py-20 px-6 bg-slate-900/30">
+        <div class="container mx-auto max-w-6xl">
+            <h2 class="text-3xl sm:text-4xl md:text-5xl font-bold mb-12 text-center bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                About SurfManager
+            </h2>
+            <div class="grid md:grid-cols-2 gap-12 items-start mb-12">
+                <div class="space-y-6">
+                    <div class="bg-slate-800/50 backdrop-blur-sm p-6 rounded-xl border border-blue-500/20 hover:border-blue-500/40 transition-all">
+                        <h3 class="text-2xl font-semibold text-blue-400 mb-3">🎯 Purpose & Mission</h3>
+                        <p class="text-gray-300">
+                            SurfManager is a powerful tool designed to help developers effortlessly manage session 
+                            data for their IDE applications. Whether you're backing up, restoring, or seamlessly 
+                            switching between different accounts and workspaces, SurfManager provides a clean, 
+                            cross-platform solution to keep your development workflow smooth and efficient.
+                        </p>
+                    </div>
+                    <div class="bg-slate-800/50 backdrop-blur-sm p-6 rounded-xl border border-blue-500/20 hover:border-blue-500/40 transition-all">
+                        <h3 class="text-2xl font-semibold text-blue-400 mb-3">⚡ Core Capabilities</h3>
+                        <p class="text-gray-300">
+                            Built with Python and featuring an intuitive interface, SurfManager supports multiple 
+                            IDE platforms including VS Code, Cursor, and Windsurf. The tool automatically detects 
+                            running applications, provides intelligent caching for lightning-fast performance, 
+                            and offers batch operations to handle multiple sessions at once.
+                        </p>
+                    </div>
+                    <div class="bg-slate-800/50 backdrop-blur-sm p-6 rounded-xl border border-blue-500/20 hover:border-blue-500/40 transition-all">
+                        <h3 class="text-2xl font-semibold text-blue-400 mb-3">🎯 Supported Applications</h3>
+                        <div class="space-y-2 text-gray-300">
+                            <p>✓ <strong>Cur**r</strong> - AI-powered code editor</p>
+                            <p>✓ <strong>Win**urf</strong> - Advanced development environment</p>
+                            <p>✓ <strong>Visual Studio Code</strong> - Microsoft's popular editor</p>
+                            <p>✓ <strong>All VSCode fork based apps</strong> - Unlimited compatibility</p>
+                            <p class="text-green-400 mt-4">+ Easily add custom applications via Manual Add Button in App configuration</p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-slate-800/50 backdrop-blur-sm p-6 rounded-xl border border-blue-500/20 hover:border-blue-500/40 transition-all">
+                        <h3 class="text-2xl font-semibold text-blue-400 mb-3">📋 Use Cases</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <div class="text-cyan-400 font-semibold mb-2">→ Session Backup & Restore</div>
+                                <p class="text-sm text-gray-300">
+                                    Save your current workspace state and restore it later. Perfect for testing different configurations.
+                                </p>
+                            </div>
+                            <div>
+                                <div class="text-cyan-400 font-semibold mb-2">→ Multi-Environment Management</div>
+                                <p class="text-sm text-gray-300">
+                                    Switch between different development setups instantly. Maintain separate configurations for different projects.
+                                </p>
+                            </div>
+                            <div>
+                                <div class="text-cyan-400 font-semibold mb-2">→ Clean Reset</div>
+                                <p class="text-sm text-gray-300">
+                                    Reset your application to factory settings while keeping backups safe. Troubleshoot issues effectively.
+                                </p>
+                            </div>
+                            <div>
+                                <div class="text-cyan-400 font-semibold mb-2">→ Account Management</div>
+                                <p class="text-sm text-gray-300">
+                                    Manage multiple user accounts and sessions. Switch between different authentication states seamlessly.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="space-y-6">
+                    <div class="bg-gradient-to-br from-blue-600/20 to-cyan-600/20 p-8 rounded-2xl border border-blue-400/30 backdrop-blur-sm">
+                        <h3 class="text-2xl font-bold text-blue-300 mb-6 text-center">Application Details</h3>
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center border-b border-blue-400/30 pb-3">
+                                <span class="text-blue-300 font-semibold">Application Name</span>
+                                <span class="text-white">SurfManager</span>
+                            </div>
+                            <div class="flex justify-between items-center border-b border-blue-400/30 pb-3">
+                                <span class="text-blue-300 font-semibold">Current Version</span>
+                                <span class="text-white">v5.2.0</span>
+                            </div>
+                            <div class="flex justify-between items-center border-b border-blue-400/30 pb-3">
+                                <span class="text-blue-300 font-semibold">Language</span>
+                                <span class="text-cyan-300">🐍 Python 3.8+</span>
+                            </div>
+                            <div class="flex justify-between items-center border-b border-blue-400/30 pb-3">
+                                <span class="text-blue-300 font-semibold">License</span>
+                                <span class="text-green-400">MIT License</span>
+                            </div>
+                            <div class="flex justify-between items-center border-b border-blue-400/30 pb-3">
+                                <span class="text-blue-300 font-semibold">Platform Support</span>
+                                <span class="text-white">Cross-Platform</span>
+                            </div>
+                            <div class="flex justify-between items-center border-b border-blue-400/30 pb-3">
+                                <span class="text-blue-300 font-semibold">Supported IDEs</span>
+                                <span class="text-white">Cur**r, Win**urf, VS Code+ and all VSCode fork based*</span>
+                            </div>
+                            <div class="flex justify-between items-center border-b border-blue-400/30 pb-3">
+                                <span class="text-blue-300 font-semibold">Developer</span>
+                                <span class="text-white">risunCode</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-blue-300 font-semibold">Repository</span>
+                                <span class="text-white">Open Source</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="relative group cursor-pointer">
+                        <div class="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity"></div>
+                        <img src="web/assets/images/v3.jpg" alt="SurfManager Features" class="relative rounded-xl shadow-2xl w-full border-2 border-blue-400/30">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Why SurfManager Section -->
+            <div class="mt-12 bg-gradient-to-r from-slate-800/70 to-blue-900/50 p-8 rounded-xl border border-blue-400/40">
+                <h3 class="text-3xl font-bold text-blue-300 mb-8 text-center">Why Choose SurfManager?</h3>
+                <div class="grid md:grid-cols-3 gap-8">
+                    <div class="text-center">
+                        <div class="text-4xl mb-4">⚡</div>
+                        <div class="text-cyan-400 mb-3 font-bold text-lg">FAST</div>
+                        <p class="text-gray-300 text-sm">
+                            Startup in ~1 second. Operations executed instantly with intelligent caching and optimized performance.
+                        </p>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-4xl mb-4">🛡️</div>
+                        <div class="text-green-400 mb-3 font-bold text-lg">SAFE</div>
+                        <p class="text-gray-300 text-sm">
+                            Automatic backups before operations. Safe data handling with comprehensive error recovery system.
+                        </p>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-4xl mb-4">⚙️</div>
+                        <div class="text-purple-400 mb-3 font-bold text-lg">FLEXIBLE</div>
+                        <p class="text-gray-300 text-sm">
+                            Dynamic JSON configuration. Add custom applications easily without touching source code.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Technical Details -->
+            <div class="mt-8 grid md:grid-cols-2 gap-8">
+                <div class="bg-slate-800/50 backdrop-blur-sm p-6 rounded-xl border border-blue-500/20">
+                    <h3 class="text-xl font-bold text-blue-400 mb-4">Technical Specifications</h3>
+                    <div class="space-y-2 text-sm text-gray-300 font-mono">
+                        <p>→ Language: <span class="text-cyan-400">Python 3.8+</span></p>
+                        <p>→ GUI Framework: <span class="text-cyan-400">PyQt6</span></p>
+                        <p>→ Architecture: <span class="text-cyan-400">Modular & Cross-platform</span></p>
+                        <p>→ Config Format: <span class="text-cyan-400">JSON</span></p>
+                        <p>→ License: <span class="text-green-400">MIT Open Source</span></p>
+                        <p>→ Binary Size: <span class="text-yellow-400">34MB optimized</span></p>
+                    </div>
+                </div>
+                <div class="bg-slate-800/50 backdrop-blur-sm p-6 rounded-xl border border-blue-500/20">
+                    <h3 class="text-xl font-bold text-blue-400 mb-4">Platform Support</h3>
+                    <div class="space-y-2 text-sm text-gray-300">
+                        <p class="flex justify-between">
+                            <span>Windows 10/11</span>
+                            <span class="text-green-400">✓ Full Support</span>
+                        </p>
+                        <p class="flex justify-between">
+                            <span>Linux</span>
+                            <span class="text-yellow-400">⏳ Partial Support</span>
+                        </p>
+                        <p class="flex justify-between">
+                            <span>macOS</span>
+                            <span class="text-yellow-400">⏳ Partial Support</span>
+                        </p>
+                        <p class="text-cyan-400 mt-4 text-xs">Platform-specific adapters included</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="min-h-screen flex items-center py-20 px-6">
+        <div class="container mx-auto max-w-6xl">
+            <h2 class="text-3xl sm:text-4xl md:text-5xl font-bold mb-12 text-center bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                Core Features
+            </h2>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="bg-gradient-to-br from-blue-900/40 to-cyan-900/40 p-8 rounded-xl border border-blue-400/30 hover:border-blue-400/60 transition-all">
+                    <div class="flex items-center mb-4">
+                        <span class="text-4xl mr-4">🔄</span>
+                        <h3 class="text-2xl font-bold text-blue-300">Session Management</h3>
+                    </div>
+                    <p class="text-gray-300 mb-4">
+                        Effortlessly switch between different IDE configurations and user profiles. 
+                        Create custom backup names, batch operations, and auto-backup before resets.
+                    </p>
+                    <ul class="text-sm text-cyan-200 space-y-2">
+                        <li>• Create & restore backups with custom names</li>
+                        <li>• Batch operations for multiple sessions</li>
+                        <li>• Search & filter through saved sessions</li>
+                        <li>• Auto-backup before any reset operation</li>
+                    </ul>
+                </div>
+
+                <div class="bg-gradient-to-br from-purple-900/40 to-blue-900/40 p-8 rounded-xl border border-purple-400/30 hover:border-purple-400/60 transition-all">
+                    <div class="flex items-center mb-4">
+                        <span class="text-4xl mr-4">👥</span>
+                        <h3 class="text-2xl font-bold text-purple-300">Multi-Account Support</h3>
+                    </div>
+                    <p class="text-gray-300 mb-4">
+                        Seamlessly manage multiple user profiles and credentials across different IDEs. 
+                        Perfect for developers working with multiple accounts or testing environments.
+                    </p>
+                    <ul class="text-sm text-purple-200 space-y-2">
+                        <li>• Multiple user profile management</li>
+                        <li>• Account switching with one click</li>
+                        <li>• Credential storage and management</li>
+                        <li>• Workspace isolation per account</li>
+                    </ul>
+                </div>
+
+                <div class="bg-gradient-to-br from-green-900/40 to-blue-900/40 p-8 rounded-xl border border-green-400/30 hover:border-green-400/60 transition-all">
+                    <div class="flex items-center mb-4">
+                        <span class="text-4xl mr-4">⚡</span>
+                        <h3 class="text-2xl font-bold text-green-300">Smart Performance</h3>
+                    </div>
+                    <p class="text-gray-300 mb-4">
+                        Real-time detection of running applications with intelligent caching for 
+                        lightning-fast performance. Auto-close features for smooth operations.
+                    </p>
+                    <ul class="text-sm text-green-200 space-y-2">
+                        <li>• Real-time app detection</li>
+                        <li>• Intelligent caching system</li>
+                        <li>• Auto-detects installed applications</li>
+                        <li>• Quick access to app folders</li>
+                    </ul>
+                </div>
+
+                <div class="bg-gradient-to-br from-orange-900/40 to-red-900/40 p-8 rounded-xl border border-orange-400/30 hover:border-orange-400/60 transition-all">
+                    <div class="flex items-center mb-4">
+                        <span class="text-4xl mr-4">🌐</span>
+                        <h3 class="text-2xl font-bold text-orange-300">Cross-Platform</h3>
+                    </div>
+                    <p class="text-gray-300 mb-4">
+                        Built with Python and PyQt6 for maximum compatibility. Dynamic JSON configuration
+                        allows adding custom applications without coding.
+                    </p>
+                    <ul class="text-sm text-orange-200 space-y-2">
+                        <li>• Windows 10/11 (Full support)</li>
+                        <li>• Linux (Partial support) ⏳</li>
+                        <li>• macOS (Partial support) ⏳</li>
+                        <li>• Supports Cur**r, Win**urf, VS Code+</li>
+                    </ul>
+                </div>
+                
+                <div class="bg-gradient-to-br from-yellow-900/40 to-orange-900/40 p-8 rounded-xl border border-yellow-400/30 hover:border-yellow-400/60 transition-all">
+                    <div class="flex items-center mb-4">
+                        <span class="text-4xl mr-4">⚙️</span>
+                        <h3 class="text-2xl font-bold text-yellow-300">Dynamic Configuration</h3>
+                    </div>
+                    <p class="text-gray-300 mb-4">
+                        JSON-based configuration system with variable substitution and extensibility.
+                        Add new applications easily without touching source code.
+                    </p>
+                    <ul class="text-sm text-yellow-200 space-y-2">
+                        <li>• JSON configuration format</li>
+                        <li>• Add apps without coding</li>
+                        <li>• Variable substitution support</li>
+                        <li>• Configuration hot reload</li>
+                    </ul>
+                </div>
+                
+                <div class="bg-gradient-to-br from-red-900/40 to-pink-900/40 p-8 rounded-xl border border-red-400/30 hover:border-red-400/60 transition-all">
+                    <div class="flex items-center mb-4">
+                        <span class="text-4xl mr-4">🛡️</span>
+                        <h3 class="text-2xl font-bold text-red-300">Safety First</h3>
+                    </div>
+                    <p class="text-gray-300 mb-4">
+                        Comprehensive safety measures with automatic backups, error recovery system,
+                        and detailed logging for all operations.
+                    </p>
+                    <ul class="text-sm text-red-200 space-y-2">
+                        <li>• Automatic backup creation</li>
+                        <li>• Safe data operations</li>
+                        <li>• Comprehensive logging</li>
+                        <li>• Error recovery system</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Gallery Section -->
+    <section id="gallery" class="min-h-screen flex items-center py-20 px-6 bg-slate-900/30">
+        <div class="container mx-auto max-w-7xl">
+            <h2 class="text-5xl font-bold mb-12 text-center bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                Screenshots
+            </h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="relative group cursor-pointer overflow-hidden rounded-xl border-2 border-blue-500/30 hover:border-blue-400/60 transition-all shadow-lg hover:shadow-2xl hover:shadow-blue-500/30"
+                     onclick="showGalleryImage('Main Interface', 'SurfManager main dashboard and control panel', 'web/assets/images/v1.jpg')">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity z-10"></div>
+                    <img src="web/assets/images/v1.jpg" alt="Main Interface" class="w-full h-80 object-cover transform group-hover:scale-110 transition-transform duration-500">
+                    <div class="absolute bottom-0 left-0 right-0 p-4 z-20">
+                        <h3 class="text-xl font-bold text-white mb-1">Main Interface</h3>
+                        <p class="text-sm text-blue-200">SurfManager main dashboard and control panel</p>
+                    </div>
+                    <div class="absolute top-2 right-2 bg-blue-600/80 px-3 py-1 rounded-full text-xs font-semibold z-20">View</div>
+                </div>
+                
+                <div class="relative group cursor-pointer overflow-hidden rounded-xl border-2 border-blue-500/30 hover:border-blue-400/60 transition-all shadow-lg hover:shadow-2xl hover:shadow-blue-500/30"
+                     onclick="showGalleryImage('Session Management', 'Backup and restore session management', 'web/assets/images/v2.jpg')">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity z-10"></div>
+                    <img src="web/assets/images/v2.jpg" alt="Session Management" class="w-full h-80 object-cover transform group-hover:scale-110 transition-transform duration-500">
+                    <div class="absolute bottom-0 left-0 right-0 p-4 z-20">
+                        <h3 class="text-xl font-bold text-white mb-1">Session Management</h3>
+                        <p class="text-sm text-blue-200">Backup and restore session management</p>
+                    </div>
+                    <div class="absolute top-2 right-2 bg-blue-600/80 px-3 py-1 rounded-full text-xs font-semibold z-20">View</div>
+                </div>
+                
+                <div class="relative group cursor-pointer overflow-hidden rounded-xl border-2 border-blue-500/30 hover:border-blue-400/60 transition-all shadow-lg hover:shadow-2xl hover:shadow-blue-500/30"
+                     onclick="showGalleryImage('Multi-Account Features', 'Account switching and profile management', 'web/assets/images/v3.jpg')">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity z-10"></div>
+                    <img src="web/assets/images/v3.jpg" alt="Multi-Account Features" class="w-full h-80 object-cover transform group-hover:scale-110 transition-transform duration-500">
+                    <div class="absolute bottom-0 left-0 right-0 p-4 z-20">
+                        <h3 class="text-xl font-bold text-white mb-1">Multi-Account Features</h3>
+                        <p class="text-sm text-blue-200">Account switching and profile management</p>
+                    </div>
+                    <div class="absolute top-2 right-2 bg-blue-600/80 px-3 py-1 rounded-full text-xs font-semibold z-20">View</div>
+                </div>
+                
+                <div class="relative group cursor-pointer overflow-hidden rounded-xl border-2 border-blue-500/30 hover:border-blue-400/60 transition-all shadow-lg hover:shadow-2xl hover:shadow-blue-500/30"
+                     onclick="showGalleryImage('Advanced Settings', 'Configuration and preferences panel', 'web/assets/images/v4.jpg')">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity z-10"></div>
+                    <img src="web/assets/images/v4.jpg" alt="Advanced Settings" class="w-full h-80 object-cover transform group-hover:scale-110 transition-transform duration-500">
+                    <div class="absolute bottom-0 left-0 right-0 p-4 z-20">
+                        <h3 class="text-xl font-bold text-white mb-1">Advanced Settings</h3>
+                        <p class="text-sm text-blue-200">Configuration and preferences panel</p>
+                    </div>
+                    <div class="absolute top-2 right-2 bg-blue-600/80 px-3 py-1 rounded-full text-xs font-semibold z-20">View</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Download Section -->
+    <section id="download" class="min-h-screen flex items-center py-20 px-6">
+        <div class="container mx-auto max-w-4xl text-center">
+            <h2 class="text-5xl font-bold mb-12 bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                Download & Installation
+            </h2>
+            
+            <div class="bg-gradient-to-r from-blue-900/50 to-cyan-900/50 p-8 rounded-xl border border-blue-400/40 mb-8">
+                <h3 class="text-3xl font-bold text-blue-300 mb-4">Ready to Streamline Your Workflow?</h3>
+                <p class="text-xl text-gray-300 mb-6">
+                    Get started with SurfManager and take control of your IDE sessions today!
+                </p>
+                <div class="flex flex-wrap gap-4 justify-center">
+                    <button onclick="window.open('https://github.com/risunCode/SurfManager/releases/latest', '_blank')" class="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-all transform hover:scale-105 shadow-lg hover:shadow-blue-500/50">
+                        📦 Download Latest
+                    </button>
+                    <button onclick="window.open('web/docs.html', '_blank')" class="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-all transform hover:scale-105 shadow-lg">
+                        📖 View Documentation
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-slate-800/50 p-6 rounded-xl border border-green-500/30">
+                    <h4 class="text-xl font-bold text-green-400 mb-3">🐍 Requirements</h4>
+                    <ul class="text-gray-300 space-y-2 text-left">
+                        <li>• Python 3.8 or higher</li>
+                        <li>• VS Code, Cursor, or Windsurf</li>
+                        <li>• Windows/macOS/Linux</li>
+                        <li>• 50MB free disk space</li>
+                    </ul>
+                </div>
+                
+                <div class="bg-slate-800/50 p-6 rounded-xl border border-blue-500/30">
+                    <h4 class="text-xl font-bold text-blue-400 mb-3">⚡ Installation</h4>
+                    <ul class="text-gray-300 space-y-2 text-left">
+                        <li>• Clone from GitHub</li>
+                        <li>• Install dependencies</li>
+                        <li>• Run setup script</li>
+                        <li>• Ready to use!</li>
+                    </ul>
+                </div>
+                
+                <div class="bg-slate-800/50 p-6 rounded-xl border border-purple-500/30">
+                    <h4 class="text-xl font-bold text-purple-400 mb-3">🔧 Usage</h4>
+                    <ul class="text-gray-300 space-y-2 text-left">
+                        <li>• Launch SurfManager</li>
+                        <li>• Select your IDE</li>
+                        <li>• Choose operation</li>
+                        <li>• Enjoy seamless management!</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="min-h-screen flex items-center py-20 px-6 bg-slate-900/50">
+        <div class="container mx-auto max-w-4xl text-center">
+            <h2 class="text-5xl font-bold mb-12 bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                Get In Touch
+            </h2>
+            
+            <div class="bg-gradient-to-r from-slate-800/70 to-blue-900/50 p-8 rounded-xl border border-blue-400/40 mb-8">
+                <h3 class="text-3xl font-bold text-blue-300 mb-4">Need Help or Have Feedback?</h3>
+                <p class="text-xl text-gray-300 mb-6">
+                    We're here to help! Connect with us for support, bug reports, or feature requests.
+                </p>
+                <div class="flex flex-wrap gap-4 justify-center">
+                    <button onclick="showContactAlert()" class="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-all transform hover:scale-105 shadow-lg hover:shadow-blue-500/50">
+                        💬 Contact Us
+                    </button>
+                    <button onclick="window.open('https://github.com/risunCode/SurfManager', '_blank')" class="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-all transform hover:scale-105 shadow-lg">
+                        🐙 GitHub Repository
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-6">
+                <div class="bg-slate-800/50 p-6 rounded-xl border border-blue-500/30 hover:border-blue-400/60 transition-all">
+                    <h4 class="text-xl font-bold text-blue-400 mb-3">🐛 Bug Reports</h4>
+                    <p class="text-gray-300 mb-4">Found an issue? Let us know!</p>
+                    <p class="text-sm text-cyan-200">Submit detailed reports via GitHub Issues for quick resolution.</p>
+                </div>
+                
+                <div class="bg-slate-800/50 p-6 rounded-xl border border-green-500/30 hover:border-green-400/60 transition-all">
+                    <h4 class="text-xl font-bold text-green-400 mb-3">💡 Feature Requests</h4>
+                    <p class="text-gray-300 mb-4">Have ideas for improvements?</p>
+                    <p class="text-sm text-green-200">Share your suggestions and help shape the future of SurfManager.</p>
+                </div>
+                
+                <div class="bg-slate-800/50 p-6 rounded-xl border border-purple-500/30 hover:border-purple-400/60 transition-all">
+                    <h4 class="text-xl font-bold text-purple-400 mb-3">🤝 Contributions</h4>
+                    <p class="text-gray-300 mb-4">Want to contribute?</p>
+                    <p class="text-sm text-purple-200">Fork the repository and submit pull requests to help improve SurfManager.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 px-6 bg-slate-900/80 border-t border-blue-500/20">
+        <div class="container mx-auto max-w-6xl">
+            <div class="grid md:grid-cols-3 gap-8 mb-8">
+                <div>
+                    <h3 class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent mb-4">SurfManager</h3>
+                    <p class="text-gray-300 mb-4">
+                        Streamline your IDE session management with powerful backup, restore, and multi-account features.
+                    </p>
+                    <div class="flex space-x-4">
+                        <span class="text-2xl cursor-pointer hover:text-blue-400 transition-colors">🐙</span>
+                        <span class="text-2xl cursor-pointer hover:text-blue-400 transition-colors">📧</span>
+                        <span class="text-2xl cursor-pointer hover:text-blue-400 transition-colors">💬</span>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="text-lg font-semibold text-blue-300 mb-4">Quick Links</h4>
+                    <ul class="space-y-2 text-gray-300">
+                        <li><button onclick="scrollToSection('home')" class="hover:text-blue-400 transition-colors">Home</button></li>
+                        <li><button onclick="scrollToSection('about')" class="hover:text-blue-400 transition-colors">About</button></li>
+                        <li><button onclick="scrollToSection('features')" class="hover:text-blue-400 transition-colors">Features</button></li>
+                        <li><button onclick="scrollToSection('download')" class="hover:text-blue-400 transition-colors">Download</button></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="text-lg font-semibold text-blue-300 mb-4">Resources</h4>
+                    <ul class="space-y-2 text-gray-300">
+                        <li><a href="#" class="hover:text-blue-400 transition-colors">Documentation</a></li>
+                        <li><a href="#" class="hover:text-blue-400 transition-colors">GitHub Repository</a></li>
+                        <li><a href="#" class="hover:text-blue-400 transition-colors">Issue Tracker</a></li>
+                        <li><a href="#" class="hover:text-blue-400 transition-colors">Releases</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-blue-500/20 pt-8 text-center">
+                <p class="text-gray-400">
+                    © 2024 SurfManager by risunCode. Licensed under MIT License.
+                </p>
+                <p class="text-sm text-blue-300 mt-2">
+                    "Simplifying IDE session management for developers worldwide"
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Global variables
+        let isScrolled = false;
+        let activeSection = "home";
+        let isMobileMenuOpen = false;
+
+        // Scroll detection and navigation highlighting
+        function handleScroll() {
+            isScrolled = window.scrollY > 50;
+            
+            // Update header background
+            const header = document.getElementById('header');
+            if (isScrolled) {
+                header.classList.add('bg-slate-900/95', 'backdrop-blur-md', 'shadow-lg');
+            } else {
+                header.classList.remove('bg-slate-900/95', 'backdrop-blur-md', 'shadow-lg');
+            }
+
+            // Update active section
+            const sections = ["home", "about", "features", "gallery", "download", "contact"];
+            const current = sections.find(section => {
+                const element = document.getElementById(section);
+                if (element) {
+                    const rect = element.getBoundingClientRect();
+                    return rect.top <= 100 && rect.bottom >= 100;
+                }
+                return false;
+            });
+            
+            if (current && current !== activeSection) {
+                activeSection = current;
+                updateActiveNavigation();
+            }
+        }
+
+        // Update navigation active states
+        function updateActiveNavigation() {
+            document.querySelectorAll('.nav-link, .mobile-nav-link').forEach(link => {
+                link.classList.remove('text-blue-400');
+                link.classList.add('text-white');
+            });
+            
+            document.querySelectorAll(`[onclick="scrollToSection('${activeSection}')"]`).forEach(link => {
+                link.classList.remove('text-white');
+                link.classList.add('text-blue-400');
+            });
+        }
+
+        // Scroll to section
+        function scrollToSection(sectionId) {
+            const element = document.getElementById(sectionId);
+            if (element) {
+                element.scrollIntoView({ behavior: "smooth" });
+                closeMobileMenu();
+            }
+        }
+
+        // Mobile menu toggle
+        function toggleMobileMenu() {
+            isMobileMenuOpen = !isMobileMenuOpen;
+            const mobileMenu = document.getElementById('mobileMenu');
+            const toggleButton = document.getElementById('mobileMenuToggle');
+            
+            if (isMobileMenuOpen) {
+                mobileMenu.classList.remove('hidden');
+                toggleButton.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
+            } else {
+                mobileMenu.classList.add('hidden');
+                toggleButton.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>';
+            }
+        }
+
+        // Close mobile menu
+        function closeMobileMenu() {
+            if (isMobileMenuOpen) {
+                toggleMobileMenu();
+            }
+        }
+
+        // SweetAlert functions
+        function showContactAlert() {
+            Swal.fire({
+                title: "Connect with SurfManager",
+                html: `
+                    <div style="text-align: left; padding: 1rem;">
+                        <p style="margin-bottom: 1rem; font-size: 1.1rem;">🐙 <strong>GitHub:</strong> github.com/risunCode/SurfManager</p>
+                        <p style="margin-bottom: 1rem; font-size: 1.1rem;">📧 <strong>Email:</strong> contact@risuncode.dev</p>
+                        <p style="font-size: 1.1rem;">💬 <strong>Issues:</strong> Report bugs or request features</p>
+                    </div>
+                `,
+                icon: "info",
+                confirmButtonText: "Close",
+                showCloseButton: true,
+            });
+        }
+
+        function showDownloadAlert() {
+            Swal.fire({
+                title: "Download SurfManager v5.2.0",
+                html: `
+                    <div style="text-align: left; padding: 1rem;">
+                        <p style="margin-bottom: 1rem; font-size: 1.1rem;">📦 <strong>Latest Release:</strong> v5.2.0 (GitHub)</p>
+                        <p style="margin-bottom: 1rem; font-size: 1.1rem;">🐍 <strong>Requirements:</strong> Python 3.8+, PyQt6</p>
+                        <p style="margin-bottom: 1rem; font-size: 1.1rem;">💻 <strong>Platforms:</strong> Windows (Full), Linux/macOS (Partial)</p>
+                        <p style="margin-bottom: 1rem; font-size: 1.1rem;">📊 <strong>Binary Size:</strong> 34MB optimized</p>
+                        <p style="margin-bottom: 1rem; font-size: 1.1rem;">⚡ <strong>Startup Time:</strong> ~1 second</p>
+                        <p style="font-size: 1.1rem;">📄 <strong>License:</strong> MIT (Open Source)</p>
+                    </div>
+                `,
+                icon: "success",
+                confirmButtonText: "Visit GitHub Releases",
+                showCloseButton: true,
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.open('https://github.com/risunCode/SurfManager/releases', '_blank');
+                }
+            });
+        }
+
+        function showGalleryImage(title, description, imageSrc) {
+            Swal.fire({
+                title: title,
+                html: `
+                    <div style="text-align: center; padding: 1rem;">
+                        <p style="margin-bottom: 1rem; font-size: 1.1rem; color: #cbd5e1;">${description}</p>
+                    </div>
+                `,
+                imageUrl: imageSrc,
+                imageAlt: title,
+                confirmButtonText: "Close",
+                showCloseButton: true,
+                width: '80%',
+                padding: '1rem',
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add scroll event listener
+            window.addEventListener('scroll', handleScroll);
+            
+            // Add mobile menu toggle
+            document.getElementById('mobileMenuToggle').addEventListener('click', toggleMobileMenu);
+            
+            // Initialize navigation
+            updateActiveNavigation();
+        });
+    </script>
+</body>
+</html>

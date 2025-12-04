@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation | SurfManager - Reset IDE data, Backup & Restore</title>
+    <meta name="description"
+        content="Complete documentation for SurfManager. Reset IDE data, create backup and restore, manage multi-account easily. Work for VS-Code/fork based app like Cursor, Windsurf.">
+    <meta name="keywords"
+        content="cursor, reset-trial, agentic, agentic-ai, cursor-pro, cursor-ai, free-trial-reset, cursor-reset, windsurf-reset, reset-cursor, reset-windsurf, surfmanager, milkforge-pro, documentation, user guide">
+    <meta name="author" content="risunCode">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://github.com/risunCode/SurfManager">
+    <meta property="og:title" content="SurfManager Documentation - Complete User Guide">
+    <meta property="og:description"
+        content="Complete documentation for SurfManager. Reset IDE data, create backup and restore, manage multi-account easily.">
+    <meta property="og:image"
+        content="https://raw.githubusercontent.com/risunCode/SurfManager/main/web/assets/images/v1.jpg">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://github.com/risunCode/SurfManager">
+    <meta property="twitter:title" content="SurfManager Documentation - Complete User Guide">
+    <meta property="twitter:description"
+        content="Complete documentation for SurfManager. Reset IDE data, create backup and restore, manage multi-account easily.">
+    <meta property="twitter:image"
+        content="https://raw.githubusercontent.com/risunCode/SurfManager/main/web/assets/images/v1.jpg">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Marked.js for GitHub Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.0.0/marked.min.js"></script>
+    
+    <!-- Highlight.js for syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <!-- Custom Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        terminal: {
+                            bg: '#0a0e27',
+                            dark: '#050810',
+                            border: '#1a1f3a',
+                            green: '#00ff41',
+                            cyan: '#00d4ff',
+                            gray: '#8b949e',
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['Courier New', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @keyframes blink {
+            0%,
+            50% {
+                opacity: 1;
+            }
+
+            51%,
+            100% {
+                opacity: 0;
+            }
+        }
+
+        .cursor-blink::after {
+            content: '▋';
+            animation: blink 1s infinite;
+            color: #00ff41;
+        }
+
+        .terminal-text {
+            text-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
+        }
+
+        .glow-border {
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+        }
+
+        .glow-border:hover {
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.5);
+        }
+
+        #matrix-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.12;
+        }
+
+        /* Fixed Sidebar - Won't overlap content */
+        .sidebar-fixed {
+            position: fixed;
+            left: 0;
+            top: 80px;
+            width: 280px;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+            z-index: 30;
+            background: rgba(10, 14, 39, 0.95);
+            border-right: 1px solid #1a1f3a;
+            padding: 1rem;
+        }
+
+        @media (max-width: 1280px) {
+            .sidebar-fixed {
+                display: none;
+            }
+        }
+
+        .main-content {
+            margin-left: 280px;
+            padding-left: 2rem;
+            padding-right: 2rem;
+            max-width: calc(100% - 280px);
+        }
+
+        @media (max-width: 1280px) {
+            .main-content {
+                margin-left: 0;
+                max-width: 100%;
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+        }
+
+        #toc-nav a {
+            display: block;
+            padding: 0.5rem 1rem;
+            color: #8b949e;
+            text-decoration: none;
+            border-left: 2px solid transparent;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+        }
+
+        #toc-nav a:hover {
+            color: #00ff41;
+            border-left-color: #00ff41;
+            background: rgba(0, 255, 65, 0.05);
+        }
+
+        #toc-nav a.active {
+            color: #00d4ff;
+            border-left-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.1);
+            font-weight: bold;
+        }
+
+        #toc-nav a.level-2 {
+            padding-left: 1.5rem;
+            font-size: 0.8125rem;
+        }
+
+        #toc-nav a.level-3 {
+            padding-left: 2rem;
+            font-size: 0.75rem;
+        }
+
+        /* GitHub Markdown Style */
+        #markdown-content {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+            font-size: 16px;
+            line-height: 1.6;
+            word-wrap: break-word;
+        }
+
+        #markdown-content h1 {
+            font-size: 2em;
+            font-weight: 600;
+            color: #00ff41;
+            margin: 0.67em 0;
+            padding-bottom: 0.3em;
+            border-bottom: 1px solid #1a1f3a;
+            text-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+        }
+
+        #markdown-content h2 {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #00ff41;
+            margin: 24px 0 16px;
+            padding-bottom: 0.3em;
+            border-bottom: 1px solid #1a1f3a;
+        }
+
+        #markdown-content h3 {
+            font-size: 1.25em;
+            font-weight: 600;
+            color: #00d4ff;
+            margin: 24px 0 16px;
+        }
+
+        #markdown-content h4 {
+            font-size: 1em;
+            font-weight: 600;
+            color: #00d4ff;
+            margin: 24px 0 16px;
+        }
+
+        #markdown-content h5, #markdown-content h6 {
+            font-size: 0.875em;
+            font-weight: 600;
+            color: #8b949e;
+            margin: 24px 0 16px;
+        }
+
+        #markdown-content p {
+            color: #c9d1d9;
+            line-height: 1.6;
+            margin-top: 0;
+            margin-bottom: 16px;
+        }
+
+        #markdown-content ul,
+        #markdown-content ol {
+            margin-top: 0;
+            margin-bottom: 16px;
+            padding-left: 2em;
+        }
+
+        #markdown-content li {
+            color: #c9d1d9;
+            margin-top: 0.25em;
+        }
+
+        #markdown-content li + li {
+            margin-top: 0.25em;
+        }
+
+        #markdown-content ul ul,
+        #markdown-content ul ol,
+        #markdown-content ol ul,
+        #markdown-content ol ol {
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+
+        #markdown-content blockquote {
+            margin: 0 0 16px 0;
+            padding: 0 1em;
+            color: #8b949e;
+            border-left: 0.25em solid #1a1f3a;
+        }
+
+        #markdown-content code {
+            background: rgba(110, 118, 129, 0.4);
+            border-radius: 6px;
+            color: #c9d1d9;
+            font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+            font-size: 85%;
+            padding: 0.2em 0.4em;
+        }
+
+        #markdown-content pre {
+            background: #161b22;
+            border-radius: 6px;
+            padding: 16px;
+            overflow: auto;
+            font-size: 85%;
+            line-height: 1.45;
+            margin-top: 0;
+            margin-bottom: 16px;
+        }
+
+        #markdown-content pre code {
+            background: transparent;
+            border: 0;
+            display: inline;
+            line-height: inherit;
+            margin: 0;
+            overflow: visible;
+            padding: 0;
+            word-wrap: normal;
+            font-size: 100%;
+        }
+
+        #markdown-content a {
+            color: #58a6ff;
+            text-decoration: none;
+        }
+
+        #markdown-content a:hover {
+            text-decoration: underline;
+        }
+
+        #markdown-content img {
+            max-width: 100%;
+            height: auto;
+            background-color: #0d1117;
+            border-radius: 6px;
+            margin: 16px 0;
+        }
+
+        /* Badge/Shield images - display inline */
+        #markdown-content p img[src*="shields.io"],
+        #markdown-content p img[src*="badge"],
+        #markdown-content p img[src*="img.shields.io"] {
+            display: inline-block;
+            margin: 4px 4px 4px 0;
+            background-color: transparent;
+            border-radius: 0;
+            vertical-align: middle;
+        }
+
+        /* Paragraph containing only badges - remove extra spacing */
+        #markdown-content p:has(img[src*="shields.io"]),
+        #markdown-content p:has(img[src*="badge"]),
+        #markdown-content p:has(img[src*="img.shields.io"]),
+        #markdown-content .badge-group {
+            margin-bottom: 8px;
+            line-height: 1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            align-items: center;
+        }
+
+        #markdown-content .badge-group a {
+            display: inline-block;
+            line-height: 1;
+        }
+
+        #markdown-content table {
+            border-collapse: collapse;
+            border-spacing: 0;
+            width: 100%;
+            overflow: auto;
+            margin-top: 0;
+            margin-bottom: 16px;
+        }
+
+        #markdown-content table th {
+            font-weight: 600;
+            padding: 6px 13px;
+            border: 1px solid #30363d;
+            background: #161b22;
+            color: #c9d1d9;
+        }
+
+        #markdown-content table td {
+            padding: 6px 13px;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+        }
+
+        #markdown-content table tr {
+            background-color: #0d1117;
+            border-top: 1px solid #30363d;
+        }
+
+        #markdown-content table tr:nth-child(2n) {
+            background-color: #161b22;
+        }
+
+        #markdown-content hr {
+            height: 0.25em;
+            padding: 0;
+            margin: 24px 0;
+            background-color: #1a1f3a;
+            border: 0;
+        }
+
+        #markdown-content strong {
+            font-weight: 600;
+            color: #c9d1d9;
+        }
+
+        #markdown-content em {
+            font-style: italic;
+        }
+
+        #markdown-content del {
+            text-decoration: line-through;
+        }
+
+        #markdown-content input[type="checkbox"] {
+            margin: 0 0.2em 0.25em -1.6em;
+            vertical-align: middle;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #050810;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #1a1f3a;
+            border-left: 2px solid #00ff41;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00ff41;
+        }
+    </style>
+</head>
+
+<body class="bg-terminal-dark text-terminal-gray">
+
+    <canvas id="matrix-canvas"></canvas>
+
+    <nav class="fixed top-0 left-0 right-0 z-50 bg-terminal-bg/95 backdrop-blur-sm border-b border-terminal-border">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
+            <a href="../index.html" class="flex items-center space-x-3">
+                <span class="text-2xl text-terminal-green">❯</span>
+                <span class="text-xl font-bold text-terminal-green terminal-text">SURFMANAGER</span>
+                <span class="text-xs text-terminal-cyan border border-terminal-cyan px-2 py-1">v5.1.2</span>
+            </a>
+            <div class="flex items-center space-x-6">
+                <a href="../index.html#home" class="text-terminal-gray hover:text-terminal-green transition-colors">[ HOME
+                    ]</a>
+                <a href="../index.html#features" class="text-terminal-gray hover:text-terminal-green transition-colors">[
+                    FEATURES ]</a>
+                <a href="docs.html" class="text-terminal-green">[ DOCS ]</a>
+                <a href="https://github.com/risunCode/SurfManager" target="_blank"
+                    class="bg-terminal-green text-terminal-dark px-4 py-2 hover:bg-terminal-cyan transition-all glow-border">DOWNLOAD</a>
+            </div>
+        </nav>
+
+        <div class="pt-20 relative z-10">
+
+            <!-- Fixed Sidebar -->
+            <aside class="sidebar-fixed">
+                <div class="text-sm font-bold text-terminal-cyan mb-4">[ TABLE OF CONTENTS ]</div>
+                <nav id="toc-nav"></nav>
+            </aside>
+
+            <!-- Main Content -->
+            <div class="main-content py-8">
+
+                <div class="mb-8">
+                    <h1 class="text-4xl font-bold text-terminal-green terminal-text mb-2">❯ DOCUMENTATION_</h1>
+                    <p class="text-terminal-cyan">// Live from GitHub README</p>
+                </div>
+
+                <div id="loading-state" class="border border-terminal-border bg-terminal-bg/80 p-12 text-center">
+                    <div class="text-terminal-green text-xl mb-3 animate-pulse">[ LOADING DOCUMENTATION ]</div>
+                    <div class="text-terminal-gray">Fetching from GitHub...</div>
+                </div>
+
+                <div id="error-state" class="hidden border border-red-500 bg-terminal-bg/80 p-12 text-center">
+                    <div class="text-red-500 text-xl mb-3">[ ERROR ]</div>
+                    <div class="text-terminal-gray mb-6">Failed to load from GitHub</div>
+                    <a href="https://raw.githubusercontent.com/risunCode/SurfManager/refs/heads/main/README.md"
+                        target="_blank"
+                        class="inline-block bg-terminal-green text-terminal-dark px-6 py-3 hover:bg-terminal-cyan transition-all glow-border">VIEW
+                        RAW</a>
+                </div>
+
+                <div id="docs-container" class="hidden">
+                    <div class="border border-terminal-border bg-terminal-bg/80">
+                        <div
+                            class="bg-terminal-border px-6 py-3 border-b border-terminal-border flex justify-between items-center">
+                            <span class="text-xs text-terminal-gray"><span class="text-terminal-green">❯</span>
+                                README.md</span>
+                            <a href="https://github.com/risunCode/SurfManager/blob/main/README.md" target="_blank"
+                                class="text-xs text-terminal-green hover:text-terminal-cyan">[ GitHub → ]</a>
+                        </div>
+                        <div id="markdown-content" class="p-8"></div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <script src="assets/js/matrix.js"></script>
+
+    <script>
+        // Configure marked.js for GitHub style
+        marked.setOptions({
+            gfm: true,
+            breaks: true,
+            headerIds: true,
+            mangle: false,
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    try {
+                        return hljs.highlight(code, { language: lang }).value;
+                    } catch (err) {}
+                }
+                return hljs.highlightAuto(code).value;
+            }
+        });
+
+        function mergeBadgeParagraphs(content) {
+            const paragraphs = content.querySelectorAll('p');
+            let badgeGroup = null;
+            
+            paragraphs.forEach((p) => {
+                const links = p.querySelectorAll('a');
+                const images = p.querySelectorAll('img');
+                
+                // Check if paragraph contains only badge images
+                const isBadgeParagraph = images.length > 0 && 
+                    Array.from(images).every(img => 
+                        img.src.includes('shields.io') || 
+                        img.src.includes('badge') || 
+                        img.src.includes('img.shields.io')
+                    ) &&
+                    p.textContent.trim() === '';
+                
+                if (isBadgeParagraph) {
+                    if (!badgeGroup) {
+                        // Start new badge group
+                        badgeGroup = p;
+                        badgeGroup.classList.add('badge-group');
+                    } else {
+                        // Merge into existing badge group
+                        Array.from(p.childNodes).forEach(node => {
+                            badgeGroup.appendChild(node.cloneNode(true));
+                        });
+                        p.remove();
+                    }
+                } else {
+                    // Reset badge group when non-badge paragraph found
+                    badgeGroup = null;
+                }
+            });
+        }
+
+        async function loadDocs() {
+            const loading = document.getElementById('loading-state');
+            const error = document.getElementById('error-state');
+            const container = document.getElementById('docs-container');
+            const content = document.getElementById('markdown-content');
+            const toc = document.getElementById('toc-nav');
+
+            try {
+                const res = await fetch('https://raw.githubusercontent.com/risunCode/SurfManager/refs/heads/main/README.md');
+                if (!res.ok) throw new Error('Failed');
+                const md = await res.text();
+                
+                // Parse markdown using marked.js
+                content.innerHTML = marked.parse(md);
+                
+                // Apply syntax highlighting
+                content.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightElement(block);
+                });
+                
+                // Fix badge alignment - merge consecutive badge paragraphs
+                mergeBadgeParagraphs(content);
+                
+                generateTOC(content, toc);
+                loading.classList.add('hidden');
+                container.classList.remove('hidden');
+                setupScrollSpy();
+            } catch (e) {
+                loading.classList.add('hidden');
+                error.classList.remove('hidden');
+            }
+        }
+
+        function generateTOC(content, toc) {
+            const headers = content.querySelectorAll('h1, h2, h3');
+            const items = [];
+            headers.forEach((h, i) => {
+                const level = h.tagName;
+                const text = h.textContent;
+                let id = h.id;
+                
+                // If marked.js didn't generate an id, create one
+                if (!id) {
+                    id = `h-${i}`;
+                    h.id = id;
+                }
+                
+                const cls = level === 'H1' ? 'level-1' : level === 'H2' ? 'level-2' : 'level-3';
+                items.push(`<a href="#${id}" class="${cls}" data-target="${id}">${text}</a>`);
+            });
+            toc.innerHTML = items.join('');
+        }
+
+        function setupScrollSpy() {
+            const headers = document.querySelectorAll('#markdown-content h1, #markdown-content h2, #markdown-content h3');
+            const links = document.querySelectorAll('#toc-nav a');
+
+            window.addEventListener('scroll', () => {
+                let current = '';
+                headers.forEach(h => {
+                    if (h.getBoundingClientRect().top <= 100) current = h.id;
+                });
+                links.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.dataset.target === current) link.classList.add('active');
+                });
+            });
+
+            links.forEach(link => {
+                link.addEventListener('click', e => {
+                    e.preventDefault();
+                    const target = document.getElementById(link.dataset.target);
+                    if (target) window.scrollTo({ top: target.offsetTop - 80, behavior: 'smooth' });
+                });
+            });
+        }
+
+        window.addEventListener('load', loadDocs);
+    </script>
+</body>
+
+</html>

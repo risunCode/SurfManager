@@ -1,0 +1,42 @@
+# Ignore OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Ignore editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Ignore temporary files
+*.tmp
+*.temp
+*.log
+
+# Ignore build/dist folders if you add build process later
+dist/
+build/
+.cache/
+
+# Ignore node_modules if you add npm packages
+node_modules/
+package-lock.json
+yarn.lock
+
+# Ignore minified files (keep source files in version control)
+*.min.js
+*.min.css
+*.min.html
+
+# Ignore backup files
+*.bak
+
+# Ignore large media files (use Git LFS instead)
+# *.mp4
+# *.mov
+# *.avi
+
+# Keep these files
+!assets/.gitkeep
