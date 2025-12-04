@@ -2,17 +2,19 @@
 import os
 import json
 import shutil
+from datetime import datetime
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
     QLabel, QPushButton, QLineEdit, QTextEdit, QComboBox,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
-    QInputDialog, QMenu, QFrame, QDialog, QScrollArea
+    QInputDialog, QMenu, QFrame, QDialog, QScrollArea, QProgressBar
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer, QThread
 from PyQt6.QtGui import QBrush, QColor, QFont, QAction, QKeySequence, QShortcut
 import qtawesome as qta
 from app.core.config import ConfigManager
 from app.core import app_configs
+from app.core.workers import BackupWorker, RestoreWorker, run_in_thread
 
 
 class AllAppsDialog(QDialog):
@@ -88,19 +90,14 @@ class AccountTab(QWidget):
         self.current_filter = "All"
         self.app_list = []
         self.app_widgets = []
+        self.show_auto_backups = False  # Toggle for auto-backups view
         self._init_ui()
         self._init_sessions()
         self._setup_shortcuts()
         self._load_apps_from_config()
 
     def log(self, msg: str):
-        """Log to both global and local log."""
-        if self.log_callback:
-            self.log_callback(msg)
-        self._local_log(msg)
-
-    def _local_log(self, msg: str):
-        """Add message to local activity log (no timestamp)."""
+        """Log to local output only."""
         self.log_output.append(msg)
 
     def clear_log(self):
@@ -116,7 +113,7 @@ class AccountTab(QWidget):
         row = self.table.currentRow()
         if row >= 0:
             app = self.table.item(row, 1).text().lower()
-            name = self.table.item(row, 2).text().replace("★ ", "")
+            name = self.table.item(row, 2).text()
             self._delete(app, name)
 
     def _init_ui(self):
@@ -226,6 +223,29 @@ class AccountTab(QWidget):
         self.log_output.setReadOnly(True)
         self.log_output.setStyleSheet("background-color: #1a1a1a; border: 1px solid #333; border-radius: 3px;")
         log_layout.addWidget(self.log_output)
+        
+        # Progress bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setFixedHeight(20)
+        self.progress_bar.setTextVisible(True)
+        self.progress_bar.setFormat("Ready")
+        self.progress_bar.setValue(0)
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #3d3d3d;
+                border-radius: 4px;
+                text-align: center;
+                background-color: #1e1e1e;
+                color: #e0e0e0;
+                font-size: 10px;
+            }
+            QProgressBar::chunk {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #0d7377, stop:1 #14ffec);
+                border-radius: 3px;
+            }
+        """)
+        log_layout.addWidget(self.progress_bar)
 
         sidebar_layout.addWidget(log_group, 1)
 
@@ -265,11 +285,77 @@ class AccountTab(QWidget):
         self.add_app_filter(name)
 
     def _on_app_click(self, app_name: str):
-        """Handle app button click - filter by app."""
-        idx = self.filter_combo.findText(app_name)
-        if idx >= 0:
-            self.filter_combo.setCurrentIndex(idx)
-        self.log(f"Filter: {app_name}")
+        """Handle app button click - backup with smart app close."""
+        from app.core.process_killer import ProcessKiller
+        
+        # Find app config
+        active_apps = app_configs.get_active_apps()
+        app_key = None
+        config = None
+        for a in active_apps:
+            config = app_configs.get_app(a)
+            if config.get('display_name', a.title()) == app_name:
+                app_key = a
+                break
+        
+        if not app_key or not config:
+            self.log(f"App not found: {app_name}")
+            return
+        
+        exe_paths = config.get('paths', {}).get('exe_paths', [])
+        process_names = [os.path.basename(p) for p in exe_paths if p]
+        
+        # STEP 1: FORCE CLOSE APP IF RUNNING
+        killer = ProcessKiller(log_callback=self.log)
+        self._force_close_app(killer, app_name, process_names)
+        
+        # STEP 2: Ask for backup name
+        name, ok = QInputDialog.getText(self, f"Backup {app_name}", "Enter session name:", text="main")
+        if not ok or not name.strip():
+            return
+        
+        backup_name = f"{app_key}-{name.strip()}"
+        
+        # Check for duplicate session name
+        existing_sessions = self._get_existing_sessions_for_app(app_key)
+        if backup_name in existing_sessions:
+            QMessageBox.warning(self, "Duplicate Name", 
+                f"Session '{backup_name}' already exists!\n\nPlease use a different name.")
+            return
+        
+        # STEP 3: Create backup
+        self._create_backup(app_key, backup_name)
+        
+        # Keep filter as "All" - don't change filter after backup
+    
+    def _force_close_app(self, killer, app_name: str, process_names: list):
+        """Force close app if running - NO QUESTIONS ASKED."""
+        if not process_names:
+            return
+        
+        # Check if running
+        procs = killer.get_running_processes(process_names)
+        if not procs:
+            return
+        
+        # App is running - FORCE CLOSE
+        self.log(f"[SMART CLOSE] {app_name} is running - closing...")
+        self.progress_bar.setFormat(f"Closing {app_name}...")
+        self.progress_bar.setValue(5)
+        
+        # Show brief warning
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Icon.Warning)
+        msg.setWindowTitle("App Running")
+        msg.setText(f"{app_name} will be closed")
+        msg.setStandardButtons(QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
+        if msg.exec() != QMessageBox.StandardButton.Ok:
+            return
+        
+        # KILL IT
+        success, message = killer.smart_close(app_name, process_names)
+        self.log(f"[SMART CLOSE] {message}")
+        self.progress_bar.setValue(20)
 
 
 
@@ -295,13 +381,6 @@ class AccountTab(QWidget):
         self.count_label.setStyleSheet("color: #888; font-size: 11px;")
         toolbar.addWidget(self.count_label)
         
-        # Create Backup button
-        backup_btn = QPushButton(" New Backup")
-        backup_btn.setIcon(qta.icon('fa5s.plus', color='#81c784'))
-        backup_btn.setStyleSheet("QPushButton { background-color: #2e7d32; color: white; padding: 4px 10px; border-radius: 4px; } QPushButton:hover { background-color: #388e3c; }")
-        backup_btn.clicked.connect(self._create_backup_dialog)
-        toolbar.addWidget(backup_btn)
-        
         toolbar.addStretch()
 
         self.search = QLineEdit()
@@ -309,6 +388,16 @@ class AccountTab(QWidget):
         self.search.setMaximumWidth(160)
         self.search.textChanged.connect(self._filter_table)
         toolbar.addWidget(self.search)
+        
+        # Auto-backups toggle button
+        self.auto_backup_toggle_btn = QPushButton("Auto-Backups")
+        self.auto_backup_toggle_btn.setFixedWidth(100)
+        self.auto_backup_toggle_btn.setFixedHeight(24)
+        self.auto_backup_toggle_btn.setCheckable(True)
+        self.auto_backup_toggle_btn.setToolTip("Toggle auto-backups view")
+        self.auto_backup_toggle_btn.clicked.connect(self._toggle_auto_backups_view)
+        self._update_auto_backup_toggle_style()
+        toolbar.addWidget(self.auto_backup_toggle_btn)
 
         sessions_layout.addLayout(toolbar)
 
@@ -317,11 +406,43 @@ class AccountTab(QWidget):
         self.table.setColumnCount(7)
         self.table.setHorizontalHeaderLabels(["#", "App", "Session Name", "Size", "Created", "Modified", "Status"])
         self.table.verticalHeader().setVisible(False)
-        self.table.setSortingEnabled(True)
+        self.table.setSortingEnabled(False)  # Keep creation order
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
-        self.table.setStyleSheet("QHeaderView::section { font-weight: bold; background-color: #333; }")
+        
+        # Dark theme styling with standard font
+        self.table.setStyleSheet("""
+            QTableWidget {
+                background-color: #1e1e1e;
+                alternate-background-color: #252526;
+                gridline-color: #3d3d3d;
+                border: 1px solid #3d3d3d;
+                border-radius: 4px;
+                color: #e0e0e0;
+                font-family: "Segoe UI", sans-serif;
+                font-size: 11px;
+            }
+            QTableWidget::item {
+                padding: 4px;
+                border-bottom: 1px solid #2d2d2d;
+            }
+            QTableWidget::item:selected {
+                background-color: #0d7377;
+                color: #fff;
+            }
+            QHeaderView::section {
+                background-color: #2d2d30;
+                color: #ccc;
+                font-weight: bold;
+                padding: 6px;
+                border: none;
+                border-bottom: 2px solid #3d3d3d;
+                border-right: 1px solid #3d3d3d;
+                font-family: "Segoe UI", sans-serif;
+                font-size: 11px;
+            }
+        """)
 
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
@@ -338,6 +459,23 @@ class AccountTab(QWidget):
         self.table.doubleClicked.connect(self._on_double_click)
 
         sessions_layout.addWidget(self.table)
+        
+        # Add tip label
+        tip_label = QLabel("Tip: Right-click on sessions for quick actions (Load, Update, Set Active, Rename, Browse, Delete)")
+        tip_label.setStyleSheet("""
+            QLabel {
+                color: #888;
+                font-size: 11px;
+                font-style: italic;
+                padding: 4px 8px;
+                margin-top: 2px;
+                background-color: rgba(255, 193, 7, 0.1);
+                border-left: 3px solid #FFC107;
+                border-radius: 3px;
+            }
+        """)
+        tip_label.setWordWrap(True)
+        sessions_layout.addWidget(tip_label)
 
         parent.addWidget(sessions_group, 2)
 
@@ -347,7 +485,7 @@ class AccountTab(QWidget):
         row = index.row()
         if row >= 0:
             app = self.table.item(row, 1).text().lower()
-            name = self.table.item(row, 2).text().replace("★ ", "")
+            name = self.table.item(row, 2).text()
             self._load_session(app, name)
 
     def _delete_selected_multi(self):
@@ -362,7 +500,7 @@ class AccountTab(QWidget):
         for index in selected_rows:
             row = index.row()
             app = self.table.item(row, 1).text().lower()
-            name = self.table.item(row, 2).text().replace("★ ", "")
+            name = self.table.item(row, 2).text()
             items_to_delete.append((app, name))
 
         count = len(items_to_delete)
@@ -382,14 +520,11 @@ class AccountTab(QWidget):
         if msg.exec() == QMessageBox.StandardButton.Yes:
             deleted = 0
             for app, name in items_to_delete:
-                if name in self.sessions.get(app, {}):
-                    del self.sessions[app][name]
                 folder = os.path.join(self.backup_path, app, name)
                 if os.path.exists(folder):
                     shutil.rmtree(folder, ignore_errors=True)
-                deleted += 1
+                    deleted += 1
             
-            self._save()
             self._refresh()
             self.log(f"Deleted {deleted} session(s)")
 
@@ -402,6 +537,9 @@ class AccountTab(QWidget):
             self.log("Backup folder not found")
 
     def add_app_filter(self, name: str):
+        # Skip auto-backups from filter dropdown
+        if name.lower() == "auto-backups":
+            return
         if self.filter_combo.findText(name) == -1:
             self.filter_combo.addItem(name)
             self.app_list.append(name.lower())
@@ -411,98 +549,153 @@ class AccountTab(QWidget):
         self._refresh()
 
     def _init_sessions(self):
-        self.backup_path = self.config.get_path('surfmanager_paths.session_backup') or os.path.join(os.path.expanduser("~"), "Documents", "SurfManager")
-        self.config_file = self.config.get_path('session_config_file') or os.path.join(self.backup_path, "sessions.json")
+        # Use cross-platform backup path
+        self.backup_path = str(self.config.get_platform_path("backup"))
         os.makedirs(self.backup_path, exist_ok=True)
-        self.sessions = self._load()
         self._refresh()
 
-    def _load(self):
-        if os.path.exists(self.config_file):
-            try:
-                with open(self.config_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            except:
-                pass
-        return {}
-
-    def _save(self):
-        try:
-            with open(self.config_file, 'w', encoding='utf-8') as f:
-                json.dump(self.sessions, f, indent=2, ensure_ascii=False)
-        except Exception as e:
-            self.log(f"Save failed: {e}")
-
     def _refresh(self):
+        """Refresh sessions by scanning backup folders (filesystem-based)."""
         all_sessions = []
-        counts = {}
-
-        for app in self.app_list:
-            items = self.sessions.get(app, {})
-            counts[app] = len(items)
-            if self.current_filter == "All" or self.current_filter.lower() == app:
-                for name, data in items.items():
-                    all_sessions.append((app, name, data))
-
-        all_sessions.sort(key=lambda x: (not x[2].get('is_current', False), -(datetime.fromisoformat(x[2].get('created', '1900-01-01')).timestamp() if x[2].get('created') else 0)))
-
+        
+        if self.show_auto_backups:
+            # Show auto-backups from cross-platform auto-backups folder
+            auto_backup_path = str(self.config.get_platform_path("backup") / "auto-backups")
+            if os.path.exists(auto_backup_path):
+                for app_name in os.listdir(auto_backup_path):
+                    app_folder = os.path.join(auto_backup_path, app_name)
+                    if not os.path.isdir(app_folder):
+                        continue
+                    
+                    # Skip if not in filter
+                    if self.current_filter != "All" and self.current_filter.lower() != app_name.lower():
+                        continue
+                    
+                    try:
+                        for item in os.listdir(app_folder):
+                            item_path = os.path.join(app_folder, item)
+                            if os.path.isdir(item_path) and item.startswith("auto-"):
+                                # Get creation time
+                                try:
+                                    created_time = os.path.getctime(item_path)
+                                    created_dt = datetime.fromtimestamp(created_time)
+                                except:
+                                    created_dt = datetime.now()
+                                
+                                all_sessions.append((app_name.lower(), item, created_dt))
+                    except (PermissionError, OSError):
+                        pass
+        else:
+            # Show regular manual sessions
+            if os.path.exists(self.backup_path):
+                for app_name in os.listdir(self.backup_path):
+                    app_folder = os.path.join(self.backup_path, app_name)
+                    if not os.path.isdir(app_folder):
+                        continue
+                    
+                    # Skip auto-backups folder completely
+                    if app_name.lower() == "auto-backups":
+                        continue
+                    
+                    # Skip if not in filter
+                    if self.current_filter != "All" and self.current_filter.lower() != app_name.lower():
+                        continue
+                    
+                    # Scan for backup folders in app directory (exclude auto- prefixed sessions)
+                    try:
+                        for item in os.listdir(app_folder):
+                            item_path = os.path.join(app_folder, item)
+                            if os.path.isdir(item_path) and not item.startswith("auto-") and not item.startswith("."):
+                                # Get creation time
+                                try:
+                                    created_time = os.path.getctime(item_path)
+                                    created_dt = datetime.fromtimestamp(created_time)
+                                except:
+                                    created_dt = datetime.now()
+                                
+                                all_sessions.append((app_name.lower(), item, created_dt))
+                    except (PermissionError, OSError):
+                        pass
+        
+        # Keep creation order (filesystem order)
         self.table.setSortingEnabled(False)
         self.table.setRowCount(len(all_sessions))
 
-        total = sum(counts.values())
-        self.count_label.setText(f"Total: {total}" if self.current_filter == "All" else f"{counts.get(self.current_filter.lower(), 0)} of {total}")
+        # Update count label
+        total = len(all_sessions)
+        if self.show_auto_backups:
+            self.count_label.setText(f"{total} auto-backup(s)")
+        else:
+            self.count_label.setText(f"{total} session(s)")
 
-        for row, (app, name, data) in enumerate(all_sessions):
-            active = data.get('is_current', False)
-
+        for row, (app, name, created_dt) in enumerate(all_sessions):
+            # Row number
             num = QTableWidgetItem(str(row + 1))
             num.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.table.setItem(row, 0, num)
 
+            # App name
             app_item = QTableWidgetItem(app.title())
-            app_item.setFont(QFont("", -1, QFont.Weight.Bold))
+            font = app_item.font()
+            font.setBold(True)
+            app_item.setFont(font)
             self.table.setItem(row, 1, app_item)
 
-            name_item = QTableWidgetItem(f"{'★ ' if active else ''}{name}")
-            if active:
-                name_item.setBackground(QBrush(QColor("#2d4a2e")))
-                name_item.setForeground(QBrush(QColor("#a8e6a3")))
-                name_item.setFont(QFont("", -1, QFont.Weight.Bold))
+            # Session name
+            name_item = QTableWidgetItem(name)
             self.table.setItem(row, 2, name_item)
 
+            # Size
             size = self._get_size(app, name)
             size_item = QTableWidgetItem(size)
             size_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             size_item.setForeground(QBrush(QColor("#888")))
             self.table.setItem(row, 3, size_item)
 
-            created = data.get('created', '')
-            created_str = datetime.fromisoformat(created).strftime('%m/%d %H:%M') if created else "—"
+            # Created date
+            created_str = created_dt.strftime('%m/%d %H:%M')
             created_item = QTableWidgetItem(created_str)
             created_item.setForeground(QBrush(QColor("#888")))
             self.table.setItem(row, 4, created_item)
 
-            modified = data.get('last_used', data.get('created', ''))
-            modified_str = datetime.fromisoformat(modified).strftime('%m/%d %H:%M') if modified else "—"
-            modified_item = QTableWidgetItem(modified_str)
+            # Modified (same as created for now)
+            modified_item = QTableWidgetItem(created_str)
             modified_item.setForeground(QBrush(QColor("#888")))
             self.table.setItem(row, 5, modified_item)
 
-            status = QTableWidgetItem("Active" if active else "—")
-            status.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            if active:
-                status.setBackground(QBrush(QColor("#2d4a2e")))
-                status.setForeground(QBrush(QColor("#a8e6a3")))
-                status.setFont(QFont("", -1, QFont.Weight.Bold))
+            # Status - different for auto-backups vs regular sessions
+            if self.show_auto_backups:
+                status = QTableWidgetItem("Auto")
+                status.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                status.setForeground(QBrush(QColor("#FFA726")))  # Orange for auto-backups
             else:
-                status.setForeground(QBrush(QColor("#555")))
+                is_active = self._is_session_active(app, name)
+                if is_active:
+                    status = QTableWidgetItem("Active")
+                    status.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    status.setBackground(QBrush(QColor("#2d4a2e")))
+                    status.setForeground(QBrush(QColor("#a8e6a3")))
+                    font = status.font()
+                    font.setBold(True)
+                    status.setFont(font)
+                else:
+                    status = QTableWidgetItem("Ready")
+                    status.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    status.setForeground(QBrush(QColor("#888")))
             self.table.setItem(row, 6, status)
 
-        self.table.setSortingEnabled(True)
+        # Keep original order - no automatic sorting
+        self.table.setSortingEnabled(False)
 
     def _get_size(self, app, name):
         try:
-            folder = os.path.join(self.backup_path, app, name)
+            if self.show_auto_backups:
+                # Auto-backups path
+                folder = str(self.config.get_platform_path("backup") / "auto-backups" / app / name)
+            else:
+                # Regular sessions path
+                folder = os.path.join(self.backup_path, app, name)
+                
             if not os.path.exists(folder):
                 return "0 KB"
             total = sum(os.path.getsize(os.path.join(dp, f)) for dp, _, files in os.walk(folder) for f in files if os.path.exists(os.path.join(dp, f)))
@@ -515,10 +708,53 @@ class AccountTab(QWidget):
             return "—"
 
     def _filter_table(self, text):
+        """Filter table by search text."""
         text = text.lower()
         for row in range(self.table.rowCount()):
-            item = self.table.item(row, 2)
-            self.table.setRowHidden(row, text not in item.text().lower() if item else False)
+            item = self.table.item(row, 2)  # Session Name column
+            if item:
+                self.table.setRowHidden(row, text not in item.text().lower())
+
+    def _toggle_auto_backups_view(self, checked):
+        """Toggle between normal sessions and auto-backups view."""
+        self.show_auto_backups = checked
+        self._update_auto_backup_toggle_style()
+        self._refresh()  # Refresh to show different data
+        
+        # Clear search when switching views
+        self.search.clear()
+        
+    def _update_auto_backup_toggle_style(self):
+        """Update auto-backup toggle button style."""
+        if self.show_auto_backups:
+            self.auto_backup_toggle_btn.setText("Auto-Backups [ON]")
+            self.auto_backup_toggle_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #0d7377;
+                    color: white;
+                    font-weight: bold;
+                    border: 1px solid #14a085;
+                    border-radius: 3px;
+                    padding: 2px 8px;
+                }
+                QPushButton:hover {
+                    background-color: #14a085;
+                }
+            """)
+        else:
+            self.auto_backup_toggle_btn.setText("Auto-Backups")
+            self.auto_backup_toggle_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #3d3d3d;
+                    color: #ccc;
+                    border: 1px solid #555;
+                    border-radius: 3px;
+                    padding: 2px 8px;
+                }
+                QPushButton:hover {
+                    background-color: #4d4d4d;
+                }
+            """)
 
     def _context_menu(self, pos):
         item = self.table.itemAt(pos)
@@ -527,8 +763,7 @@ class AccountTab(QWidget):
 
         row = self.table.row(item)
         app = self.table.item(row, 1).text().lower()
-        name = self.table.item(row, 2).text().replace("★ ", "")
-
+        name = self.table.item(row, 2).text()
         menu = QMenu(self)
         menu.setStyleSheet("QMenu { background-color: #2b2b2b; color: #e0e0e0; border: 1px solid #404040; border-radius: 6px; padding: 4px; } QMenu::item { padding: 8px 20px; border-radius: 3px; } QMenu::item:selected { background-color: #0d7377; } QMenu::separator { height: 1px; background: #404040; margin: 4px 8px; }")
 
@@ -564,14 +799,30 @@ class AccountTab(QWidget):
         elif action == del_act:
             self._delete(app, name)
 
+    def _is_session_active(self, app: str, name: str) -> bool:
+        """Check if session is marked as active via marker file."""
+        marker_file = os.path.join(self.backup_path, app, '.active')
+        if not os.path.exists(marker_file):
+            return False
+        try:
+            with open(marker_file, 'r') as f:
+                active_name = f.read().strip()
+                return active_name == name
+        except:
+            return False
+    
     def _set_active(self, app, name):
-        for n in self.sessions.get(app, {}):
-            self.sessions[app][n]['is_current'] = False
-        if app in self.sessions and name in self.sessions[app]:
-            self.sessions[app][name]['is_current'] = True
-        self._save()
-        self._refresh()
-        self.log(f"Active: {name}")
+        """Set session as active via marker file."""
+        marker_file = os.path.join(self.backup_path, app, '.active')
+        os.makedirs(os.path.dirname(marker_file), exist_ok=True)
+        
+        try:
+            with open(marker_file, 'w') as f:
+                f.write(name)
+            self.log(f"Set active: {name}")
+            self._refresh()  # Refresh to show updated status
+        except Exception as e:
+            self.log(f"Failed to set active: {e}")
 
     def _rename(self, app, old):
         dialog = QInputDialog(self)
@@ -582,15 +833,15 @@ class AccountTab(QWidget):
 
         if dialog.exec():
             new = dialog.textValue().strip()
-            if new and new != old and new not in self.sessions.get(app, {}):
-                self.sessions[app][new] = self.sessions[app].pop(old)
+            if new and new != old:
                 old_path = os.path.join(self.backup_path, app, old)
                 new_path = os.path.join(self.backup_path, app, new)
-                if os.path.exists(old_path):
+                if os.path.exists(old_path) and not os.path.exists(new_path):
                     os.rename(old_path, new_path)
-                self._save()
-                self._refresh()
-                self.log(f"Renamed: {old} → {new}")
+                    self._refresh()
+                    self.log(f"Renamed: {old} → {new}")
+                else:
+                    self.log(f"Cannot rename: target exists or source not found")
 
     def _open_folder(self, app, name):
         folder = os.path.join(self.backup_path, app, name)
@@ -609,19 +860,14 @@ class AccountTab(QWidget):
         msg.setStyleSheet("QMessageBox { background-color: #252526; color: #ccc; } QPushButton { background-color: #404040; color: #e0e0e0; border: 1px solid #555; padding: 6px 14px; border-radius: 3px; } QPushButton:hover { background-color: #505050; }")
 
         if msg.exec() == QMessageBox.StandardButton.Yes:
-            if name in self.sessions.get(app, {}):
-                del self.sessions[app][name]
             folder = os.path.join(self.backup_path, app, name)
             if os.path.exists(folder):
                 shutil.rmtree(folder, ignore_errors=True)
-            self._save()
             self._refresh()
             self.log(f"Deleted: {name}")
 
     def _create_backup_dialog(self):
         """Show dialog to create new backup."""
-        from datetime import datetime
-        
         # Get active apps
         active_apps = app_configs.get_active_apps()
         if not active_apps:
@@ -651,12 +897,35 @@ class AccountTab(QWidget):
             return
         
         name = name.strip()
+        
+        # Check for duplicate session name
+        existing_sessions = self._get_existing_sessions_for_app(app_key)
+        if name in existing_sessions:
+            QMessageBox.warning(self, "Duplicate Name", 
+                f"Session '{name}' already exists for {app_key.title()}!\n\n"
+                f"Existing sessions:\n" + "\n".join(f"• {s}" for s in existing_sessions[:5]))
+            return
+        
         self._create_backup(app_key, name)
     
-    def _create_backup(self, app_key: str, name: str):
-        """Create backup of app data."""
-        from datetime import datetime
+    def _get_existing_sessions_for_app(self, app_key: str) -> list:
+        """Get list of existing session names for an app."""
+        existing = []
+        app_folder = os.path.join(self.backup_path, app_key.lower())
         
+        if os.path.exists(app_folder):
+            try:
+                for item in os.listdir(app_folder):
+                    item_path = os.path.join(app_folder, item)
+                    if os.path.isdir(item_path) and not item.startswith("auto-") and not item.startswith("."):
+                        existing.append(item)
+            except (PermissionError, OSError):
+                pass
+        
+        return existing
+    
+    def _create_backup(self, app_key: str, name: str):
+        """Create backup of app data in background thread (no UI freeze)."""
         config = app_configs.get_app(app_key)
         display_name = config.get('display_name', app_key.title())
         data_paths = config.get('paths', {}).get('data_paths', [])
@@ -672,39 +941,48 @@ class AccountTab(QWidget):
             self.log(f"No data found for {display_name}")
             return
         
-        # Create backup folder
-        backup_folder = os.path.join(self.backup_path, app_key.lower(), name)
-        os.makedirs(backup_folder, exist_ok=True)
+        # Progress: Start backup
+        self.progress_bar.setFormat(f"Backing up {display_name}...")
+        self.progress_bar.setValue(10)
+        self.log(f"Backing up {display_name}...")
         
-        try:
-            # Copy data
-            self.log(f"Backing up {display_name}...")
-            for item in os.listdir(source_path):
-                src = os.path.join(source_path, item)
-                dst = os.path.join(backup_folder, item)
-                if os.path.isdir(src):
-                    shutil.copytree(src, dst, dirs_exist_ok=True)
-                else:
-                    shutil.copy2(src, dst)
-            
-            # Update sessions
-            if app_key.lower() not in self.sessions:
-                self.sessions[app_key.lower()] = {}
-            
-            self.sessions[app_key.lower()][name] = {
-                'created': datetime.now().isoformat(),
-                'is_current': False
-            }
-            
-            self._save()
-            self._refresh()
+        # Get backup config
+        backup_folder = os.path.join(self.backup_path, app_key.lower(), name)
+        backup_items = config.get('backup_items', [])
+        addon_paths = config.get('addon_backup_paths', [])
+        
+        # Create worker and thread
+        self._backup_worker = BackupWorker(source_path, backup_folder, backup_items, addon_paths)
+        self._backup_thread = run_in_thread(self._backup_worker)
+        
+        # Connect signals
+        self._backup_worker.progress.connect(self._on_backup_progress)
+        self._backup_worker.log.connect(self.log)
+        self._backup_worker.finished.connect(lambda success, msg: self._on_backup_finished(success, msg, name))
+        
+        # Start background thread
+        self._backup_thread.start()
+    
+    def _on_backup_progress(self, percent: int, message: str):
+        """Handle backup progress update."""
+        self.progress_bar.setValue(percent)
+        self.progress_bar.setFormat(message)
+    
+    def _on_backup_finished(self, success: bool, message: str, name: str):
+        """Handle backup completion."""
+        if success:
+            self.progress_bar.setValue(100)
+            self.progress_bar.setFormat("Backup complete!")
             self.log(f"Backup created: {name}")
-            
-        except Exception as e:
-            self.log(f"Backup failed: {e}")
+            self._refresh()
+        else:
+            self.progress_bar.setFormat(f"Backup failed: {message}")
+            self.log(f"Backup failed: {message}")
     
     def _load_session(self, app: str, name: str):
-        """Restore session data to app folder."""
+        """Restore session - FORCE CLOSE app first, then restore in background."""
+        from app.core.process_killer import ProcessKiller
+        
         config = app_configs.get_app(app)
         if not config:
             self.log(f"App config not found: {app}")
@@ -712,16 +990,17 @@ class AccountTab(QWidget):
         
         display_name = config.get('display_name', app.title())
         data_paths = config.get('paths', {}).get('data_paths', [])
+        exe_paths = config.get('paths', {}).get('exe_paths', [])
+        process_names = [os.path.basename(p) for p in exe_paths if p]
         
         # Find target path
         target_path = None
         for path in data_paths:
-            # Use first path as target (create if needed)
             target_path = path
             break
         
         if not target_path:
-            self.log(f"No data path configured for {display_name}")
+            self.log(f"No data path for {display_name}")
             return
         
         # Backup source
@@ -730,32 +1009,71 @@ class AccountTab(QWidget):
             self.log(f"Backup not found: {name}")
             return
         
-        try:
-            self.log(f"Restoring {name} to {display_name}...")
+        # STEP 1: FORCE CLOSE APP IF RUNNING
+        killer = ProcessKiller(log_callback=self.log)
+        procs = killer.get_running_processes(process_names)
+        
+        if procs:
+            self.log(f"[SMART CLOSE] {display_name} running - closing...")
+            self.progress_bar.setFormat(f"Closing {display_name}...")
+            self.progress_bar.setValue(5)
             
-            # Clear target folder
-            if os.path.exists(target_path):
-                shutil.rmtree(target_path)
-            os.makedirs(target_path, exist_ok=True)
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Icon.Warning)
+            msg.setWindowTitle("App Running")
+            msg.setText(f"{display_name} will be closed before restore")
+            msg.setStandardButtons(QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
             
-            # Copy backup to target
-            for item in os.listdir(backup_folder):
-                src = os.path.join(backup_folder, item)
-                dst = os.path.join(target_path, item)
-                if os.path.isdir(src):
-                    shutil.copytree(src, dst)
-                else:
-                    shutil.copy2(src, dst)
+            if msg.exec() != QMessageBox.StandardButton.Ok:
+                self.log(f"[Restore] Cancelled")
+                return
             
-            self.log(f"Restored: {name}")
-            
-        except Exception as e:
-            self.log(f"Restore failed: {e}")
+            success, message = killer.smart_close(display_name, process_names)
+            self.log(f"[SMART CLOSE] {message}")
+            self.progress_bar.setValue(15)
+        
+        # STEP 2: Start restore in background thread
+        self.progress_bar.setFormat(f"Restoring {name}...")
+        self.progress_bar.setValue(20)
+        self.log(f"Restoring {name}...")
+        
+        addon_paths = config.get('addon_backup_paths', [])
+        
+        # Store app info for callback
+        self._restore_app = app
+        self._restore_name = name
+        
+        # Create worker and thread
+        self._restore_worker = RestoreWorker(backup_folder, target_path, addon_paths)
+        self._restore_thread = run_in_thread(self._restore_worker)
+        
+        # Connect signals
+        self._restore_worker.progress.connect(self._on_restore_progress)
+        self._restore_worker.log.connect(self.log)
+        self._restore_worker.finished.connect(self._on_restore_finished)
+        
+        # Start background thread
+        self._restore_thread.start()
+    
+    def _on_restore_progress(self, percent: int, message: str):
+        """Handle restore progress update."""
+        self.progress_bar.setValue(percent)
+        self.progress_bar.setFormat(message)
+    
+    def _on_restore_finished(self, success: bool, message: str):
+        """Handle restore completion."""
+        if success:
+            self.progress_bar.setValue(100)
+            self.progress_bar.setFormat("Restore complete!")
+            self.log(f"Restored: {self._restore_name}")
+            # Auto-set as active after successful restore
+            self._set_active(self._restore_app.lower(), self._restore_name)
+        else:
+            self.progress_bar.setFormat(f"Restore failed: {message}")
+            self.log(f"Restore failed: {message}")
     
     def _update_session(self, app: str, name: str):
         """Update existing session with current app data."""
-        from datetime import datetime
-        
         config = app_configs.get_app(app)
         if not config:
             self.log(f"App config not found: {app}")
@@ -795,11 +1113,6 @@ class AccountTab(QWidget):
                 else:
                     shutil.copy2(src, dst)
             
-            # Update session info
-            if app.lower() in self.sessions and name in self.sessions[app.lower()]:
-                self.sessions[app.lower()][name]['last_used'] = datetime.now().isoformat()
-            
-            self._save()
             self._refresh()
             self.log(f"Updated: {name}")
             
@@ -877,14 +1190,14 @@ class AccountTab(QWidget):
                 item.widget().deleteLater()
         
         self.app_widgets = []
+        self.app_list = []  # Clear app_list to prevent duplicates
         
         # Also clear filter combo except "All"
         while self.filter_combo.count() > 1:
             self.filter_combo.removeItem(1)
-    
+
     def refresh_ui(self):
         """Refresh UI when app configs change."""
         app_configs.reload_configs()
         self._load_apps_from_config()
         self._refresh()
-        self.log("Sessions list refreshed")

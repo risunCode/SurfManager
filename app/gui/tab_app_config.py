@@ -22,10 +22,11 @@ class AddManualConfigDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Add Application Configuration")
-        self.setMinimumWidth(500)
-        self.setMinimumHeight(350)
+        self.setMinimumWidth(550)
+        self.setMinimumHeight(450)
         self.exe_folder = None
         self.data_folder = None
+        self.addon_folders = []  # List of additional folders to backup
         self._init_ui()
     
     def _init_ui(self):
@@ -76,7 +77,7 @@ class AddManualConfigDialog(QDialog):
         form.addRow("Program Data Folder*:", data_layout)
         
         # Example hint
-        example_label = QLabel("💡 Example: VSCode uses Code.exe → Data folder: Code")
+        example_label = QLabel("Example: VSCode uses Code.exe -> Data folder: Code")
         example_label.setStyleSheet("color: #888; font-size: 10px; font-style: italic;")
         form.addRow("", example_label)
         
@@ -87,20 +88,19 @@ class AddManualConfigDialog(QDialog):
         backup_layout = QVBoxLayout()
         backup_layout.setSpacing(8)
         
-        info_label = QLabel("✓ Complete VSCode-based backup items included automatically:")
+        info_label = QLabel("Essential backup items (auto-included):")
         info_label.setStyleSheet("color: #4CAF50; font-size: 11px;")
         backup_layout.addWidget(info_label)
         
         items_label = QLabel(
-            "  • User/settings.json, User/keybindings.json, User/snippets\n"
-            "  • User/workspaceStorage, User/History, User/globalStorage\n"
-            "  • DIPS, Local State, Preferences, SharedStorage, etc."
+            "  Folders: User, Local Storage, Session Storage, Network\n"
+            "  Files: Preferences, Local State, DIPS, machineid, languagepacks.json"
         )
         items_label.setStyleSheet("color: #888; font-size: 10px; margin-left: 10px;")
         backup_layout.addWidget(items_label)
         
         # Registry keys info
-        registry_label = QLabel("✓ Windows Registry keys (auto-included for cleanup):")
+        registry_label = QLabel("Windows Registry keys (auto-included for cleanup):")
         registry_label.setStyleSheet("color: #4CAF50; font-size: 11px; margin-top: 8px;")
         backup_layout.addWidget(registry_label)
         
@@ -114,6 +114,30 @@ class AddManualConfigDialog(QDialog):
         
         backup_group.setLayout(backup_layout)
         layout.addWidget(backup_group)
+        
+        # Optional: Addon Backup Folders
+        addon_group = QGroupBox("Optional: Additional Backup Folders")
+        addon_layout = QVBoxLayout()
+        addon_layout.setSpacing(8)
+        
+        addon_info = QLabel("📁 Add extra folders to backup (e.g., ~/.aws, ~/.ssh, config folders)")
+        addon_info.setStyleSheet("color: #FFC107; font-size: 11px;")
+        addon_layout.addWidget(addon_info)
+        
+        # Addon folders list
+        self.addon_list_widget = QVBoxLayout()
+        self.addon_list_widget.setSpacing(4)
+        addon_layout.addLayout(self.addon_list_widget)
+        
+        # Add folder button
+        add_addon_btn = QPushButton("+ Add Folder")
+        add_addon_btn.setIcon(qta.icon('fa5s.folder-plus', color='#4CAF50'))
+        add_addon_btn.setStyleSheet("QPushButton { background-color: #2d4a2e; color: #90EE90; border: 1px solid #3d6030; } QPushButton:hover { background-color: #3d6030; }")
+        add_addon_btn.clicked.connect(self._add_addon_folder)
+        addon_layout.addWidget(add_addon_btn)
+        
+        addon_group.setLayout(addon_layout)
+        layout.addWidget(addon_group)
         
         layout.addStretch()
         
@@ -156,6 +180,52 @@ class AddManualConfigDialog(QDialog):
             self.data_path_label.setText(folder_path)
             self.data_path_label.setStyleSheet("color: #4CAF50;")
     
+    def _add_addon_folder(self):
+        """Add an addon folder to backup list."""
+        # Start from user home directory
+        start_dir = os.path.expanduser("~")
+        folder_path = QFileDialog.getExistingDirectory(self, "Select Additional Folder to Backup", start_dir)
+        
+        if folder_path and folder_path not in self.addon_folders:
+            self.addon_folders.append(folder_path)
+            self._refresh_addon_list()
+    
+    def _remove_addon_folder(self, folder_path):
+        """Remove addon folder from list."""
+        if folder_path in self.addon_folders:
+            self.addon_folders.remove(folder_path)
+            self._refresh_addon_list()
+    
+    def _refresh_addon_list(self):
+        """Refresh the addon folders display list."""
+        # Clear existing widgets
+        while self.addon_list_widget.count():
+            item = self.addon_list_widget.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+        # Add current addon folders
+        for folder in self.addon_folders:
+            row_widget = QWidget()
+            row_layout = QHBoxLayout()
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(4)
+            
+            # Folder path label
+            folder_label = QLabel(folder)
+            folder_label.setStyleSheet("color: #4FC3F7; font-size: 10px; background-color: #2a2a2a; padding: 4px; border-radius: 3px;")
+            row_layout.addWidget(folder_label, 1)
+            
+            # Remove button
+            remove_btn = QPushButton("✕")
+            remove_btn.setFixedSize(20, 20)
+            remove_btn.setStyleSheet("QPushButton { background-color: #4a2020; color: #FF6B6B; border: none; border-radius: 3px; font-size: 10px; } QPushButton:hover { background-color: #6a3030; }")
+            remove_btn.clicked.connect(lambda checked, f=folder: self._remove_addon_folder(f))
+            row_layout.addWidget(remove_btn)
+            
+            row_widget.setLayout(row_layout)
+            self.addon_list_widget.addWidget(row_widget)
+    
     def _validate_and_accept(self):
         if not self.app_name.text().strip():
             QMessageBox.warning(self, "Validation Error", "Please select an executable file (.exe) first")
@@ -192,32 +262,29 @@ class AddManualConfigDialog(QDialog):
                 "reset_folder": self.data_folder
             },
             "backup_items": [
-                {"type": "folder", "path": "Local Storage", "description": "Local storage data"},
-                {"type": "folder", "path": "Network", "description": "Network cache"},
+                # Essential folders
                 {"type": "folder", "path": "User", "description": "User settings and data"},
-                {"type": "file", "path": "User/settings.json", "description": "User settings", "optional": True},
-                {"type": "file", "path": "User/keybindings.json", "description": "Keyboard shortcuts", "optional": True},
-                {"type": "folder", "path": "User/workspaceStorage", "description": "Workspace settings"},
-                {"type": "folder", "path": "User/History", "description": "File history"},
-                {"type": "folder", "path": "User/globalStorage", "description": "Global storage", "optional": True},
-                {"type": "file", "path": "DIPS", "description": "DIPS database - Authentication data"},
-                {"type": "file", "path": "DIPS-wal", "description": "DIPS WAL file", "optional": True},
-                {"type": "file", "path": "languagepacks.json", "description": "Language packs", "optional": True},
-                {"type": "file", "path": "Local State", "description": "Local app state"},
-                {"type": "file", "path": "machineid", "description": "Machine ID", "optional": True},
+                {"type": "folder", "path": "Local Storage", "description": "Local storage data"},
+                {"type": "folder", "path": "Session Storage", "description": "Session storage"},
+                {"type": "folder", "path": "Network", "description": "Network data"},
+                # Essential files
                 {"type": "file", "path": "Preferences", "description": "App preferences"},
-                {"type": "file", "path": "SharedStorage", "description": "Shared storage DB"},
+                {"type": "file", "path": "Local State", "description": "Local app state"},
+                {"type": "file", "path": "DIPS", "description": "Authentication data"},
+                {"type": "file", "path": "machineid", "description": "Machine ID", "optional": True},
+                {"type": "file", "path": "languagepacks.json", "description": "Language packs", "optional": True},
             ],
             "cache_dirs": [
                 "Cache", "CachedData", "CachedExtensions", "CachedExtensionVSIXs",
-                "Code Cache", "GPUCache", "Service Worker", "Session Storage",
+                "Code Cache", "GPUCache", "Service Worker",
                 "User/workspaceStorage", "User/History", "logs", "blob_storage", "IndexedDB"
             ],
             "registry_keys": [
                 {"root": "HKEY_CURRENT_USER", "path": f"Software\\{display_name}", "description": "Main app settings"},
                 {"root": "HKEY_CURRENT_USER", "path": f"Software\\Classes\\{display_name}", "description": "File associations"},
                 {"root": "HKEY_CURRENT_USER", "path": f"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{display_name}", "description": "Uninstall entry"}
-            ]
+            ],
+            "addon_backup_paths": self.addon_folders if self.addon_folders else []
         }
         
         return config
@@ -321,7 +388,7 @@ class AppConfigTab(QWidget):
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
         
         self.apps_table.setColumnWidth(0, 35)
-        self.apps_table.setColumnWidth(3, 140)  # Actions column - compact buttons
+        self.apps_table.setColumnWidth(3, 220)  # Actions column - normal buttons
         
         # Context menu
         self.apps_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -395,13 +462,13 @@ class AppConfigTab(QWidget):
         
         # Instructions
         instructions = QLabel(
-            "📋 Instructions\n\n"
+            "Instructions\n\n"
             "• Import: Add from JSON\n"
             "• Add: Quick VSCode setup\n"
             "• Export: Backup all configs\n"
             "• Folder: Browse config dir\n\n"
-            "🖱️ Right-click row for options\n\n"
-            "💡 Toggle Active/Inactive to\n"
+            "Right-click row for options\n\n"
+            "Toggle Active/Inactive to\n"
             "   enable/disable apps"
         )
         instructions.setStyleSheet(
@@ -445,13 +512,13 @@ class AppConfigTab(QWidget):
                 
                 # Status text
                 if is_installed and not is_active:
-                    status = "✓ Installed, Inactive"
+                    status = "Installed (Inactive)"
                     status_color = "#FFA500"
                 elif is_installed:
-                    status = "✓ Installed"
+                    status = "Installed"
                     status_color = "#4CAF50"
                 else:
-                    status = "✗ Not Found"
+                    status = "Not Found"
                     status_color = "#888"
                 
                 # Add row
@@ -473,42 +540,42 @@ class AppConfigTab(QWidget):
                 status_item.setForeground(QBrush(QColor(status_color)))
                 self.apps_table.setItem(row, 2, status_item)
                 
-                # Column 3: Action buttons (compact)
+                # Column 3: Action buttons (normal size)
                 actions_widget = QWidget()
                 actions_layout = QHBoxLayout()
-                actions_layout.setSpacing(1)
-                actions_layout.setContentsMargins(1, 0, 1, 0)
+                actions_layout.setSpacing(4)
+                actions_layout.setContentsMargins(4, 2, 4, 2)
                 
-                btn_base = "QPushButton { padding: 1px 4px; font-size: 9px; border-radius: 2px; min-width: 35px; }"
+                btn_style = "QPushButton { padding: 4px 8px; font-size: 11px; border-radius: 3px; }"
                 
                 edit_btn = QPushButton("Edit")
-                edit_btn.setFixedHeight(20)
-                edit_btn.setStyleSheet(btn_base + "QPushButton { background-color: #3d3d3d; } QPushButton:hover { background-color: #4d4d4d; }")
+                edit_btn.setFixedHeight(26)
+                edit_btn.setStyleSheet(btn_style + "QPushButton { background-color: #3d3d3d; } QPushButton:hover { background-color: #4d4d4d; }")
                 edit_btn.clicked.connect(lambda checked, path=config_path: self._edit_app_config(path))
                 actions_layout.addWidget(edit_btn)
                 
-                remove_btn = QPushButton("Del")
-                remove_btn.setFixedHeight(20)
-                remove_btn.setStyleSheet(btn_base + "QPushButton { background-color: #c72e0f; color: white; } QPushButton:hover { background-color: #e03e1c; }")
+                remove_btn = QPushButton("Delete")
+                remove_btn.setFixedHeight(26)
+                remove_btn.setStyleSheet(btn_style + "QPushButton { background-color: #c72e0f; color: white; } QPushButton:hover { background-color: #e03e1c; }")
                 remove_btn.clicked.connect(lambda checked, path=config_path: self._delete_app_config(path))
                 actions_layout.addWidget(remove_btn)
                 
                 # Toggle Active/Inactive
-                toggle_text = "ON" if is_active else "OFF"
+                toggle_text = "Active" if is_active else "Inactive"
                 toggle_btn = QPushButton(toggle_text)
-                toggle_btn.setFixedHeight(20)
+                toggle_btn.setFixedHeight(26)
                 toggle_btn.clicked.connect(lambda checked, path=config_path: self._toggle_app_active(path))
                 if is_active:
-                    toggle_btn.setStyleSheet(btn_base + "QPushButton { background-color: #4CAF50; color: white; font-weight: bold; } QPushButton:hover { background-color: #45a049; }")
+                    toggle_btn.setStyleSheet(btn_style + "QPushButton { background-color: #4CAF50; color: white; font-weight: bold; } QPushButton:hover { background-color: #45a049; }")
                 else:
-                    toggle_btn.setStyleSheet(btn_base + "QPushButton { background-color: #555; color: #999; } QPushButton:hover { background-color: #666; }")
+                    toggle_btn.setStyleSheet(btn_style + "QPushButton { background-color: #555; color: #999; } QPushButton:hover { background-color: #666; }")
                 actions_layout.addWidget(toggle_btn)
                 
                 actions_widget.setLayout(actions_layout)
                 self.apps_table.setCellWidget(row, 3, actions_widget)
                 
-                # Set row height
-                self.apps_table.setRowHeight(row, 26)
+                # Set row height for normal buttons
+                self.apps_table.setRowHeight(row, 34)
                 
             except Exception as e:
                 self.log(f"ERROR: Failed to load {config_path.name}: {e}")
@@ -586,7 +653,7 @@ class AppConfigTab(QWidget):
                 with open(config_path, 'w', encoding='utf-8') as f:
                     json.dump(config_data, f, indent=2, ensure_ascii=False)
                 
-                self.log(f"✅ Manual config '{app_name}' added successfully")
+                self.log(f"Manual config '{app_name}' added successfully")
                 self.refresh_apps_list()
                 self.apps_changed.emit()
                 

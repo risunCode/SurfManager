@@ -1,223 +1,279 @@
 # SurfManager
+ 
+> **Advanced Session & Data Manager for Development Tools**
 
-> A simple program for managing IDE and extension data, including login credentials, account switching, workspaces, and more.
-
-[![Version](https://img.shields.io/badge/version-5.2.0-brightgreen.svg)](https://github.com/risunCode/SurfManager)
+[![Version](https://img.shields.io/badge/version-1.0.0-brightgreen.svg)](https://github.com/risunCode/SurfManager)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue.svg)](https://github.com/risunCode/SurfManager)
 [![Python](https://img.shields.io/badge/python-3.8+-yellow.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-<img width="1398" height="885" alt="SurfManager Screenshot" src="https://github.com/user-attachments/assets/82268ac2-c360-40c0-866a-c87a2db9aba5" />
- 
-## Showcase
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/82268ac2-c360-40c0-866a-c87a2db9aba5" alt="SurfManager Screenshot" width="800"/>
+</div>
 
-https://github.com/user-attachments/assets/7621f048-3fe6-4299-bf19-29fa92522626
-> I forget to tell, right click action is avaible on account manager :V
+---
 
 ## 👋 Welcome to SurfManager!
 
-SurfManager is a handy tool designed to help developers effortlessly manage session data for their IDE applications. Whether you're backing up, restoring, keeping things tidy, or seamlessly switching between different accounts and workspaces, SurfManager offers a clean, cross-platform solution to keep your workflow smooth.
+**SurfManager** is a modern solution for managing session data of development tools like VS Code, Cursor, Windsurf, and similar applications. With a clean interface and powerful features, SurfManager makes it easy for developers to backup, restore, and switch between multiple accounts seamlessly.
 
-## ✨ Key Features
+Perfect for developers who need to:
+- 🔄 Switch between multiple accounts/profiles effortlessly
+- 💾 Backup workspace settings before experimenting
+- 🚀 Maintain organized development workflows  
+- 🛡️ Have a safety net for important configurations
 
-- **Account Switching** - Seamlessly switch between different IDE accounts
-- **Multi-Account Management** - Manage multiple user profiles and credentials
-- **Session Backup & Restore** - Save and restore your IDE workspace states
-- **Cross-Platform Support** - Works on Windows, macOS, and Linux
-- **Data Organization** - Keep your IDE extensions and settings organized
-- **Workspace Management** - Handle multiple project workspaces efficiently
+---
 
+## Screenshots (Windows)
 
-## ✨ Cool Features You'll Love
+![1 Reset data](https://github.com/user-attachments/assets/e142de68-8491-4c90-bd79-6f8d43446eab)
+![2-backup](https://github.com/user-attachments/assets/7b056f6f-228b-403f-b7e9-a72f732a1901)
+![3-app config](https://github.com/user-attachments/assets/7864b5cd-aa72-44e5-8874-600c378bd343)
+![4-about](https://github.com/user-attachments/assets/42442eaa-70ca-454b-8cb1-9c0e7cfc3b36)
 
-### 🔄 Easy Session Management
-*   **Create & Restore** backups with custom names – no more lost work!
-*   **Batch Operations** to handle multiple sessions at once.
-*   **Search & Filter** through your saved sessions in a snap.
-*   **Auto-Backup** kicks in before any reset, just in case.
+---
 
-### 🚀 Smart & Speedy Operations
-*   **Real-time Detection** of running apps, with auto-close for smooth operations.
-*   **Intelligent Caching** for lightning-fast performance.
-*   **Auto-detects** your installed applications.
-*   **Quick Access** to application folders when you need them.
+## ✨ Features
 
-## 💡 Why SurfManager?
+### 🎯 Core Features
 
-Managing multiple development environments can be challenging. Whether you're working on different projects, testing various configurations, or maintaining separate workspace setups, keeping track of different IDE sessions and their associated data quickly becomes complex.
+| Feature | Description |
+|---------|-------------|
+| **📱 Session Management** | Backup, restore, and manage multiple app sessions |
+| **🔄 Account Switching** | Switch between different accounts in seconds |
+| **🛡️ Smart App Close** | Auto-close running apps before operations to avoid conflicts |
+| **📊 Progress Tracking** | Real-time progress bars for all operations |
+| **🔍 Search & Filter** | Quick search through sessions and auto-backups |
+| **💾 Auto-Backup** | Automatic backup before reset operations |
+| **📁 Dual View Mode** | Separate views for manual sessions and auto-backups |
+| **⚡ Process Management** | Advanced process management with graceful termination |
 
-SurfManager was created to simplify this workflow. Modern development tools store a wealth of session data - from workspace configurations and extension settings to authentication states and user preferences. Manually managing these across different setups is time-consuming and error-prone.
+### 🚀 Advanced Features
 
-SurfManager streamlines this entire process. With just a few clicks, you can:
-- **Switch between configurations** instantly by managing complete session data
-- **Backup your current setup** before making changes
-- **Restore previous states** without losing your carefully crafted environment
-- **Organize multiple profiles** for different projects or workflows
-- **Maintain clean IDE environments** across various use cases
+**🎯 Smart Operations**
+- **Real-time Process Detection** - Accurately detect running applications
+- **Graceful App Termination** - Safely close apps before operations
+- **Retry Mechanisms** - Auto-retry for failed operations
+- **File Lock Protection** - Handle file conflicts with intelligent retry logic
+- **Progress Persistence** - Progress bars don't reset after completion
 
-What started as a solution for efficient workspace management has evolved into a comprehensive session manager that helps developers maintain organized, reproducible development environments - perfect for testing new setups, managing multiple projects, or simply keeping your development workflow clean and efficient.
+**📋 Session Management**
+- **Filesystem-based Storage** - No more JSON conflicts, direct folder scanning
+- **Active Session Tracking** - Mark and track active sessions with marker files
+- **Batch Delete Operations** - Delete multiple sessions at once
+- **Session Size Display** - Real-time folder size calculation
+- **Contextual Actions** - Right-click menus for quick actions
 
-> **⚠️ Important Note:** SurfManager is provided as a development workflow management tool. Users are responsible for ensuring their usage complies with all applicable software licenses and Terms of Service. The developers assume no liability for how this tool is used.
+**🔧 Developer Experience**
+- **Dynamic App Loading** - Auto-detect installed applications
+- **Dark Theme UI** - Beautiful dark interface that's easy on the eyes
+- **Keyboard Shortcuts** - Quick access via hotkeys
+- **Local Logging** - Per-tab logging for better debugging
+- **Configuration Management** - Easy app configuration via GUI
 
-## 🚀 Fast Installation/Usage
+---
+
+## 💡 The Story Behind SurfManager
+
+**The Problem**
+Modern developers often work with multiple accounts, different projects, and various configurations. But managing session data for apps like VS Code, Cursor, or Windsurf can be tedious:
+
+- Manual backup-restore is time-consuming and error-prone
+- Switching between accounts requires repeated logout-login cycles
+- Experimenting with settings risks breaking perfectly tuned configurations
+- Authentication data often conflicts when not handled properly
+
+**The Solution**
+SurfManager was born from personal developer frustration needing an elegant solution to this problem. What started as a simple script for backing up VS Code settings evolved into a comprehensive session manager that:
+
+- **Automates repetitive tasks** - No more manual backup-restore
+- **Prevents data loss** - Smart app close and auto-backup protection
+- **Streamlines workflow** - Switch profiles in seconds, not minutes
+- **Handles edge cases** - File locks, process conflicts, permission issues
+
+**The Evolution**
+From a simple CLI script to a full-featured GUI application with:
+- Advanced process management (ProcessKiller)
+- Real-time progress tracking
+- Filesystem-based storage (reliable)
+- Cross-platform compatibility
+- Developer-friendly UX
+
+> **⚠️ Disclaimer:** SurfManager is a tool for development workflow management. Users are responsible for complying with software licenses and Terms of Service. Developers are not liable for how this tool is used.
+
+---
+
+## 📖 How to Use SurfManager
+
+### 🎯 Getting Started
+
+#### Main Use Case: Multiple Account Management
+
+**Step 1: Setup First Account**
+1. **Login to your IDE** - Use your first account in VS Code/Cursor/etc.
+2. **Configure your workspace** - Install extensions, set preferences, login to services
+3. **Create backup** - In SurfManager, click an app → enter session name (e.g., "work-account")
+4. **Done!** Your complete session is saved
+
+**Step 2: Add More Accounts**
+1. **Reset the app** - Use SurfManager's Reset Data tab to clear current session
+2. **Login with new account** - Use different credentials in your IDE
+3. **Configure new environment** - Set up workspace for this account
+4. **Save new session** - Create another backup (e.g., "personal-account")
+
+**Step 3: Switch Between Accounts**
+1. **Browse sessions** - View all saved sessions in the Sessions tab
+2. **Double-click to restore** - Or right-click → "Load"
+3. **Launch your IDE** - You're logged in with that account! 🎉
+
+### 🖱️ Interface Guide
+
+**Sessions Tab:**
+- **App buttons** - Click to create new backup
+- **Sessions table** - View all saved sessions
+- **Right-click menu** - Quick actions (Load, Update, Set Active, Rename, Browse, Delete)
+- **Auto-Backups toggle** - Switch between manual sessions and auto-backups
+- **Search bar** - Filter sessions by name
+
+**Reset Data Tab:**
+- **Reset button** - Clear app data (with auto-backup option)
+- **AutoBackup toggle** - Enable/disable automatic backup before reset
+- **Launch button** - Open app folder or executable
+
+### 💡 Tips & Tricks
+
+- **Right-click sessions** for quick actions menu
+- **Double-click sessions** to restore instantly
+- **Toggle Auto-Backups** to view automatic backups separately
+- **Use descriptive names** like "work-main", "personal-dev", etc.
+- **Enable AutoBackup** before reset operations for safety
+
+---
+
+## ⚠️ Limitations
+
+### 🔒 Platform-Specific Restrictions
+
+**Windows User Isolation**
+Sessions are tied to the Windows user account that created them. You cannot transfer backups between different Windows users.
+
+**Why this exists:**
+- Windows encrypts app credentials with user-specific keys
+- Authentication tokens (like DIPS files) are encrypted per Windows user
+- Cross-user session restoration would fail authentication
+
+**What this means:**
+- ✅ Switch between accounts **on the same Windows user**
+- ❌ Copy backups to another Windows user account
+- ✅ Each Windows user must create their own session backups
+
+---
+
+## 🆕 What's New
+
+### 🔥 v1.0.0 - New Redesign, User Friendly, and Fast!
+
+**🚀 No More Freezing!**
+- **Background Threading** - Backup and restore run in background threads
+- **Responsive UI** - Interface stays smooth during all operations
+- **Real-time Progress** - Live updates via signal-based communication
+
+**🌐 Cross-Platform Ready**
+- **Platform Adapter** - Automatic path detection for Windows, Linux, macOS
+- **Unified API** - Same code works across all platforms
+
+**⚡ Optimized Performance**
+- **Smaller Backups** - Reduced from 16+ items to 9 essential files/folders
+- **Faster Operations** - Only backup what matters
+- **Duplicate Protection** - Prevents overwriting existing sessions
+
+**🛠️ Quality Improvements**
+- Fixed build system with proper PyInstaller configuration
+- Removed emojis from code for cleaner codebase
+- Fixed session active status display
+- Session table maintains creation order
+
+### 🔄 Previous Updates (v0.0.2-beta)
+- **GUI Foundation** - Modern PyQt6 interface
+- **Multi-tab Architecture** - Sessions, Reset Data, App Configuration, About
+- **Dynamic App Loading** - Auto-detection of installed applications
+- **Dark Theme UI** - Professional dark interface
+- **Cross-platform Base** - Framework for Windows/macOS/Linux support
+
+---
+
+## 🚀 Installation & Build
 
 ### 📦 Option 1: Download Pre-built Release (Recommended)
 
-**For Windows Users:**
-1. Visit our [Releases Page](https://github.com/risunCode/SurfManager/releases)
-2. Download the latest `SurfManager-Windows.exe`
-3. Run the executable directly - no installation required!
- 
-### 🔧 Option 2: Manual Build from Source
+**Windows:**
+1. Visit the [Releases Page](https://github.com/risunCode/SurfManager/releases)
+2. Download `SurfManager-Windows.exe`
+3. Run directly - no installation required!
+
+### 🔧 Option 2: Build from Source
 
 **Prerequisites:**
-- Python 3.8+ installed
-- Git installed
+- Python 3.8+
+- Git
 
-**Build Instructions:**
-
+**Instructions:**
 ```bash
-# Clone the repository
+# Clone repository
 git clone https://github.com/risunCode/SurfManager.git
 cd SurfManager
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Run from source
+# Run application
 python main.py
-
-# OR use our cross-platform launcher (Linux/macOS)
-./Launcher.sh
 ```
 
-> **⚠️ Important Note:** Due to platform-specific dependencies and PyQt6 requirements, Windows builds cannot generate executables for macOS or Linux. Each platform must be built on its respective operating system for optimal compatibility.
-> **⚠️ Disclaimer:** This build process has not been tested at all for macOS and Linux.
+**Platform Notes:**
+- **Windows** - Full support, can build executables
+- **macOS** - Framework support (untested)
+- **Linux** - Framework support (untested)
 
-**Platform-Specific Build Notes:**
-- **Windows**: Can only build Windows executables
-- **macOS**: Can only build macOS executables (requires Xcode command line tools)
-- **Linux**: Can only build Linux executables (may require additional PyQt6 system packages)
+---
 
+## 🤝 Contributing
 
-## 📖 How to Use SurfManager
-
-### 🎯 Getting Started
-1. **Launch SurfManager** - Run the application using one of the installation methods above
-2. **First-Time Setup** - The app will automatically detect your installed IDEs (or you can configure them manually)
-3. **Main Dashboard** - Navigate through the clean, intuitive interface
-
-### 🔄 Setting Up Multiple Accounts (The Main Use Case!)
-
-> **Note:** SurfManager saves complete IDE session data including account credentials, workspace configurations, and extension login states.
-
-**First Account:**
-1. **Login to your IDE** - Use your first account credentials in the IDE application
-2. **Configure Your Workspace** - Set up your workspace, install extensions, and login to any extension services
-3. **Save the Session** - In SurfManager, select the app and click "Create Backup" with a meaningful name (e.g., "Account-1")
-4. **Done!** - Your complete session (account, workspace, and extension logins) is now saved
-
-**Adding More Accounts:**
-1. **Reset the Application** - Use SurfManager's reset function to clear the current session
-2. **Login with Another Account** - Open your IDE and login with a different account
-3. **Setup New Environment** - Configure workspace and extension logins for this account
-4. **Save New Session** - Create another backup in SurfManager (e.g., "Account-2")
-5. **Repeat** - Add as many accounts as you need!
-
-**Switching Between Accounts:**
-1. **Browse Your Backups** - See all your saved account sessions in the backup list
-2. **Select & Restore** - Choose the account you want to use and click "Restore Session"
-3. **Launch IDE** - Open your IDE and you're logged in with that account, complete with all workspace settings and extension logins! 🎉
-
-### 🔍 Other Features
-- **Search Function** - Quickly find specific backups by name
-- **Batch Operations** - Manage multiple sessions at once
-- **Auto-Close Detection** - SurfManager automatically closes running IDE instances when needed
-- **Application Folders** - Quick access to your IDE's data directories
-
-## ⚠️ Limitations
-
-### 🔒 Windows User-Specific Sessions
-**Saved sessions are tied to the Windows user account that created them.** You cannot transfer backup sessions between different Windows users (e.g., from User A to User B).
-
-**Why this limitation exists:**
-- Windows uses user-specific encryption for application credentials and authentication tokens
-- Session data (including the `DIPS` file and other authentication databases) are encrypted with the current user's Windows credentials
-- When restored on a different Windows user account, these encrypted credentials cannot be decrypted, causing authentication to fail
-
-**What this means:**
-- ✅ You can switch between multiple accounts **on the same Windows user**
-- ❌ You cannot copy backups to another Windows user account and expect them to work
-- ✅ Each Windows user must create and manage their own session backups
-
-> **Tip:** If you need to use multiple IDE accounts across different Windows users, each Windows user should set up their own SurfManager backups independently.
-
-## 🆕 What's New in This Build
-
-### 🔥 Latest Updates (v5.2.0 - Released 11/24/2025)
-- **Code Architecture Optimization** - Comprehensive redundancy elimination across 7 major categories
-- **Improved Maintainability** - Reduced code duplication by 10-15% (~265 lines eliminated)
-- **Centralized Path Management** - Single source of truth for all path operations
-- **Unified Dialog System** - Consolidated confirmation dialogs with consistent behavior
-- **Performance Enhancement** - Cached platform detection eliminates repeated system calls
-- **Better Code Organization** - Clear ownership patterns for utilities, paths, and operations
-- **Enhanced Reliability** - Consistent error handling across directory creation and file operations
-
-### 🔄 Previous Updates (v5.1.2)
-- **Initial Cross-Platform Support** - Basic compatibility framework for macOS, and Linux (untested on macOS/Linux)
-- **Intelligent Process Detection** - Real-time detection of running applications with automatic closure
-- **Advanced Caching System** - Lightning-fast performance with intelligent caching mechanisms
-- **Batch Operation Support** - Handle multiple sessions simultaneously for increased productivity
-- **Auto-Backup Protection** - Automatic backup creation before any reset operations
-- **Improved Search & Filter** - Enhanced search functionality to quickly locate specific sessions
-
-
-## 🤝 Want to Contribute?
-
-We love contributions! Whether it's reporting a bug, suggesting a new feature, or diving into the code, your input helps make SurfManager even better.
+We welcome contributions! Whether it's bug reports, feature suggestions, or code contributions.
 
 ### How to Contribute
 
 ```bash
-# 1. Fork the repository on GitHub.
-# 2. Create a new feature branch for your changes.
-git checkout -b feature/my-awesome-feature
+# Fork the repository on GitHub
+# Create a feature branch
+git checkout -b feature/awesome-feature
 
-# 3. Commit your changes with a clear message.
-git commit -m 'Add my awesome feature'
+# Make your changes
+git commit -m 'Add awesome feature'
 
-# 4. Push your changes to your branch.
-git push origin feature/my-awesome-feature
+# Push to your fork
+git push origin feature/awesome-feature
 
-# 5. Open a Pull Request on our GitHub repo!
+# Open a Pull Request
 ```
 
-### Areas Where You Can Help
+### Areas for Contribution
 
 | Area | Description |
 |------|-------------|
-| **Platform Support** | Help us improve Linux and macOS support! |
-| **App Support** | Suggest or help add support for more applications. |
-| **Documentation** | Make our docs and guides even clearer. |
-| **Bug Fixes** | Help us find and squash those pesky bugs! |
-| **UI/UX** | Share your ideas for design enhancements. |
+| **Platform Support** | Improve macOS and Linux compatibility |
+| **App Support** | Add support for more development tools |
+| **Documentation** | Enhance guides and documentation |
+| **Bug Fixes** | Help identify and fix issues |
+| **UI/UX** | Design improvements and user experience |
+| **Testing** | Cross-platform testing and validation |
 
-## ⚖️ Disclaimer
-
-> SurfManager is a community-driven development tool, built by developers, for developers. It's here to help you manage your coding environments more efficiently.
-
-### Important Notes:
-
-*   ⚠️ **Always** back up important data before performing reset operations.
-*   📜 **Follow** the Terms of Service of any applications you're managing.
-*   ✅ This tool is for **legitimate development workflow management**.
-*   🔒 **Use responsibly** and in accordance with applicable laws.
-
-> **Disclaimer:** We're not responsible for how you choose to use this tool. By using SurfManager, you're joining a community that values clean workflows and efficient tooling.
+---
 
 ## 📄 License
 
-SurfManager is open-source under the MIT License. See the [LICENSE](LICENSE) file for all the details.
+SurfManager is open-source under the MIT License. See [LICENSE](LICENSE) for details.
 
 ```
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -230,6 +286,33 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 ```
 
+---
+
+## 🙏 Credits
+
+**Built with ❤️ by:**
+- **risunCode** - Project Creator & Lead Developer
+- **Community Contributors** - Feature suggestions, bug reports, and code contributions
+
+**Special Thanks:**
+- PyQt6 team for the amazing GUI framework
+- psutil developers for process management capabilities
+- All beta testers and early adopters
+
+**Technologies Used:**
+- **PyQt6** - Modern GUI framework
+- **Python 3.8+** - Core application language
+- **psutil** - Process management and system monitoring
+- **qtawesome** - Beautiful icons for the interface
+
+---
+
 <div align="center">
-Built with ❤️ by risuncode and community
+  
+**SurfManager v1.0.0**
+
+*Making development workflows smoother, one session at a time*
+
+[⭐ Star us on GitHub](https://github.com/risunCode/SurfManager) | [🐛 Report Issues](https://github.com/risunCode/SurfManager/issues) | [💡 Suggest Features](https://github.com/risunCode/SurfManager/discussions)
+
 </div>

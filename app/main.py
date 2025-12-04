@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QTimer
+from PyQt6.QtGui import QIcon
 from app.gui.splash import SplashScreen
 from app.gui.main_window import MainWindow
 from app import __version__
@@ -32,6 +33,11 @@ def main():
         app = QApplication(sys.argv)
         app.setApplicationName("SurfManager")
         app.setApplicationVersion(__version__)
+        
+        # Set application icon
+        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "icons", "app.ico")
+        if os.path.exists(icon_path):
+            app.setWindowIcon(QIcon(icon_path))
         
         splash = SplashScreen()
         splash.show()

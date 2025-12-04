@@ -14,6 +14,7 @@ from app import __app_name__
 _ResetTab = None
 _AccountTab = None
 _AppConfigTab = None
+_AboutTab = None
 
 def _get_reset_tab():
     global _ResetTab
@@ -35,6 +36,13 @@ def _get_app_config_tab():
         from app.gui.tab_app_config import AppConfigTab
         _AppConfigTab = AppConfigTab
     return _AppConfigTab
+
+def _get_about_tab():
+    global _AboutTab
+    if _AboutTab is None:
+        from app.gui.tab_about import AboutTab
+        _AboutTab = AboutTab
+    return _AboutTab
 
 
 class DummyAppManager:
@@ -194,6 +202,11 @@ class MainWindow(QMainWindow):
         
         self.data_sub_tabs.setStyleSheet(SUB_TAB_STYLE)
         self.tabs.addTab(data_widget, _get_icon('fa5s.database', '#ce93d8'), "Data Management")
+        
+        # 3. About Tab
+        AboutTab = _get_about_tab()
+        self.about_tab = AboutTab()
+        self.tabs.addTab(self.about_tab, _get_icon('fa5s.info-circle', '#888'), "About")
     
     def _on_apps_config_changed(self):
         """Handle app config changes - refresh all tabs that use app configs."""
