@@ -1,7 +1,8 @@
 """Main window for SurfManager - Optimized loading."""
 import os
+import getpass
 import webbrowser
-from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QTabWidget, QStatusBar, QPushButton
+from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QStatusBar, QPushButton, QLabel
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QIcon
 import qtawesome as qta
@@ -90,12 +91,61 @@ class MainWindow(QMainWindow):
         # Tab styling
         self.tabs.setStyleSheet("QTabWidget::pane { border-top: 2px solid #3d3d3d; margin-top: 2px; } QTabBar::tab { padding: 8px 16px; margin-right: 2px; }")
         
-        # Corner button
+        # Corner widget: User info + GitHub button
+        corner_widget = QWidget()
+        corner_layout = QHBoxLayout()
+        corner_layout.setContentsMargins(0, 0, 6, 0)
+        corner_layout.setSpacing(4)
+        corner_widget.setLayout(corner_layout)
+        
+        # Shared style for corner elements
+        corner_style = """
+            QPushButton {
+                color: #aaa;
+                font-size: 11px;
+                padding: 4px 10px;
+                background-color: #2d2d30;
+                border: 1px solid #3d3d3d;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #3d3d3d;
+                border-color: #4d4d4d;
+                color: #ccc;
+            }
+        """
+        
+        # User info button (clickable label style)
+        username = getpass.getuser()
+        user_btn = QPushButton(f" {username}")
+        user_btn.setIcon(_get_icon('fa5s.user', '#888'))
+        user_btn.setToolTip(f"Current user: {username}")
+        user_btn.setStyleSheet(corner_style)
+        corner_layout.addWidget(user_btn)
+        
+        # GitHub button (same style, different color accent)
         github_btn = QPushButton(" SurfManager")
-        github_btn.setIcon(_get_icon('fa5b.github', '#fff'))
-        github_btn.setStyleSheet("QPushButton { background-color: #0d7377; color: #fff; border: none; border-radius: 4px; font-weight: bold; font-size: 11px; padding: 6px 12px; margin-right: 6px; } QPushButton:hover { background-color: #0f8a8f; }")
+        github_btn.setIcon(_get_icon('fa5b.github', '#4fc3f7'))
+        github_btn.setToolTip("Visit SurfManager on GitHub")
+        github_btn.setStyleSheet("""
+            QPushButton {
+                color: #aaa;
+                font-size: 11px;
+                padding: 4px 10px;
+                background-color: #2d2d30;
+                border: 1px solid #3d3d3d;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #0d7377;
+                border-color: #0d7377;
+                color: #fff;
+            }
+        """)
         github_btn.clicked.connect(lambda: webbrowser.open("https://github.com/risunCode/SurfManager"))
-        self.tabs.setCornerWidget(github_btn, Qt.Corner.TopRightCorner)
+        corner_layout.addWidget(github_btn)
+        
+        self.tabs.setCornerWidget(corner_widget, Qt.Corner.TopRightCorner)
         
         # Status bar
         self.setStatusBar(QStatusBar())

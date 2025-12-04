@@ -4,7 +4,7 @@ import platform
 import subprocess
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox, 
-    QLabel, QPushButton, QLineEdit, QTextEdit
+    QLabel, QPushButton, QLineEdit, QTextEdit, QScrollArea, QProgressBar
 )
 from PyQt6.QtCore import Qt
 import qtawesome as qta
@@ -25,66 +25,102 @@ class ResetTab(QWidget):
         self._load_apps_from_config()
 
     def log(self, msg: str):
-        """Log message to output."""
+        """Log message to output (via callback to main window)."""
         if self.log_callback:
             self.log_callback(msg)
-        if hasattr(self, 'log_output'):
-            self.log_output.append(msg)
 
     def clear_log(self):
         self.log_output.clear()
 
     def _init_ui(self):
         layout = QVBoxLayout()
-        layout.setSpacing(8)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(6)
+        layout.setContentsMargins(8, 8, 8, 8)
         self.setLayout(layout)
 
-        # Programs section
+        # Programs section (compact, max 8 with scroll)
         self._create_programs_section(layout)
 
-        # Bottom: Log + Actions
-        bottom = QHBoxLayout()
-        bottom.setSpacing(8)
-
-        # Log
-        log_group = QGroupBox("Log")
-        log_layout = QVBoxLayout()
-        log_layout.setContentsMargins(8, 8, 8, 8)
-        log_group.setLayout(log_layout)
+        # Log section
+        log_section = QGroupBox("Log")
+        log_main = QVBoxLayout()
+        log_main.setSpacing(6)
+        log_main.setContentsMargins(6, 6, 6, 6)
+        log_section.setLayout(log_main)
+        
+        # Log output (full width)
         self.log_output = QTextEdit()
         self.log_output.setReadOnly(True)
-        log_layout.addWidget(self.log_output)
-        bottom.addWidget(log_group, 2)
-
-        # Actions
-        self._create_actions(bottom)
-        layout.addLayout(bottom, 1)
+        self.log_output.setMinimumHeight(150)
+        self.log_output.setStyleSheet("""
+            QTextEdit {
+                background-color: #1e1e1e;
+                color: #e0e0e0;
+                border: 1px solid #3d3d3d;
+                border-radius: 4px;
+                font-family: Consolas, monospace;
+                font-size: 11px;
+            }
+        """)
+        log_main.addWidget(self.log_output, 1)
+        
+        # Bottom row: Progress bar | Actions
+        bottom_row = QHBoxLayout()
+        bottom_row.setSpacing(6)
+        
+        # Progress bar (left, stretch)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setFixedHeight(24)
+        self.progress_bar.setTextVisible(True)
+        self.progress_bar.setFormat("Ready")
+        self.progress_bar.setValue(0)
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #3d3d3d;
+                border-radius: 4px;
+                text-align: center;
+                background-color: #1e1e1e;
+                color: #e0e0e0;
+                font-size: 10px;
+            }
+            QProgressBar::chunk {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #0d7377, stop:1 #14ffec);
+                border-radius: 3px;
+            }
+        """)
+        bottom_row.addWidget(self.progress_bar, 1)
+        
+        # Actions (right side, horizontal)
+        self._create_actions(bottom_row)
+        
+        log_main.addLayout(bottom_row)
+        layout.addWidget(log_section, 1)
 
     def _create_programs_section(self, layout):
         self.programs_group = QGroupBox("Programs")
         programs_layout = QVBoxLayout()
-        programs_layout.setSpacing(6)
-        programs_layout.setContentsMargins(8, 12, 8, 8)
+        programs_layout.setSpacing(2)  # Compact spacing
+        programs_layout.setContentsMargins(6, 8, 6, 6)
         self.programs_group.setLayout(programs_layout)
 
         # Empty placeholder
         self.empty_placeholder = QWidget()
         ph_layout = QHBoxLayout()
-        ph_layout.setContentsMargins(0, 8, 0, 8)
+        ph_layout.setContentsMargins(0, 4, 0, 4)
         self.empty_placeholder.setLayout(ph_layout)
 
         icon = QLabel()
-        icon.setPixmap(qta.icon('fa5s.inbox', color='#555').pixmap(32, 32))
+        icon.setPixmap(qta.icon('fa5s.inbox', color='#555').pixmap(24, 24))
         ph_layout.addStretch()
         ph_layout.addWidget(icon)
 
         text_layout = QVBoxLayout()
-        text_layout.setSpacing(2)
+        text_layout.setSpacing(1)
         title = QLabel("No Programs Configured")
-        title.setStyleSheet("color: #777; font-weight: bold;")
-        desc = QLabel("Add programs in settings")
-        desc.setStyleSheet("color: #555; font-size: 11px;")
+        title.setStyleSheet("color: #777; font-weight: bold; font-size: 11px;")
+        desc = QLabel("Add programs in App Configuration")
+        desc.setStyleSheet("color: #555; font-size: 10px;")
         text_layout.addWidget(title)
         text_layout.addWidget(desc)
         ph_layout.addLayout(text_layout)
@@ -92,65 +128,97 @@ class ResetTab(QWidget):
 
         programs_layout.addWidget(self.empty_placeholder)
 
-        # Programs grid (hidden)
+        # Scroll area for programs (max 8 visible, scroll if more)
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.scroll_area.setMaximumHeight(240)  # ~8 compact rows
+        self.scroll_area.setStyleSheet("""
+            QScrollArea { border: none; background: transparent; }
+            QScrollBar:vertical { background: #2d2d2d; width: 8px; border-radius: 4px; }
+            QScrollBar::handle:vertical { background: #4a4a4a; border-radius: 4px; min-height: 20px; }
+            QScrollBar::handle:vertical:hover { background: #5a5a5a; }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+        """)
+        
+        # Programs grid inside scroll
         self.programs_grid = QWidget()
         self.grid_layout = QGridLayout()
-        self.grid_layout.setSpacing(6)
+        self.grid_layout.setSpacing(2)  # Compact vertical spacing
         self.grid_layout.setContentsMargins(0, 0, 0, 0)
         self.programs_grid.setLayout(self.grid_layout)
-        self.programs_grid.hide()
-        programs_layout.addWidget(self.programs_grid)
+        
+        self.scroll_area.setWidget(self.programs_grid)
+        self.scroll_area.hide()
+        programs_layout.addWidget(self.scroll_area)
 
         layout.addWidget(self.programs_group)
 
     def add_program(self, display_name: str, app_key: str = "", detected_path: str = None):
-        """Add program to grid (max 8).
+        """Add program to grid.
         
         Args:
             display_name: Display name for the app
             app_key: Config key for the app (lowercase)
             detected_path: Detected data path (or None if not found)
         """
-        if len(self.program_widgets) >= self.MAX_PROGRAMS:
-            return
-
         self.empty_placeholder.hide()
-        self.programs_grid.show()
+        self.scroll_area.show()
         row = len(self.program_widgets)
 
         name_lbl = QLabel(f"<b>{display_name}</b>")
-        name_lbl.setMinimumWidth(80)
+        name_lbl.setMinimumWidth(70)
+        name_lbl.setMaximumHeight(24)
+        name_lbl.setStyleSheet("font-size: 11px;")
 
         path_input = QLineEdit()
         path_input.setReadOnly(True)
+        path_input.setMaximumHeight(24)
         
         if detected_path:
             path_input.setText(detected_path)
-            path_input.setStyleSheet("background-color: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 3px; padding: 4px; color: #FFFF00; font-weight: bold;")
+            path_input.setStyleSheet("background-color: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 3px; padding: 2px 4px; color: #FFFF00; font-size: 10px;")
         else:
             path_input.setPlaceholderText("Not detected")
-            path_input.setStyleSheet("background-color: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 3px; padding: 4px; color: #888;")
+            path_input.setStyleSheet("background-color: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 3px; padding: 2px 4px; color: #888; font-size: 10px;")
 
         btns = QHBoxLayout()
-        btns.setSpacing(4)
+        btns.setSpacing(3)
         btns.setContentsMargins(0, 0, 0, 0)
+        
+        # Button style with icon + text
+        btn_style = """
+            QPushButton {
+                background-color: #2d2d30;
+                border: 1px solid #3d3d3d;
+                border-radius: 3px;
+                padding: 2px 6px;
+                font-size: 10px;
+                color: #ccc;
+            }
+            QPushButton:hover { background-color: #3d3d3d; border-color: #4d4d4d; }
+        """
 
-        folder_btn = QPushButton()
+        folder_btn = QPushButton(" Folder")
         folder_btn.setIcon(qta.icon('fa5s.folder-open', color='#ffb74d'))
-        folder_btn.setToolTip("Open Folder")
-        folder_btn.setFixedSize(28, 28)
+        folder_btn.setToolTip("Open data folder")
+        folder_btn.setFixedHeight(22)
+        folder_btn.setStyleSheet(btn_style)
         folder_btn.clicked.connect(lambda checked, k=app_key: self._open_folder(k))
 
-        reset_btn = QPushButton()
+        reset_btn = QPushButton(" Reset")
         reset_btn.setIcon(qta.icon('fa5s.redo-alt', color='#ef5350'))
-        reset_btn.setToolTip("Reset")
-        reset_btn.setFixedSize(28, 28)
+        reset_btn.setToolTip("Reset application data")
+        reset_btn.setFixedHeight(22)
+        reset_btn.setStyleSheet(btn_style)
         reset_btn.clicked.connect(lambda checked, k=app_key: self._reset_app(k))
 
-        launch_btn = QPushButton()
+        launch_btn = QPushButton(" Launch")
         launch_btn.setIcon(qta.icon('fa5s.play', color='#81c784'))
-        launch_btn.setToolTip("Launch")
-        launch_btn.setFixedSize(28, 28)
+        launch_btn.setToolTip("Launch application")
+        launch_btn.setFixedHeight(22)
+        launch_btn.setStyleSheet(btn_style)
         launch_btn.clicked.connect(lambda checked, k=app_key: self._launch_app(k))
 
         btns.addWidget(folder_btn)
@@ -215,28 +283,45 @@ class ResetTab(QWidget):
         self.log(f"Executable not found for {display_name}")
 
     def _create_actions(self, parent):
-        actions = QGroupBox("Actions")
-        layout = QVBoxLayout()
-        layout.setSpacing(8)
-        layout.setContentsMargins(8, 12, 8, 8)
-        actions.setLayout(layout)
-
-        grid = QGridLayout()
-        grid.setSpacing(6)
-
-        clear_btn = QPushButton(" Clear")
-        clear_btn.setIcon(qta.icon('fa5s.eraser', color='#e0e0e0'))
+        """Create action buttons (horizontal, bottom right)."""
+        btn_style = """
+            QPushButton {
+                background-color: #2d2d30;
+                color: #ccc;
+                border: 1px solid #3d3d3d;
+                border-radius: 4px;
+                padding: 4px 10px;
+                font-size: 11px;
+            }
+            QPushButton:hover { background-color: #3d3d3d; border-color: #0d7377; }
+        """
+        
+        # Clear Log button
+        clear_btn = QPushButton("Clear")
+        clear_btn.setIcon(qta.icon('fa5s.eraser', color='#aaa'))
+        clear_btn.setToolTip("Clear log output")
+        clear_btn.setFixedHeight(24)
+        clear_btn.setStyleSheet(btn_style)
         clear_btn.clicked.connect(self.clear_log)
-        grid.addWidget(clear_btn, 0, 0)
+        parent.addWidget(clear_btn)
 
-        id_btn = QPushButton(" New ID")
+        # Refresh button
+        refresh_btn = QPushButton("Refresh")
+        refresh_btn.setIcon(qta.icon('fa5s.sync', color='#4fc3f7'))
+        refresh_btn.setToolTip("Refresh programs list")
+        refresh_btn.setFixedHeight(24)
+        refresh_btn.setStyleSheet(btn_style)
+        refresh_btn.clicked.connect(self.refresh_ui)
+        parent.addWidget(refresh_btn)
+        
+        # New ID button
+        id_btn = QPushButton("New ID")
         id_btn.setIcon(qta.icon('fa5s.fingerprint', color='#ffd54f'))
+        id_btn.setToolTip("Generate new Machine ID")
+        id_btn.setFixedHeight(24)
+        id_btn.setStyleSheet(btn_style)
         id_btn.clicked.connect(lambda: self.log("Generating new ID..."))
-        grid.addWidget(id_btn, 0, 1)
-
-        layout.addLayout(grid)
-        layout.addStretch()
-        parent.addWidget(actions, 1)
+        parent.addWidget(id_btn)
 
     def _load_apps_from_config(self):
         """Load apps from App Configuration (only active apps)."""
@@ -249,7 +334,7 @@ class ResetTab(QWidget):
         if not active_apps:
             # Show empty placeholder
             self.empty_placeholder.show()
-            self.programs_grid.hide()
+            self.scroll_area.hide()
             return
         
         # Add each active app

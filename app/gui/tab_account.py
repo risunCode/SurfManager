@@ -2,12 +2,11 @@
 import os
 import json
 import shutil
-from datetime import datetime
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
     QLabel, QPushButton, QLineEdit, QTextEdit, QComboBox,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
-    QInputDialog, QMenu, QFrame
+    QInputDialog, QMenu, QFrame, QDialog, QScrollArea
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QBrush, QColor, QFont, QAction, QKeySequence, QShortcut
@@ -16,9 +15,70 @@ from app.core.config import ConfigManager
 from app.core import app_configs
 
 
+class AllAppsDialog(QDialog):
+    """Dialog showing all applications."""
+    
+    def __init__(self, apps, on_click_callback, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("All Applications")
+        self.setMinimumSize(300, 200)
+        self.on_click = on_click_callback
+        self._init_ui(apps)
+    
+    def _init_ui(self, apps):
+        layout = QVBoxLayout()
+        layout.setSpacing(6)
+        layout.setContentsMargins(10, 10, 10, 10)
+        self.setLayout(layout)
+        
+        label = QLabel(f"Select application ({len(apps)} total)")
+        label.setStyleSheet("font-weight: bold; color: #ccc;")
+        layout.addWidget(label)
+        
+        # Scroll area for apps
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; }")
+        
+        grid_widget = QWidget()
+        grid = QGridLayout()
+        grid.setSpacing(4)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid_widget.setLayout(grid)
+        
+        for i, app_name in enumerate(sorted(apps)):
+            btn = QPushButton(f" {app_name}")
+            btn.setIcon(qta.icon('fa5s.cube', color='#ccc'))
+            btn.setStyleSheet("""
+                QPushButton { 
+                    background-color: #333; 
+                    border: 1px solid #444; 
+                    border-radius: 4px; 
+                    padding: 8px;
+                    text-align: left;
+                }
+                QPushButton:hover { background-color: #404040; border-color: #0d7377; }
+            """)
+            btn.clicked.connect(lambda checked, n=app_name: self._on_click(n))
+            grid.addWidget(btn, i // 2, i % 2)
+        
+        scroll.setWidget(grid_widget)
+        layout.addWidget(scroll, 1)
+        
+        # Close button
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(self.close)
+        layout.addWidget(close_btn)
+    
+    def _on_click(self, app_name):
+        self.on_click(app_name)
+        self.close()
+
+
 class AccountTab(QWidget):
     """Account Manager tab widget - dynamically loads from App Configuration."""
     MAX_APPS = 8
+    MAX_VISIBLE_APPS = 5  # Show max 5 apps, then "Show more" button
 
     def __init__(self, app_manager, log_callback):
         super().__init__()
@@ -40,9 +100,8 @@ class AccountTab(QWidget):
         self._local_log(msg)
 
     def _local_log(self, msg: str):
-        """Add message to local activity log."""
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        self.log_output.append(f"[{timestamp}] {msg}")
+        """Add message to local activity log (no timestamp)."""
+        self.log_output.append(msg)
 
     def clear_log(self):
         self.log_output.clear()
@@ -235,6 +294,14 @@ class AccountTab(QWidget):
         self.count_label = QLabel()
         self.count_label.setStyleSheet("color: #888; font-size: 11px;")
         toolbar.addWidget(self.count_label)
+        
+        # Create Backup button
+        backup_btn = QPushButton(" New Backup")
+        backup_btn.setIcon(qta.icon('fa5s.plus', color='#81c784'))
+        backup_btn.setStyleSheet("QPushButton { background-color: #2e7d32; color: white; padding: 4px 10px; border-radius: 4px; } QPushButton:hover { background-color: #388e3c; }")
+        backup_btn.clicked.connect(self._create_backup_dialog)
+        toolbar.addWidget(backup_btn)
+        
         toolbar.addStretch()
 
         self.search = QLineEdit()
@@ -281,7 +348,7 @@ class AccountTab(QWidget):
         if row >= 0:
             app = self.table.item(row, 1).text().lower()
             name = self.table.item(row, 2).text().replace("★ ", "")
-            self.log(f"Load: {name}")
+            self._load_session(app, name)
 
     def _delete_selected_multi(self):
         """Delete selected rows (multi-select support)."""
@@ -485,9 +552,9 @@ class AccountTab(QWidget):
         action = menu.exec(self.table.mapToGlobal(pos))
 
         if action == load_act:
-            self.log(f"Load: {name}")
+            self._load_session(app, name)
         elif action == save_act:
-            self.log(f"Update: {name}")
+            self._update_session(app, name)
         elif action == star_act:
             self._set_active(app, name)
         elif action == rename_act:
@@ -551,6 +618,194 @@ class AccountTab(QWidget):
             self._refresh()
             self.log(f"Deleted: {name}")
 
+    def _create_backup_dialog(self):
+        """Show dialog to create new backup."""
+        from datetime import datetime
+        
+        # Get active apps
+        active_apps = app_configs.get_active_apps()
+        if not active_apps:
+            QMessageBox.warning(self, "No Apps", "No applications configured. Add apps in App Configuration first.")
+            return
+        
+        # Select app dialog
+        app_names = [app_configs.get_app(a).get('display_name', a.title()) for a in sorted(active_apps)]
+        app, ok = QInputDialog.getItem(self, "Select Application", "Choose app to backup:", app_names, 0, False)
+        if not ok or not app:
+            return
+        
+        # Find app key
+        app_key = None
+        for a in active_apps:
+            if app_configs.get_app(a).get('display_name', a.title()) == app:
+                app_key = a
+                break
+        
+        if not app_key:
+            return
+        
+        # Session name dialog
+        default_name = f"{app}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        name, ok = QInputDialog.getText(self, "Backup Name", "Enter session name:", text=default_name)
+        if not ok or not name.strip():
+            return
+        
+        name = name.strip()
+        self._create_backup(app_key, name)
+    
+    def _create_backup(self, app_key: str, name: str):
+        """Create backup of app data."""
+        from datetime import datetime
+        
+        config = app_configs.get_app(app_key)
+        display_name = config.get('display_name', app_key.title())
+        data_paths = config.get('paths', {}).get('data_paths', [])
+        
+        # Find source path
+        source_path = None
+        for path in data_paths:
+            if os.path.exists(path):
+                source_path = path
+                break
+        
+        if not source_path:
+            self.log(f"No data found for {display_name}")
+            return
+        
+        # Create backup folder
+        backup_folder = os.path.join(self.backup_path, app_key.lower(), name)
+        os.makedirs(backup_folder, exist_ok=True)
+        
+        try:
+            # Copy data
+            self.log(f"Backing up {display_name}...")
+            for item in os.listdir(source_path):
+                src = os.path.join(source_path, item)
+                dst = os.path.join(backup_folder, item)
+                if os.path.isdir(src):
+                    shutil.copytree(src, dst, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(src, dst)
+            
+            # Update sessions
+            if app_key.lower() not in self.sessions:
+                self.sessions[app_key.lower()] = {}
+            
+            self.sessions[app_key.lower()][name] = {
+                'created': datetime.now().isoformat(),
+                'is_current': False
+            }
+            
+            self._save()
+            self._refresh()
+            self.log(f"Backup created: {name}")
+            
+        except Exception as e:
+            self.log(f"Backup failed: {e}")
+    
+    def _load_session(self, app: str, name: str):
+        """Restore session data to app folder."""
+        config = app_configs.get_app(app)
+        if not config:
+            self.log(f"App config not found: {app}")
+            return
+        
+        display_name = config.get('display_name', app.title())
+        data_paths = config.get('paths', {}).get('data_paths', [])
+        
+        # Find target path
+        target_path = None
+        for path in data_paths:
+            # Use first path as target (create if needed)
+            target_path = path
+            break
+        
+        if not target_path:
+            self.log(f"No data path configured for {display_name}")
+            return
+        
+        # Backup source
+        backup_folder = os.path.join(self.backup_path, app.lower(), name)
+        if not os.path.exists(backup_folder):
+            self.log(f"Backup not found: {name}")
+            return
+        
+        try:
+            self.log(f"Restoring {name} to {display_name}...")
+            
+            # Clear target folder
+            if os.path.exists(target_path):
+                shutil.rmtree(target_path)
+            os.makedirs(target_path, exist_ok=True)
+            
+            # Copy backup to target
+            for item in os.listdir(backup_folder):
+                src = os.path.join(backup_folder, item)
+                dst = os.path.join(target_path, item)
+                if os.path.isdir(src):
+                    shutil.copytree(src, dst)
+                else:
+                    shutil.copy2(src, dst)
+            
+            self.log(f"Restored: {name}")
+            
+        except Exception as e:
+            self.log(f"Restore failed: {e}")
+    
+    def _update_session(self, app: str, name: str):
+        """Update existing session with current app data."""
+        from datetime import datetime
+        
+        config = app_configs.get_app(app)
+        if not config:
+            self.log(f"App config not found: {app}")
+            return
+        
+        display_name = config.get('display_name', app.title())
+        data_paths = config.get('paths', {}).get('data_paths', [])
+        
+        # Find source path
+        source_path = None
+        for path in data_paths:
+            if os.path.exists(path):
+                source_path = path
+                break
+        
+        if not source_path:
+            self.log(f"No data found for {display_name}")
+            return
+        
+        # Backup folder
+        backup_folder = os.path.join(self.backup_path, app.lower(), name)
+        
+        try:
+            self.log(f"Updating {name}...")
+            
+            # Clear existing backup
+            if os.path.exists(backup_folder):
+                shutil.rmtree(backup_folder)
+            os.makedirs(backup_folder, exist_ok=True)
+            
+            # Copy data
+            for item in os.listdir(source_path):
+                src = os.path.join(source_path, item)
+                dst = os.path.join(backup_folder, item)
+                if os.path.isdir(src):
+                    shutil.copytree(src, dst, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(src, dst)
+            
+            # Update session info
+            if app.lower() in self.sessions and name in self.sessions[app.lower()]:
+                self.sessions[app.lower()][name]['last_used'] = datetime.now().isoformat()
+            
+            self._save()
+            self._refresh()
+            self.log(f"Updated: {name}")
+            
+        except Exception as e:
+            self.log(f"Update failed: {e}")
+
     def _load_apps_from_config(self):
         """Load apps from App Configuration (only active apps)."""
         # Clear existing app widgets
@@ -558,6 +813,7 @@ class AccountTab(QWidget):
         
         # Get active apps from config
         active_apps = app_configs.get_active_apps()
+        self._all_active_apps = []  # Store for "Show more" dialog
         
         if not active_apps:
             # Show empty placeholder
@@ -565,15 +821,53 @@ class AccountTab(QWidget):
             self.apps_grid.hide()
             return
         
-        # Add each active app
+        # Build display names list
         for app_name in sorted(active_apps):
             config = app_configs.get_app(app_name)
             display_name = config.get('display_name', app_name.title())
-            self.add_app(display_name)
+            self._all_active_apps.append(display_name)
             
             # Add to app_list for sessions filtering
             if app_name.lower() not in self.app_list:
                 self.app_list.append(app_name.lower())
+        
+        # Show max 5 apps, then "Show more" button
+        visible_apps = self._all_active_apps[:self.MAX_VISIBLE_APPS]
+        for display_name in visible_apps:
+            self.add_app(display_name)
+        
+        # Add "Show more" button if there are more apps
+        if len(self._all_active_apps) > self.MAX_VISIBLE_APPS:
+            self._add_show_more_button()
+    
+    def _add_show_more_button(self):
+        """Add 'Show more' button when there are more than MAX_VISIBLE_APPS."""
+        remaining = len(self._all_active_apps) - self.MAX_VISIBLE_APPS
+        btn = QPushButton(f" +{remaining} more...")
+        btn.setIcon(qta.icon('fa5s.ellipsis-h', color='#888'))
+        btn.setToolTip(f"Show all {len(self._all_active_apps)} applications")
+        btn.setStyleSheet("""
+            QPushButton { 
+                background-color: #2a2a2a; 
+                border: 1px dashed #555; 
+                border-radius: 4px; 
+                padding: 6px 8px;
+                text-align: left;
+                color: #888;
+            }
+            QPushButton:hover { background-color: #333; border-color: #0d7377; color: #ccc; }
+        """)
+        btn.clicked.connect(self._show_all_apps_dialog)
+        
+        # Add to grid
+        count = len(self.app_widgets)
+        row, col = count // 2, count % 2
+        self.grid_layout.addWidget(btn, row, col)
+    
+    def _show_all_apps_dialog(self):
+        """Show dialog with all applications."""
+        dialog = AllAppsDialog(self._all_active_apps, self._on_app_click, self)
+        dialog.exec()
     
     def _clear_app_widgets(self):
         """Clear all app widgets from grid."""

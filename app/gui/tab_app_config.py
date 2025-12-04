@@ -284,6 +284,35 @@ class AppConfigTab(QWidget):
         self.apps_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.apps_table.setMinimumHeight(200)
         
+        # Dark table styling (match Sessions table)
+        self.apps_table.setStyleSheet("""
+            QTableWidget {
+                background-color: #1e1e1e;
+                alternate-background-color: #252526;
+                gridline-color: #3d3d3d;
+                border: 1px solid #3d3d3d;
+                border-radius: 4px;
+                color: #e0e0e0;
+            }
+            QTableWidget::item {
+                padding: 4px;
+                border-bottom: 1px solid #2d2d2d;
+            }
+            QTableWidget::item:selected {
+                background-color: #0d7377;
+                color: #fff;
+            }
+            QHeaderView::section {
+                background-color: #2d2d30;
+                color: #ccc;
+                font-weight: bold;
+                padding: 6px;
+                border: none;
+                border-bottom: 2px solid #3d3d3d;
+                border-right: 1px solid #3d3d3d;
+            }
+        """)
+        
         # Column widths
         header = self.apps_table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
@@ -291,8 +320,8 @@ class AppConfigTab(QWidget):
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
         
-        self.apps_table.setColumnWidth(0, 40)
-        self.apps_table.setColumnWidth(3, 220)
+        self.apps_table.setColumnWidth(0, 35)
+        self.apps_table.setColumnWidth(3, 140)  # Actions column - compact buttons
         
         # Context menu
         self.apps_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -444,38 +473,42 @@ class AppConfigTab(QWidget):
                 status_item.setForeground(QBrush(QColor(status_color)))
                 self.apps_table.setItem(row, 2, status_item)
                 
-                # Column 3: Action buttons
+                # Column 3: Action buttons (compact)
                 actions_widget = QWidget()
                 actions_layout = QHBoxLayout()
-                actions_layout.setSpacing(4)
-                actions_layout.setContentsMargins(4, 2, 4, 2)
+                actions_layout.setSpacing(1)
+                actions_layout.setContentsMargins(1, 0, 1, 0)
+                
+                btn_base = "QPushButton { padding: 1px 4px; font-size: 9px; border-radius: 2px; min-width: 35px; }"
                 
                 edit_btn = QPushButton("Edit")
-                edit_btn.setMinimumHeight(24)
-                edit_btn.setMinimumWidth(50)
+                edit_btn.setFixedHeight(20)
+                edit_btn.setStyleSheet(btn_base + "QPushButton { background-color: #3d3d3d; } QPushButton:hover { background-color: #4d4d4d; }")
                 edit_btn.clicked.connect(lambda checked, path=config_path: self._edit_app_config(path))
                 actions_layout.addWidget(edit_btn)
                 
-                remove_btn = QPushButton("Delete")
-                remove_btn.setMinimumHeight(24)
-                remove_btn.setMinimumWidth(55)
+                remove_btn = QPushButton("Del")
+                remove_btn.setFixedHeight(20)
+                remove_btn.setStyleSheet(btn_base + "QPushButton { background-color: #c72e0f; color: white; } QPushButton:hover { background-color: #e03e1c; }")
                 remove_btn.clicked.connect(lambda checked, path=config_path: self._delete_app_config(path))
-                remove_btn.setStyleSheet("QPushButton { background-color: #c72e0f; } QPushButton:hover { background-color: #e03e1c; }")
                 actions_layout.addWidget(remove_btn)
                 
                 # Toggle Active/Inactive
-                toggle_btn = QPushButton("Active" if is_active else "Inactive")
-                toggle_btn.setMinimumHeight(24)
-                toggle_btn.setMinimumWidth(65)
+                toggle_text = "ON" if is_active else "OFF"
+                toggle_btn = QPushButton(toggle_text)
+                toggle_btn.setFixedHeight(20)
                 toggle_btn.clicked.connect(lambda checked, path=config_path: self._toggle_app_active(path))
                 if is_active:
-                    toggle_btn.setStyleSheet("QPushButton { background-color: #4CAF50; color: white; font-weight: bold; } QPushButton:hover { background-color: #45a049; }")
+                    toggle_btn.setStyleSheet(btn_base + "QPushButton { background-color: #4CAF50; color: white; font-weight: bold; } QPushButton:hover { background-color: #45a049; }")
                 else:
-                    toggle_btn.setStyleSheet("QPushButton { background-color: #666; color: white; font-weight: bold; } QPushButton:hover { background-color: #777; }")
+                    toggle_btn.setStyleSheet(btn_base + "QPushButton { background-color: #555; color: #999; } QPushButton:hover { background-color: #666; }")
                 actions_layout.addWidget(toggle_btn)
                 
                 actions_widget.setLayout(actions_layout)
                 self.apps_table.setCellWidget(row, 3, actions_widget)
+                
+                # Set row height
+                self.apps_table.setRowHeight(row, 26)
                 
             except Exception as e:
                 self.log(f"ERROR: Failed to load {config_path.name}: {e}")
