@@ -7,10 +7,6 @@
 [![Python](https://img.shields.io/badge/python-3.8+-yellow.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-<div align="center">
-  <img src="https://github.com/user-attachments/assets/82268ac2-c360-40c0-866a-c87a2db9aba5" alt="SurfManager Screenshot" width="800"/>
-</div>
-
 ---
 
 ## 👋 Welcome to SurfManager!
@@ -27,10 +23,16 @@ Perfect for developers who need to:
 
 ## Screenshots (Windows)
 
-![1 Reset data](https://github.com/user-attachments/assets/e142de68-8491-4c90-bd79-6f8d43446eab)
-![2-backup](https://github.com/user-attachments/assets/7b056f6f-228b-403f-b7e9-a72f732a1901)
-![3-app config](https://github.com/user-attachments/assets/7864b5cd-aa72-44e5-8874-600c378bd343)
-![4-about](https://github.com/user-attachments/assets/42442eaa-70ca-454b-8cb1-9c0e7cfc3b36)
+<table>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/e142de68-8491-4c90-bd79-6f8d43446eab" alt="Reset Data" width="400"/></td>
+    <td><img src="https://github.com/user-attachments/assets/7b056f6f-228b-403f-b7e9-a72f732a1901" alt="Backup" width="400"/></td>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/7864b5cd-aa72-44e5-8874-600c378bd343" alt="App Config" width="400"/></td>
+    <td><img src="https://github.com/user-attachments/assets/42442eaa-70ca-454b-8cb1-9c0e7cfc3b36" alt="About" width="400"/></td>
+  </tr>
+</table>
 
 ---
 
