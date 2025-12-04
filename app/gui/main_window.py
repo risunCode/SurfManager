@@ -14,6 +14,7 @@ from app import __app_name__
 _ResetTab = None
 _AccountTab = None
 _AppConfigTab = None
+_NotepadTab = None
 _AboutTab = None
 
 def _get_reset_tab():
@@ -36,6 +37,13 @@ def _get_app_config_tab():
         from app.gui.tab_app_config import AppConfigTab
         _AppConfigTab = AppConfigTab
     return _AppConfigTab
+
+def _get_notepad_tab():
+    global _NotepadTab
+    if _NotepadTab is None:
+        from app.gui.tab_notepad import NotepadTab
+        _NotepadTab = NotepadTab
+    return _NotepadTab
 
 def _get_about_tab():
     global _AboutTab
@@ -199,6 +207,11 @@ class MainWindow(QMainWindow):
         self.app_config_tab = AppConfigTab(self.log)
         self.app_config_tab.apps_changed.connect(self._on_apps_config_changed)
         self.data_sub_tabs.addTab(self.app_config_tab, _get_icon('fa5s.cog', '#4fc3f7'), "App Configuration")
+        
+        # 3. Notepad sub-tab
+        NotepadTab = _get_notepad_tab()
+        self.notepad_tab = NotepadTab()
+        self.data_sub_tabs.addTab(self.notepad_tab, _get_icon('fa5s.sticky-note', '#FFD54F'), "Notepad")
         
         self.data_sub_tabs.setStyleSheet(SUB_TAB_STYLE)
         self.tabs.addTab(data_widget, _get_icon('fa5s.database', '#ce93d8'), "Data Management")

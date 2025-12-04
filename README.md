@@ -36,7 +36,7 @@ Perfect for developers who need to:
 
 ---
 
-## ✨ Features
+## ✨ Featuresx
 
 ### 🎯 Core Features
 
