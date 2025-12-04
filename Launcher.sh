@@ -104,9 +104,38 @@ build_stable() {
     pip install pyinstaller -q
     
     FILENAME="SurfManager-${OS_NAME}-${ARCH_NAME}-${VERSION}"
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    
+    # Platform-specific options
+    PLATFORM_OPTS=""
+    ICON_DATA=""
+    
+    # Include icons folder for runtime
+    if [ -d "app/icons" ]; then
+        ICON_DATA="--add-data app/icons:app/icons"
+    fi
+    
+    if [ "$OS" = "Darwin" ]; then
+        # macOS: use .icns if available, set bundle identifier
+        if [ -f "app/icons/app.icns" ]; then
+            PLATFORM_OPTS="--icon=app/icons/app.icns"
+        elif [ -f "app/icons/app.ico" ]; then
+            PLATFORM_OPTS="--icon=app/icons/app.ico"
+        fi
+        PLATFORM_OPTS="$PLATFORM_OPTS --osx-bundle-identifier=com.risuncode.surfmanager"
+    else
+        # Linux: use .png or .ico
+        if [ -f "app/icons/app.png" ]; then
+            PLATFORM_OPTS="--icon=app/icons/app.png"
+        elif [ -f "app/icons/app.ico" ]; then
+            PLATFORM_OPTS="--icon=app/icons/app.ico"
+        fi
+    fi
     
     echo "Generating executable (this may take 2-3 minutes)..."
-    pyinstaller --onefile --windowed --clean --name="$FILENAME" --distpath="dist/stable" --workpath="build/stable" --specpath="build/stable" \
+    pyinstaller --onefile --windowed --clean --name="$FILENAME" \
+        --distpath="dist/stable" --workpath="build/stable" --specpath="build/stable" \
+        $PLATFORM_OPTS $ICON_DATA \
         --hidden-import PyQt6.QtCore \
         --hidden-import PyQt6.QtWidgets \
         --hidden-import PyQt6.QtGui \
@@ -117,16 +146,34 @@ build_stable() {
         --exclude-module matplotlib \
         --exclude-module numpy \
         --exclude-module pandas \
+        --exclude-module PyQt6.QtWebEngine \
+        --exclude-module PyQt6.QtWebEngineWidgets \
+        --exclude-module PyQt6.QtQml \
+        --exclude-module PyQt6.QtQuick \
+        --exclude-module PyQt6.QtMultimedia \
+        --exclude-module PyQt6.QtBluetooth \
+        --exclude-module PyQt6.QtPositioning \
+        --exclude-module PyQt6.QtPrintSupport \
+        --exclude-module PyQt6.QtTest \
+        --exclude-module PyQt6.QtSql \
+        --exclude-module PyQt6.QtOpenGL \
+        --exclude-module PIL \
+        --exclude-module IPython \
+        --exclude-module pytest \
+        --exclude-module unittest \
+        --exclude-module test \
+        --strip \
+        --noupx \
         app/main.py
     
     if [ $? -eq 0 ]; then
         echo ""
-        echo -e "${GREEN}✓ Build successful!${NC}"
+        echo -e "${GREEN}Build successful!${NC}"
         echo "Executable: dist/stable/$FILENAME"
         echo ""
     else
         echo ""
-        echo -e "${RED}✗ Build failed!${NC}"
+        echo -e "${RED}Build failed!${NC}"
         echo ""
     fi
     read -p "Press Enter to continue..."
@@ -143,8 +190,36 @@ build_debug() {
     
     FILENAME="SurfManager-${OS_NAME}-${ARCH_NAME}-${VERSION}-debug"
     
+    # Platform-specific options
+    PLATFORM_OPTS=""
+    ICON_DATA=""
+    
+    # Include icons folder for runtime
+    if [ -d "app/icons" ]; then
+        ICON_DATA="--add-data app/icons:app/icons"
+    fi
+    
+    if [ "$OS" = "Darwin" ]; then
+        # macOS: use .icns if available, set bundle identifier
+        if [ -f "app/icons/app.icns" ]; then
+            PLATFORM_OPTS="--icon=app/icons/app.icns"
+        elif [ -f "app/icons/app.ico" ]; then
+            PLATFORM_OPTS="--icon=app/icons/app.ico"
+        fi
+        PLATFORM_OPTS="$PLATFORM_OPTS --osx-bundle-identifier=com.risuncode.surfmanager"
+    else
+        # Linux: use .png or .ico
+        if [ -f "app/icons/app.png" ]; then
+            PLATFORM_OPTS="--icon=app/icons/app.png"
+        elif [ -f "app/icons/app.ico" ]; then
+            PLATFORM_OPTS="--icon=app/icons/app.ico"
+        fi
+    fi
+    
     echo "Generating executable with debug info..."
-    pyinstaller --onefile --console --clean --name="$FILENAME" --distpath="dist/debug" --workpath="build/debug" --specpath="build/debug" \
+    pyinstaller --onefile --console --clean --name="$FILENAME" \
+        --distpath="dist/debug" --workpath="build/debug" --specpath="build/debug" \
+        $PLATFORM_OPTS $ICON_DATA \
         --hidden-import PyQt6.QtCore \
         --hidden-import PyQt6.QtWidgets \
         --hidden-import PyQt6.QtGui \
@@ -155,17 +230,34 @@ build_debug() {
         --exclude-module matplotlib \
         --exclude-module numpy \
         --exclude-module pandas \
+        --exclude-module PyQt6.QtWebEngine \
+        --exclude-module PyQt6.QtWebEngineWidgets \
+        --exclude-module PyQt6.QtQml \
+        --exclude-module PyQt6.QtQuick \
+        --exclude-module PyQt6.QtMultimedia \
+        --exclude-module PyQt6.QtBluetooth \
+        --exclude-module PyQt6.QtPositioning \
+        --exclude-module PyQt6.QtPrintSupport \
+        --exclude-module PyQt6.QtTest \
+        --exclude-module PyQt6.QtSql \
+        --exclude-module PyQt6.QtOpenGL \
+        --exclude-module PIL \
+        --exclude-module IPython \
+        --exclude-module pytest \
+        --exclude-module unittest \
+        --exclude-module test \
         --debug all \
+        --noupx \
         app/main.py
     
     if [ $? -eq 0 ]; then
         echo ""
-        echo -e "${GREEN}✓ Build successful!${NC}"
+        echo -e "${GREEN}Build successful!${NC}"
         echo "Executable: dist/debug/$FILENAME"
         echo ""
     else
         echo ""
-        echo -e "${RED}✗ Build failed!${NC}"
+        echo -e "${RED}Build failed!${NC}"
         echo ""
     fi
     read -p "Press Enter to continue..."

@@ -34,8 +34,19 @@ def main():
         app.setApplicationName("SurfManager")
         app.setApplicationVersion(__version__)
         
-        # Set application icon
-        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "icons", "app.ico")
+        # Set application icon (cross-platform)
+        app_dir = os.path.dirname(__file__)
+        if sys.platform == 'darwin':
+            icon_file = "app.icns"
+        elif sys.platform == 'win32':
+            icon_file = "app.ico"
+        else:
+            icon_file = "app.png"
+        
+        icon_path = os.path.join(app_dir, "icons", icon_file)
+        # Fallback to .ico if platform-specific icon not found
+        if not os.path.exists(icon_path):
+            icon_path = os.path.join(app_dir, "icons", "app.ico")
         if os.path.exists(icon_path):
             app.setWindowIcon(QIcon(icon_path))
         
