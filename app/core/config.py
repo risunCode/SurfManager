@@ -25,7 +25,7 @@ class ConfigManager:
     def __init__(self):
         self.adapter = get_platform_adapter()
         self.documents_path = str(self.adapter.get_documents_dir())
-        self.surfmanager_path = str(self.adapter.get_backup_dir("SurfManager"))
+        self.surfmanager_path = str(self.adapter.get_app_dir("SurfManager"))
     
     def get_path(self, key: str) -> str:
         """Get path by key."""

@@ -132,32 +132,22 @@ class PlatformAdapter:
         # Resolve path (handles .. and .)
         return path_obj.resolve()
     
+    def get_app_dir(self, app_name: str = "SurfManager", username: str = None) -> Path:
+        """Get application root directory in Documents."""
+        docs = self.get_documents_dir(username)
+        return docs / app_name
+    
     def get_backup_dir(self, app_name: str = "SurfManager", username: str = None) -> Path:
         """Get backup directory for the application."""
-        docs = self.get_documents_dir(username)
-        
-        if self.system == "Windows":
-            return docs / f"{app_name}Backups"
-        else:
-            return docs / f".{app_name.lower()}/backups"
+        return self.get_app_dir(app_name, username) / "backup"
     
     def get_session_dir(self, app_name: str = "SurfManager", username: str = None) -> Path:
         """Get session directory for the application."""
-        backup_dir = self.get_backup_dir(app_name, username)
-        
-        if self.system == "Windows":
-            return backup_dir / "sessions"
-        else:
-            return backup_dir / "sessions"
+        return self.get_backup_dir(app_name, username) / "sessions"
     
     def get_auto_backup_dir(self, app_name: str, username: str = None) -> Path:
         """Get auto-backup directory for an app."""
-        backup_dir = self.get_backup_dir(username=username)
-        
-        if self.system == "Windows":
-            return backup_dir / "auto-backups" / app_name
-        else:
-            return backup_dir / "auto-backups" / app_name
+        return self.get_app_dir(app_name, username) / "auto-backup"
     
     # Platform detection helpers
     def is_windows(self) -> bool:

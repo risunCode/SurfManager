@@ -8,7 +8,7 @@ import subprocess
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox, 
     QLabel, QPushButton, QLineEdit, QTextEdit, QScrollArea, QProgressBar,
-    QMessageBox
+    QMessageBox, QSizePolicy
 )
 from PyQt6.QtCore import Qt
 import qtawesome as qta
@@ -132,12 +132,11 @@ class ResetTab(QWidget):
 
         programs_layout.addWidget(self.empty_placeholder)
 
-        # Scroll area for programs (max 8 visible, scroll if more)
+        # Scroll area for programs (dynamic height based on content)
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.scroll_area.setMaximumHeight(240)  # ~8 compact rows
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.scroll_area.setStyleSheet("""
             QScrollArea { border: none; background: transparent; }
             QScrollBar:vertical { background: #2d2d2d; width: 8px; border-radius: 4px; }
@@ -557,6 +556,7 @@ class ResetTab(QWidget):
             # Show empty placeholder
             self.empty_placeholder.show()
             self.scroll_area.hide()
+            self._update_scroll_height()
             return
         
         # Add each active app
@@ -573,6 +573,9 @@ class ResetTab(QWidget):
                     break
             
             self.add_program(display_name, app_name, detected_path)
+        
+        # Update scroll area height to fit content
+        self._update_scroll_height()
     
     def _clear_programs(self):
         """Clear all program widgets from grid."""
@@ -594,6 +597,29 @@ class ResetTab(QWidget):
         self.scroll_area.hide()
         self.empty_placeholder.show()
     
+    def _update_scroll_height(self):
+        """Update scroll area height based on number of programs."""
+        num_programs = len(self.program_widgets)
+        
+        if num_programs == 0:
+            self.scroll_area.setFixedHeight(0)
+            return
+        
+        # Each row is ~30px (24px widget + 6px spacing)
+        row_height = 30
+        max_visible = 8  # Max rows before scrolling
+        
+        if num_programs <= max_visible:
+            # Fit exactly to content (no scroll needed)
+            height = num_programs * row_height + 10  # +10 for padding
+            self.scroll_area.setFixedHeight(height)
+            self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        else:
+            # Enable scrolling for many programs
+            height = max_visible * row_height + 10
+            self.scroll_area.setFixedHeight(height)
+            self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+    
     def refresh_ui(self):
         """Refresh UI when app configs change."""
         # Force reload from disk
@@ -602,8 +628,13 @@ class ResetTab(QWidget):
         # Rebuild UI
         self._load_apps_from_config()
         
-        # Force update layout
-        self.programs_grid.update()
-        self.scroll_area.update()
+        # Force update layout and geometry
+        self.programs_grid.updateGeometry()
+        self.scroll_area.updateGeometry()
+        self.programs_group.updateGeometry()
+        
+        # Process events to ensure UI updates immediately
+        from PyQt6.QtWidgets import QApplication
+        QApplication.processEvents()
         
         self.log("[Refresh] Programs list updated")

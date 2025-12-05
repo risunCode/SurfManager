@@ -2,6 +2,34 @@
 
 All notable changes to SurfManager will be documented in this file.
 
+## [1.0.1] - 2025-12-05
+
+### Fixed
+- **Backup Path Structure**: Fixed incorrect backup directory naming
+  - Changed from `SurfManagerBackups` to `Documents/SurfManager/backup`
+  - Auto-backups now stored in `Documents/SurfManager/auto-backup`
+  - Notes stored in `Documents/SurfManager/notes`
+  - Cleaner and more organized folder structure
+
+### Improved
+- **Auto-Backup Toggle Button**: Better UX with badge counter
+  - Shows `Show Auto-Backup (N)` with count of available backups
+  - Changes to `← Back to Sessions` when active for clarity
+  - Real-time badge update on refresh
+- **Reset Data Tab Sync**: Fixed app list not syncing with App Configuration
+  - Immediate UI update when toggling apps active/inactive
+  - Proper height calculation based on number of programs
+  - No more "social distancing" spacing with few programs
+- **Session Scanning**: Skip internal folders (sessions, auto-backups) when listing backups
+
+### Technical
+- Updated `platform_adapter.py` with new path structure
+- Added `get_app_dir()` method for app root directory
+- Improved `_update_scroll_height()` for dynamic sizing
+- Enhanced `refresh_ui()` with geometry updates and event processing
+
+---
+
 ## [1.0.0] - 2025-12-04
 
 ### Highlights

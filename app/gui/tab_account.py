@@ -390,13 +390,13 @@ class AccountTab(QWidget):
         toolbar.addWidget(self.search)
         
         # Auto-backups toggle button
-        self.auto_backup_toggle_btn = QPushButton("Auto-Backups")
-        self.auto_backup_toggle_btn.setFixedWidth(100)
+        self.auto_backup_toggle_btn = QPushButton("Show Auto-Backup")
+        self.auto_backup_toggle_btn.setFixedWidth(140)
         self.auto_backup_toggle_btn.setFixedHeight(24)
         self.auto_backup_toggle_btn.setCheckable(True)
-        self.auto_backup_toggle_btn.setToolTip("Toggle auto-backups view")
+        self.auto_backup_toggle_btn.setToolTip("Click to show auto-backups only")
         self.auto_backup_toggle_btn.clicked.connect(self._toggle_auto_backups_view)
-        self._update_auto_backup_toggle_style()
+        self._update_auto_backup_btn()
         toolbar.addWidget(self.auto_backup_toggle_btn)
 
         sessions_layout.addLayout(toolbar)
@@ -559,11 +559,13 @@ class AccountTab(QWidget):
         all_sessions = []
         
         if self.show_auto_backups:
-            # Show auto-backups from cross-platform auto-backups folder
-            auto_backup_path = str(self.config.get_platform_path("backup") / "auto-backups")
-            if os.path.exists(auto_backup_path):
-                for app_name in os.listdir(auto_backup_path):
-                    app_folder = os.path.join(auto_backup_path, app_name)
+            # Show auto-backups from Documents/SurfManager/auto-backupss/app_name/auto-xxx
+            docs = self.config.documents_path
+            auto_backup_base = os.path.join(docs, "SurfManager", "auto-backups")
+            
+            if os.path.exists(auto_backup_base):
+                for app_name in os.listdir(auto_backup_base):
+                    app_folder = os.path.join(auto_backup_base, app_name)
                     if not os.path.isdir(app_folder):
                         continue
                     
@@ -593,8 +595,8 @@ class AccountTab(QWidget):
                     if not os.path.isdir(app_folder):
                         continue
                     
-                    # Skip auto-backups folder completely
-                    if app_name.lower() == "auto-backups":
+                    # Skip special folders
+                    if app_name.lower() in ("auto-backups", "sessions"):
                         continue
                     
                     # Skip if not in filter
@@ -627,6 +629,9 @@ class AccountTab(QWidget):
             self.count_label.setText(f"{total} auto-backup(s)")
         else:
             self.count_label.setText(f"{total} session(s)")
+        
+        # Update auto-backup button badge
+        self._update_auto_backup_btn()
 
         for row, (app, name, created_dt) in enumerate(all_sessions):
             # Row number
@@ -690,8 +695,9 @@ class AccountTab(QWidget):
     def _get_size(self, app, name):
         try:
             if self.show_auto_backups:
-                # Auto-backups path
-                folder = str(self.config.get_platform_path("backup") / "auto-backups" / app / name)
+                # Auto-backups path: Documents/SurfManager/auto-backups/app/name
+                docs = self.config.documents_path
+                folder = os.path.join(docs, "SurfManager", "auto-backups", app, name)
             else:
                 # Regular sessions path
                 folder = os.path.join(self.backup_path, app, name)
@@ -718,16 +724,38 @@ class AccountTab(QWidget):
     def _toggle_auto_backups_view(self, checked):
         """Toggle between normal sessions and auto-backups view."""
         self.show_auto_backups = checked
-        self._update_auto_backup_toggle_style()
-        self._refresh()  # Refresh to show different data
+        self._refresh()  # Refresh will update button and show different data
         
         # Clear search when switching views
         self.search.clear()
+    
+    def _count_auto_backups(self) -> int:
+        """Count total auto-backups across all apps."""
+        count = 0
+        # Auto-backups are stored in Documents/SurfManager/auto-backups/app_name/auto-xxx
+        docs = self.config.documents_path
+        auto_backup_base = os.path.join(docs, "SurfManager", "auto-backups")
         
-    def _update_auto_backup_toggle_style(self):
-        """Update auto-backup toggle button style."""
+        if os.path.exists(auto_backup_base):
+            for app_name in os.listdir(auto_backup_base):
+                app_folder = os.path.join(auto_backup_base, app_name)
+                if os.path.isdir(app_folder):
+                    try:
+                        for item in os.listdir(app_folder):
+                            item_path = os.path.join(app_folder, item)
+                            if os.path.isdir(item_path) and item.startswith("auto-"):
+                                count += 1
+                    except (PermissionError, OSError):
+                        pass
+        return count
+        
+    def _update_auto_backup_btn(self):
+        """Update auto-backup toggle button text and style."""
+        count = self._count_auto_backups()
+        
         if self.show_auto_backups:
-            self.auto_backup_toggle_btn.setText("Auto-Backups [ON]")
+            self.auto_backup_toggle_btn.setText("← Back to Sessions")
+            self.auto_backup_toggle_btn.setToolTip("Click to go back to manual sessions")
             self.auto_backup_toggle_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #0d7377;
@@ -742,7 +770,11 @@ class AccountTab(QWidget):
                 }
             """)
         else:
-            self.auto_backup_toggle_btn.setText("Auto-Backups")
+            if count > 0:
+                self.auto_backup_toggle_btn.setText(f"Show Auto-Backup ({count})")
+            else:
+                self.auto_backup_toggle_btn.setText("Show Auto-Backup")
+            self.auto_backup_toggle_btn.setToolTip("Click to show auto-backups only")
             self.auto_backup_toggle_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #3d3d3d;
