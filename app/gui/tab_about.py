@@ -70,11 +70,11 @@ class AboutTab(QWidget):
         layout.addWidget(version_label)
         
         # Release Date with time ago
-        release_date = datetime(2025, 12, 4, 5, 0, 0, tzinfo=timezone.utc)
+        release_date = datetime(2025, 12, 5, 22, 0, 0, tzinfo=timezone.utc)
         time_ago = get_time_ago(release_date)
         release_label = QLabel(
             f"<p style='color: #888; font-size: 12px;'>"
-            f"Released: 12/04/2025 "
+            f"Released: 12/05/2025 "
             f"<span style='color: #666;'>({time_ago})</span>"
             f"</p>"
         )
