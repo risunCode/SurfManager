@@ -98,7 +98,7 @@ class AboutTab(QWidget):
         info_items = [
             ("Author:", "risunCode"),
             ("License:", "MIT"),
-            ("Build:", "BETA"),
+            ("Build:", "Stable"),
             ("Platform:", platform.system())
         ]
         
