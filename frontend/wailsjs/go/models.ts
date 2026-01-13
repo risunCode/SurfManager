@@ -43,7 +43,6 @@ export namespace apps {
 	    paths: AppPaths;
 	    backup_items: BackupItem[];
 	    addon_backup_paths: string[];
-	    skip_data_folder?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new AppConfig(source);
@@ -59,7 +58,6 @@ export namespace apps {
 	        this.paths = this.convertValues(source["paths"], AppPaths);
 	        this.backup_items = this.convertValues(source["backup_items"], BackupItem);
 	        this.addon_backup_paths = source["addon_backup_paths"];
-	        this.skip_data_folder = source["skip_data_folder"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

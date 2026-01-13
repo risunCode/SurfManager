@@ -2,6 +2,56 @@
 
 All notable changes to SurfManager will be documented in this file.
 
+## [2.1.0] - 2026-01-13
+
+### ✨ New Features
+
+**UX Improvements**
+- Apps are now sorted alphabetically by display name in Reset Tab and Sessions Tab
+- Last selected app is now remembered when navigating between tabs
+- Added "Launch App" option to session context menu for quick app launching
+- Post-restore launch prompt - option to launch app after successful restore
+- Auto-generate new machine IDs after any restore operation (full, addon-only, account-only)
+- Session is now marked as active after addon-only or account-only restore
+
+**Bulk Session Management**
+- Added "Backup All Sessions" button in Settings - creates a zip archive of all sessions
+- Added "Clear All Sessions" button in Settings - deletes all backup sessions with confirmation
+
+**Reset Tab Redesign**
+- App name now displayed on the left side of app rows
+- Session count, auto-backup count, and addon count badges displayed on the right side
+- Improved layout with better information visibility
+
+### 🗑️ Removed Features
+
+- Removed "Remember Last Tab" setting (unused)
+- Removed "Debug Mode" setting from Experimental section (unused)
+- Removed "Skip Data Folder" feature from app configuration (redundant with Restore Account/Addon Only)
+
+### 🔧 Fixes & Improvements
+
+- Improved selection persistence across tab navigation
+- Better fallback handling when persisted app no longer exists in configuration
+
+### 📝 Technical Changes
+
+**Backend**
+- Added `ClearAllSessions()` function in app.go
+- Added `BackupAllSessions()` function in app.go
+- Auto-generate new IDs integrated into all restore functions
+- SetActiveSession called after addon-only and account-only restores
+- Removed SkipDataFolder field from AppConfig struct
+
+**Frontend**
+- Added `lastSelectedAppReset` and `lastSelectedAppSession` to settings store
+- Removed `rememberLastTab`, `lastActiveTab`, `debugMode`, `skipDataFolder` from settings
+- Updated ResetTab with new layout and badge display
+- Added launch prompt modal to SessionsTab
+- Added bulk management buttons to SettingsTab
+
+---
+
 ## [2.0.2] - 2026-01-04
 
 ### ✨ New Features

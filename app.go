@@ -2,9 +2,11 @@
 package main
 
 import (
+	"archive/zip"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -221,11 +223,9 @@ func (a *App) ResetApp(appKey string, autoBackup bool, skipClose bool) error {
 		}
 	}
 
-	// Only delete data folder if:
-	// 1. SkipDataFolder is false (default), AND
-	// 2. There are backup items configured (meaning user wants to manage this folder)
-	// If SkipDataFolder is true OR no backup items, skip resetting the data folder
-	shouldResetDataFolder := !cfg.SkipDataFolder && len(cfg.BackupItems) > 0
+	// Only delete data folder if there are backup items configured
+	// (meaning user wants to manage this folder)
+	shouldResetDataFolder := len(cfg.BackupItems) > 0
 
 	if shouldResetDataFolder {
 		// Delete data folder
@@ -563,15 +563,13 @@ func (a *App) CreateBackup(appKey, sessionName string, skipClose bool) error {
 		a.process.SmartClose(cfg.DisplayName, processNames)
 	}
 
-	// Convert backup items (only if not skipping data folder)
+	// Convert backup items
 	var backupItems []backup.BackupItem
-	if !cfg.SkipDataFolder {
-		for _, item := range cfg.BackupItems {
-			backupItems = append(backupItems, backup.BackupItem{
-				Path:     item.Path,
-				Optional: item.Optional,
-			})
-		}
+	for _, item := range cfg.BackupItems {
+		backupItems = append(backupItems, backup.BackupItem{
+			Path:     item.Path,
+			Optional: item.Optional,
+		})
 	}
 
 	// Create backup
@@ -625,6 +623,13 @@ func (a *App) RestoreBackup(appKey, sessionName string, skipClose bool) error {
 	if err == nil {
 		// Set as active session
 		a.backup.SetActiveSession(appKey, sessionName)
+
+		// Generate new IDs after successful restore
+		count, _ := a.GenerateNewID(appKey)
+		wailsRuntime.EventsEmit(a.ctx, "progress", map[string]interface{}{
+			"percent": 100,
+			"message": fmt.Sprintf("Restore complete! Updated %d ID(s)", count),
+		})
 	}
 
 	return err
@@ -676,9 +681,14 @@ func (a *App) RestoreAccountOnly(appKey, sessionName string) error {
 	})
 
 	if err == nil {
+		// Set as active session after successful restore
+		a.backup.SetActiveSession(appKey, sessionName)
+
+		// Generate new IDs after successful restore
+		count, _ := a.GenerateNewID(appKey)
 		wailsRuntime.EventsEmit(a.ctx, "progress", map[string]interface{}{
 			"percent": 100,
-			"message": "Account switched!",
+			"message": fmt.Sprintf("Account switched! Updated %d ID(s)", count),
 		})
 	}
 
@@ -714,6 +724,138 @@ func (a *App) OpenSessionFolder(appKey, sessionName string) error {
 // CountAutoBackups returns the count of auto-backups
 func (a *App) CountAutoBackups() int {
 	return a.backup.CountAllAutoBackups()
+}
+
+// ClearAllSessions deletes all backup sessions for all apps
+func (a *App) ClearAllSessions() (int, error) {
+	apps := a.GetActiveApps()
+	deletedCount := 0
+
+	for _, app := range apps {
+		// Get all sessions including auto-backups
+		sessions, err := a.backup.GetSessions(app.AppName, true)
+		if err != nil {
+			continue
+		}
+
+		for _, session := range sessions {
+			if err := a.backup.DeleteSession(app.AppName, session.Name); err != nil {
+				// Log error but continue with other sessions
+				fmt.Printf("Warning: Failed to delete session %s/%s: %v\n", app.AppName, session.Name, err)
+			} else {
+				deletedCount++
+			}
+		}
+	}
+
+	return deletedCount, nil
+}
+
+// BackupAllSessions creates a zip archive of all sessions in the backup folder
+func (a *App) BackupAllSessions() (string, error) {
+	backupPath := a.backup.GetBackupPath()
+	autoBackupPath := a.backup.GetAutoBackupPath()
+
+	// Check if backup folder exists and has content
+	if _, err := os.Stat(backupPath); os.IsNotExist(err) {
+		return "", fmt.Errorf("no backup folder found")
+	}
+
+	// Generate archive filename with timestamp
+	timestamp := time.Now().Format("20060102_150405")
+	archiveName := fmt.Sprintf("surfmanager-backup-%s.zip", timestamp)
+
+	// Use save dialog to let user choose location
+	savePath, err := wailsRuntime.SaveFileDialog(a.ctx, wailsRuntime.SaveDialogOptions{
+		Title:           "Save Backup Archive",
+		DefaultFilename: archiveName,
+		Filters: []wailsRuntime.FileFilter{
+			{DisplayName: "ZIP Archive", Pattern: "*.zip"},
+		},
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("failed to open save dialog: %w", err)
+	}
+
+	if savePath == "" {
+		return "", fmt.Errorf("backup cancelled")
+	}
+
+	// Create the zip file
+	zipFile, err := os.Create(savePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to create archive: %w", err)
+	}
+	defer zipFile.Close()
+
+	zipWriter := zip.NewWriter(zipFile)
+	defer zipWriter.Close()
+
+	// Add backup folder contents
+	if err := a.addDirToZip(zipWriter, backupPath, "backup"); err != nil {
+		return "", fmt.Errorf("failed to add backup folder: %w", err)
+	}
+
+	// Add auto-backups folder if it exists
+	if _, err := os.Stat(autoBackupPath); err == nil {
+		if err := a.addDirToZip(zipWriter, autoBackupPath, "auto-backups"); err != nil {
+			return "", fmt.Errorf("failed to add auto-backups folder: %w", err)
+		}
+	}
+
+	return savePath, nil
+}
+
+// addDirToZip recursively adds a directory to a zip archive
+func (a *App) addDirToZip(zipWriter *zip.Writer, sourcePath, baseName string) error {
+	return filepath.Walk(sourcePath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Skip errors
+		}
+
+		// Get relative path
+		relPath, err := filepath.Rel(sourcePath, path)
+		if err != nil {
+			return nil
+		}
+
+		// Create archive path with base name
+		archivePath := filepath.Join(baseName, relPath)
+		archivePath = filepath.ToSlash(archivePath) // Use forward slashes in zip
+
+		if info.IsDir() {
+			// Add directory entry
+			if relPath != "." {
+				_, err := zipWriter.Create(archivePath + "/")
+				if err != nil {
+					return nil
+				}
+			}
+			return nil
+		}
+
+		// Skip hidden files
+		if strings.HasPrefix(info.Name(), ".") {
+			return nil
+		}
+
+		// Create file in zip
+		writer, err := zipWriter.Create(archivePath)
+		if err != nil {
+			return nil
+		}
+
+		// Open and copy file
+		file, err := os.Open(path)
+		if err != nil {
+			return nil
+		}
+		defer file.Close()
+
+		_, err = io.Copy(writer, file)
+		return nil
+	})
 }
 
 // ============================================================================
@@ -1017,9 +1159,14 @@ func (a *App) RestoreAddonOnly(appKey, sessionName string, skipClose bool) error
 		return err
 	}
 
+	// Set as active session after successful restore
+	a.backup.SetActiveSession(appKey, sessionName)
+
+	// Generate new IDs after successful restore
+	count, _ := a.GenerateNewID(appKey)
 	wailsRuntime.EventsEmit(a.ctx, "progress", map[string]interface{}{
 		"percent": 100,
-		"message": "Addon folders restored!",
+		"message": fmt.Sprintf("Addon folders restored! Updated %d ID(s)", count),
 	})
 
 	return nil

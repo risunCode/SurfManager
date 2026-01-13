@@ -4,9 +4,13 @@ import {apps} from '../models';
 import {backup} from '../models';
 import {main} from '../models';
 
+export function BackupAllSessions():Promise<string>;
+
 export function CheckAppInstalled(arg1:string):Promise<boolean>;
 
 export function CheckSessionHasAddons(arg1:string,arg2:string):Promise<boolean>;
+
+export function ClearAllSessions():Promise<number>;
 
 export function CountAutoBackups():Promise<number>;
 

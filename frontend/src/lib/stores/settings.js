@@ -7,8 +7,10 @@ const STORAGE_KEY = 'surfmanager-settings';
 const defaultSettings = {
   // General
   theme: 'dark',
-  rememberLastTab: true,
-  lastActiveTab: 'reset',
+  
+  // Remember Selected Apps
+  lastSelectedAppReset: '',
+  lastSelectedAppSession: '',
   
   // Behavior
   confirmBeforeReset: true,
@@ -31,9 +33,7 @@ const defaultSettings = {
   
   // Experimental Features
   showRestoreAddonOnly: false,
-  debugMode: false,
   experimentalRestoreAccountOnly: false, // Quick account switch (restore only state.vscdb)
-  skipDataFolder: false, // Only backup/restore Additional Folders, skip main data folder
 };
 
 function createSettingsStore() {
@@ -88,7 +88,10 @@ function createSettingsStore() {
         settings: {
           // General
           theme: currentSettings.theme,
-          rememberLastTab: currentSettings.rememberLastTab,
+          
+          // Remember Selected Apps
+          lastSelectedAppReset: currentSettings.lastSelectedAppReset,
+          lastSelectedAppSession: currentSettings.lastSelectedAppSession,
           
           // Behavior
           confirmBeforeReset: currentSettings.confirmBeforeReset,
@@ -111,9 +114,7 @@ function createSettingsStore() {
           
           // Experimental
           showRestoreAddonOnly: currentSettings.showRestoreAddonOnly,
-          debugMode: currentSettings.debugMode,
           experimentalRestoreAccountOnly: currentSettings.experimentalRestoreAccountOnly,
-          skipDataFolder: currentSettings.skipDataFolder,
         }
       };
       return JSON.stringify(exportData, null, 2);
@@ -144,10 +145,6 @@ function createSettingsStore() {
           }
         }
         
-        // Preserve lastActiveTab from current settings
-        const currentSettings = get({ subscribe });
-        newSettings.lastActiveTab = currentSettings.lastActiveTab;
-        
         // Save and apply
         if (typeof localStorage !== 'undefined') {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(newSettings));
@@ -162,10 +159,7 @@ function createSettingsStore() {
     
     // Reset all settings to defaults
     resetSettings: () => {
-      const currentSettings = get({ subscribe });
       const resetData = { ...defaultSettings };
-      // Preserve lastActiveTab
-      resetData.lastActiveTab = currentSettings.lastActiveTab;
       
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(resetData));

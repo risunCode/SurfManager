@@ -14,16 +14,17 @@ import (
 )
 
 // AppConfig represents the configuration for an application.
+// Note: The skip_data_folder field was removed in v2.1.0. Existing configs with this field
+// will load successfully (Go's JSON unmarshaling ignores unknown fields by default).
 type AppConfig struct {
-	AppName        string       `json:"app_name"`
-	DisplayName    string       `json:"display_name"`
-	Version        string       `json:"version"`
-	Active         bool         `json:"active"`
-	Description    string       `json:"description"`
-	Paths          AppPaths     `json:"paths"`
-	BackupItems    []BackupItem `json:"backup_items"`
-	AddonPaths     []string     `json:"addon_backup_paths"`
-	SkipDataFolder bool         `json:"skip_data_folder,omitempty"` // Skip data folder in backup/reset (only use addon paths)
+	AppName     string       `json:"app_name"`
+	DisplayName string       `json:"display_name"`
+	Version     string       `json:"version"`
+	Active      bool         `json:"active"`
+	Description string       `json:"description"`
+	Paths       AppPaths     `json:"paths"`
+	BackupItems []BackupItem `json:"backup_items"`
+	AddonPaths  []string     `json:"addon_backup_paths"`
 }
 
 // AppPaths contains the various paths associated with an application.

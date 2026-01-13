@@ -3,13 +3,19 @@
   import { theme } from './stores/theme.js';
   import { 
     Settings, Cog, Database, FlaskConical,
-    RotateCcw, ChevronRight, Download, Upload, FolderOpen, AlertTriangle
+    RotateCcw, ChevronRight, Download, Upload, FolderOpen, AlertTriangle, Trash2, Archive
   } from 'lucide-svelte';
-  import { OpenBackupFolder } from '../../wailsjs/go/main/App.js';
+  import { OpenBackupFolder, ClearAllSessions, BackupAllSessions } from '../../wailsjs/go/main/App.js';
   import ThemeSelector from './ThemeSelector.svelte';
   import SettingToggle from './SettingToggle.svelte';
+  import { confirm } from './ConfirmModal.svelte';
+  import { toast } from './Toast.svelte';
 
   let activeSection = 'general';
+  
+  // Loading states
+  let isClearing = false;
+  let isBackingUp = false;
 
   const sections = [
     { id: 'general', label: 'General', icon: Settings },
@@ -84,6 +90,48 @@
       alert(`Error: ${e}`);
     }
   }
+  
+  // Backup all sessions
+  async function handleBackupAllSessions() {
+    if (isBackingUp) return;
+    
+    isBackingUp = true;
+    try {
+      const archivePath = await BackupAllSessions();
+      toast.success(`Backup saved successfully`);
+    } catch (e) {
+      if (e.toString().includes('cancelled')) {
+        // User cancelled, no toast needed
+      } else {
+        toast.error(`Backup failed: ${e}`);
+      }
+    } finally {
+      isBackingUp = false;
+    }
+  }
+  
+  // Clear all sessions
+  async function handleClearAllSessions() {
+    if (isClearing) return;
+    
+    const confirmed = await confirm.danger({
+      title: 'Clear All Sessions',
+      message: 'Are you sure you want to delete ALL backup sessions for ALL apps?\n\nThis action cannot be undone.',
+      confirmText: 'Clear All'
+    });
+    
+    if (!confirmed) return;
+    
+    isClearing = true;
+    try {
+      const deletedCount = await ClearAllSessions();
+      toast.success(`Deleted ${deletedCount} session(s)`);
+    } catch (e) {
+      toast.error(`Clear failed: ${e}`);
+    } finally {
+      isClearing = false;
+    }
+  }
 </script>
 
 <div class="h-full flex animate-fadeIn gap-4">
@@ -119,45 +167,37 @@
           <ThemeSelector />
         </div>
 
-        <!-- Remember Last Tab -->
-        <SettingToggle
-          label="Remember Last Tab"
-          description="Open last active tab on startup"
-          checked={$settings.rememberLastTab}
-          on:change={() => toggle('rememberLastTab')}
-        />
-
         <!-- Settings Management Section -->
         <div class="p-4 bg-[var(--bg-card)] rounded-lg border border-[var(--border)]">
           <p class="font-medium mb-2 text-[var(--text-primary)]">Settings Management</p>
           <p class="text-sm text-[var(--text-secondary)] mb-4">Import, export, or reset your settings</p>
           
-          <div class="flex flex-col gap-2">
+          <div class="grid grid-cols-3 gap-2">
             <button
-              class="w-full p-3 bg-[var(--bg-hover)] hover:bg-[var(--border)] rounded-lg 
+              class="p-3 bg-[var(--bg-hover)] hover:bg-[var(--border)] rounded-lg 
                 transition-colors flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--text-primary)]"
               on:click={handleImportSettings}
             >
               <Upload size={16} />
-              Import Settings
+              Import
             </button>
             
             <button
-              class="w-full p-3 bg-[var(--bg-hover)] hover:bg-[var(--border)] rounded-lg 
+              class="p-3 bg-[var(--bg-hover)] hover:bg-[var(--border)] rounded-lg 
                 transition-colors flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--text-primary)]"
               on:click={handleExportSettings}
             >
               <Download size={16} />
-              Export Settings
+              Export
             </button>
             
             <button
-              class="w-full p-3 bg-[var(--danger)]/10 text-[var(--danger)] rounded-lg 
+              class="p-3 bg-[var(--danger)]/10 text-[var(--danger)] rounded-lg 
                 hover:bg-[var(--danger)]/20 transition-colors flex items-center justify-center gap-2 border border-[var(--danger)]/30"
               on:click={handleResetSettings}
             >
               <RotateCcw size={16} />
-              Reset All Settings
+              Reset
             </button>
           </div>
         </div>
@@ -251,6 +291,36 @@
           <FolderOpen size={16} />
           Open Backup Folder
         </button>
+
+        <!-- Bulk Session Management -->
+        <div class="p-4 bg-[var(--bg-card)] rounded-lg border border-[var(--border)]">
+          <p class="font-medium mb-2 text-[var(--text-primary)]">Bulk Session Management</p>
+          <p class="text-sm text-[var(--text-secondary)] mb-4">Backup or clear all sessions at once</p>
+          
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              class="p-3 bg-[var(--bg-hover)] hover:bg-[var(--border)] rounded-lg 
+                transition-colors flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--text-primary)]
+                disabled:opacity-50 disabled:cursor-not-allowed"
+              on:click={handleBackupAllSessions}
+              disabled={isBackingUp}
+            >
+              <Archive size={16} />
+              {isBackingUp ? 'Backing up...' : 'Backup All'}
+            </button>
+            
+            <button
+              class="p-3 bg-[var(--danger)]/10 text-[var(--danger)] rounded-lg 
+                hover:bg-[var(--danger)]/20 transition-colors flex items-center justify-center gap-2 border border-[var(--danger)]/30
+                disabled:opacity-50 disabled:cursor-not-allowed"
+              on:click={handleClearAllSessions}
+              disabled={isClearing}
+            >
+              <Trash2 size={16} />
+              {isClearing ? 'Clearing...' : 'Clear All'}
+            </button>
+          </div>
+        </div>
       </div>
 
     {:else if activeSection === 'experimental'}
@@ -280,20 +350,6 @@
           description="Enable quick account switch in Sessions context menu. Only restores auth state (state.vscdb), preserving extensions and settings."
           checked={$settings.experimentalRestoreAccountOnly}
           on:change={() => toggle('experimentalRestoreAccountOnly')}
-        />
-
-        <SettingToggle
-          label="Debug Mode"
-          description="Show debug logs in browser console for troubleshooting"
-          checked={$settings.debugMode}
-          on:change={() => toggle('debugMode')}
-        />
-
-        <SettingToggle
-          label="Skip Data Folder (Global)"
-          description="Only backup/restore Additional Folders, skip main data folder"
-          checked={$settings.skipDataFolder}
-          on:change={() => toggle('skipDataFolder')}
         />
       </div>
     {/if}

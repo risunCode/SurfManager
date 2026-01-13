@@ -14,6 +14,9 @@
   let loading = false;
   let sessionCount = 0;
   let addonCount = 0;
+  
+  // Store counts for each app in the list
+  let appCounts = {};
 
   $: autoBackup = $settings.autoBackup;
 
@@ -30,18 +33,59 @@
         return { ...app, installed, dataPath, running };
       }));
       
-      // Auto-select first app
+      // Sort apps alphabetically by display_name
+      apps = apps.sort((a, b) => a.display_name.localeCompare(b.display_name));
+      
+      // Load counts for each app in the list
+      await loadAppCounts();
+      
+      // Restore last selected app or fallback to first app
       if (apps.length > 0 && !selectedApp) {
-        selectApp(apps[0]);
+        const lastSelectedAppName = $settings.lastSelectedAppReset;
+        const lastSelectedApp = apps.find(app => app.app_name === lastSelectedAppName);
+        
+        if (lastSelectedApp) {
+          selectApp(lastSelectedApp);
+        } else {
+          // Fallback to first app if saved app doesn't exist
+          selectApp(apps[0]);
+        }
       }
     } catch (e) {
       log(`Error loading apps: ${e}`);
     }
     loading = false;
   }
+  
+  async function loadAppCounts() {
+    const counts = {};
+    for (const app of apps) {
+      try {
+        // Get regular sessions (not including auto-backups)
+        const sessions = await GetSessions(app.app_name, false);
+        const sessionCount = sessions?.length || 0;
+        
+        // Get auto-backups by getting all sessions and filtering
+        const allSessions = await GetSessions(app.app_name, true);
+        const autoBackupCount = (allSessions?.length || 0) - sessionCount;
+        
+        // Get addon count from app config
+        const fullConfig = await GetApp(app.app_name);
+        const addonCount = fullConfig?.addon_backup_paths?.length || 0;
+        
+        counts[app.app_name] = { sessionCount, autoBackupCount, addonCount };
+      } catch (e) {
+        counts[app.app_name] = { sessionCount: 0, autoBackupCount: 0, addonCount: 0 };
+      }
+    }
+    appCounts = counts;
+  }
 
   async function selectApp(app) {
     selectedApp = app;
+    
+    // Persist selection to settings store
+    settings.update('lastSelectedAppReset', app.app_name);
     // Load session count for selected app
     try {
       const sessions = await GetSessions(app.app_name, false);
@@ -202,7 +246,7 @@
   <!-- Split Panel -->
   <div class="flex-1 flex gap-4 min-h-0">
     <!-- Left: App List -->
-    <div class="w-56 bg-[var(--bg-elevated)] rounded-xl border border-[var(--border)] flex flex-col overflow-hidden">
+    <div class="w-64 bg-[var(--bg-elevated)] rounded-xl border border-[var(--border)] flex flex-col overflow-hidden">
       <div class="px-4 py-3 border-b border-[var(--border)]">
         <span class="text-sm font-medium text-[var(--text-secondary)]">APPS</span>
       </div>
@@ -214,7 +258,7 @@
         
         {#each apps as app}
           <button
-            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all
+            class="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left transition-all
                    {selectedApp?.app_name === app.app_name 
                      ? 'bg-[var(--primary-dim)] border border-[var(--primary)]/50' 
                      : 'hover:bg-[var(--bg-hover)] border border-transparent'}"
@@ -224,10 +268,25 @@
               class="w-2 h-2 rounded-full flex-shrink-0"
               style="background-color: {getStatusColor(app)}"
             ></span>
-            <span class="text-sm font-medium text-[var(--text-primary)] truncate">{app.display_name}</span>
-            {#if selectedApp?.app_name === app.app_name}
-              <span class="ml-auto text-[var(--primary)]">◀</span>
-            {/if}
+            <span class="text-sm font-medium text-[var(--text-primary)] truncate flex-1">{app.display_name}</span>
+            <!-- Badges for counts -->
+            <div class="flex items-center gap-1 flex-shrink-0">
+              {#if appCounts[app.app_name]?.sessionCount > 0}
+                <span class="px-1.5 py-0.5 text-[10px] font-medium rounded bg-[var(--primary)]/20 text-[var(--primary)]" title="Sessions">
+                  {appCounts[app.app_name].sessionCount}
+                </span>
+              {/if}
+              {#if appCounts[app.app_name]?.autoBackupCount > 0}
+                <span class="px-1.5 py-0.5 text-[10px] font-medium rounded bg-[var(--success)]/20 text-[var(--success)]" title="Auto-backups">
+                  {appCounts[app.app_name].autoBackupCount}
+                </span>
+              {/if}
+              {#if appCounts[app.app_name]?.addonCount > 0}
+                <span class="px-1.5 py-0.5 text-[10px] font-medium rounded bg-[var(--warning)]/20 text-[var(--warning)]" title="Addons">
+                  {appCounts[app.app_name].addonCount}
+                </span>
+              {/if}
+            </div>
           </button>
         {/each}
       </div>

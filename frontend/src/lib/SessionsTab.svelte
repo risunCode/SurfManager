@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
-  import { Plus, RefreshCw, Search, CheckSquare, FolderOpen, Trash2, RotateCcw, User, Package } from 'lucide-svelte';
-  import { GetActiveApps, GetApp, GetAllSessions, CreateBackup, RestoreBackup, RestoreAccountOnly, RestoreAddonOnly, CheckSessionHasAddons, DeleteSession, SetActiveSession, OpenSessionFolder, CountAutoBackups } from '../../wailsjs/go/main/App.js';
+  import { Plus, RefreshCw, Search, CheckSquare, FolderOpen, Trash2, RotateCcw, User, Package, Play } from 'lucide-svelte';
+  import { GetActiveApps, GetApp, GetAllSessions, CreateBackup, RestoreBackup, RestoreAccountOnly, RestoreAddonOnly, CheckSessionHasAddons, DeleteSession, SetActiveSession, OpenSessionFolder, CountAutoBackups, LaunchApp } from '../../wailsjs/go/main/App.js';
   import { confirm } from './ConfirmModal.svelte';
   import { settings } from './stores/settings.js';
 
@@ -23,27 +23,69 @@
   // Context menu state
   let contextMenu = { show: false, x: 0, y: 0, session: null, canRestoreAddonOnly: false };
 
+  // Launch prompt modal state
+  let showLaunchPrompt = false;
+  let launchPromptApp = '';
+  let launchPromptDisplayName = '';
+
+  // Helper to get display name from app_name
+  function getAppDisplayName(appName) {
+    const app = apps.find(a => a.app_name.toLowerCase() === appName.toLowerCase());
+    return app?.display_name || appName;
+  }
+
   onMount(() => {
     showAuto = $settings.showAutoBackups;
-    filter = $settings.defaultSessionFilter;
+    // Restore last selected app filter from settings
+    const lastSelectedApp = $settings.lastSelectedAppSession;
+    filter = lastSelectedApp || 'all';
     loadData();
 
     // Close context menu on click outside
     const handleClick = () => contextMenu.show = false;
     window.addEventListener('click', handleClick);
-    return () => window.removeEventListener('click', handleClick);
+
+    // Handle Escape key to close launch prompt modal
+    const handleKeydown = (e) => {
+      if (e.key === 'Escape' && showLaunchPrompt) {
+        showLaunchPrompt = false;
+      }
+    };
+    window.addEventListener('keydown', handleKeydown);
+
+    return () => {
+      window.removeEventListener('click', handleClick);
+      window.removeEventListener('keydown', handleKeydown);
+    };
   });
 
   async function loadData() {
     loading = true;
     try {
       apps = (await GetActiveApps()) || [];
+      // Sort apps alphabetically by display_name
+      apps = apps.sort((a, b) => a.display_name.localeCompare(b.display_name));
       sessions = (await GetAllSessions(showAuto)) || [];
       autoBackupCount = await CountAutoBackups();
+      
+      // Validate that saved filter app still exists, fallback to 'all' if not
+      if (filter !== 'all') {
+        const appExists = apps.some(app => app.app_name.toLowerCase() === filter.toLowerCase());
+        if (!appExists) {
+          filter = 'all';
+          settings.update('lastSelectedAppSession', 'all');
+        }
+      }
     } catch (e) {
       log(`Error: ${e}`);
     }
     loading = false;
+  }
+
+  // Persist filter selection when it changes
+  function handleFilterChange(newFilter) {
+    filter = newFilter;
+    settings.update('lastSelectedAppSession', newFilter);
   }
 
   function log(msg) {
@@ -98,6 +140,10 @@
       await RestoreBackup(session.app, session.name, $settings.skipCloseApp);
       log(`Restored: ${session.name}`);
       await loadData();
+      // Show launch prompt on success
+      launchPromptApp = session.app;
+      launchPromptDisplayName = getAppDisplayName(session.app);
+      showLaunchPrompt = true;
     } catch (e) {
       log(`Error: ${e}`);
       
@@ -135,6 +181,10 @@
       await RestoreAccountOnly(session.app, session.name);
       log(`Account switched to: ${session.name}`);
       await loadData();
+      // Show launch prompt on success
+      launchPromptApp = session.app;
+      launchPromptDisplayName = getAppDisplayName(session.app);
+      showLaunchPrompt = true;
     } catch (e) {
       log(`Error: ${e}`);
     }
@@ -165,6 +215,10 @@
       await RestoreAddonOnly(session.app, session.name, $settings.skipCloseApp);
       log(`Addon folders restored from: ${session.name}`);
       await loadData();
+      // Show launch prompt on success
+      launchPromptApp = session.app;
+      launchPromptDisplayName = getAppDisplayName(session.app);
+      showLaunchPrompt = true;
     } catch (e) {
       log(`Error: ${e}`);
       alert(`Error restoring addon folders: ${e}`);
@@ -221,6 +275,32 @@
     } catch (e) {
       log(`Error: ${e}`);
     }
+  }
+
+  async function handleLaunchApp(session) {
+    try {
+      await LaunchApp(session.app);
+      log(`Launched: ${session.app}`);
+    } catch (e) {
+      log(`Error launching app: ${e}`);
+      alert(`Error launching app: ${e}`);
+    }
+  }
+
+  async function handleLaunchFromPrompt() {
+    try {
+      await LaunchApp(launchPromptApp);
+      log(`Launched: ${launchPromptApp}`);
+      showLaunchPrompt = false;
+    } catch (e) {
+      log(`Error launching app: ${e}`);
+      alert(`Error launching app: ${e}`);
+      showLaunchPrompt = false;
+    }
+  }
+
+  function closeLaunchPrompt() {
+    showLaunchPrompt = false;
   }
 
   function formatSize(bytes) {
@@ -356,6 +436,7 @@
     <select 
       class="bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg px-3 py-1.5 text-sm text-[var(--text-primary)] focus:border-[var(--primary)] focus:outline-none"
       bind:value={filter}
+      on:change={(e) => handleFilterChange(e.target.value)}
     >
       <option value="all">All Apps</option>
       {#each apps as app}
@@ -504,6 +585,13 @@
       <FolderOpen size={14} />
       Open Folder
     </button>
+    <button
+      class="w-full px-4 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--success)] transition-colors flex items-center gap-2"
+      on:click={() => { handleLaunchApp(contextMenu.session); closeContextMenu(); }}
+    >
+      <Play size={14} />
+      Launch App
+    </button>
     <div class="border-t border-[var(--border)] my-1"></div>
     <button
       class="w-full px-4 py-2 text-left text-sm text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors flex items-center gap-2"
@@ -557,6 +645,32 @@
           on:click={handleCreateBackup}
         >
           Create
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Launch Prompt Modal -->
+{#if showLaunchPrompt}
+  <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-50" on:click|self={closeLaunchPrompt}>
+    <div class="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] w-full max-w-sm p-6 animate-fadeIn">
+      <h3 class="text-lg font-semibold text-[var(--text-primary)] mb-2">Restore Complete!</h3>
+      <p class="text-[var(--text-secondary)] mb-6">Would you like to launch {launchPromptDisplayName}?</p>
+      
+      <div class="flex justify-end gap-3">
+        <button 
+          class="px-4 py-2 rounded-lg font-medium bg-[var(--bg-hover)] hover:bg-[var(--border)] border border-[var(--border)] text-[var(--text-secondary)] transition-all"
+          on:click={closeLaunchPrompt}
+        >
+          Close
+        </button>
+        <button 
+          class="px-4 py-2 rounded-lg font-medium bg-[var(--primary)] hover:bg-[var(--primary-light)] hover:text-black text-white transition-all flex items-center gap-2"
+          on:click={handleLaunchFromPrompt}
+        >
+          <Play size={16} />
+          Launch App
         </button>
       </div>
     </div>
