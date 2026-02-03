@@ -511,6 +511,95 @@ func (a *App) IsAppRunning(appKey string) bool {
 // Session/Backup Methods
 // ============================================================================
 
+// CalculateBackupSize calculates the total size of a backup before creation
+func (a *App) CalculateBackupSize(appKey string, includeData bool) (map[string]interface{}, error) {
+	cfg := a.GetApp(appKey)
+	if cfg == nil {
+		return nil, fmt.Errorf("app not found: %s", appKey)
+	}
+
+	var dataSize int64
+	var addonSize int64
+
+	// Calculate data folder size if includeData is true
+	if includeData && len(cfg.BackupItems) > 0 {
+		dataPath := a.GetAppDataPath(appKey)
+		if dataPath != "" {
+			// Calculate size for each backup item
+			for _, item := range cfg.BackupItems {
+				itemPath := filepath.Join(dataPath, item.Path)
+				
+				// Check if path exists
+				info, err := os.Stat(itemPath)
+				if err != nil {
+					// Skip if optional or doesn't exist
+					if item.Optional || os.IsNotExist(err) {
+						continue
+					}
+					// For non-optional items, log but continue
+					fmt.Printf("Warning: Failed to stat %s: %v\n", itemPath, err)
+					continue
+				}
+
+				// Calculate size (file or directory)
+				if info.IsDir() {
+					size, err := a.calculatePathSize(itemPath)
+					if err == nil {
+						dataSize += size
+					}
+				} else {
+					dataSize += info.Size()
+				}
+			}
+		}
+	}
+
+	// Calculate addon folders size
+	for _, addonPath := range cfg.AddonPaths {
+		// Check if addon path exists
+		if _, err := os.Stat(addonPath); err != nil {
+			// Skip if doesn't exist
+			continue
+		}
+
+		size, err := a.calculatePathSize(addonPath)
+		if err == nil {
+			addonSize += size
+		}
+	}
+
+	totalSize := dataSize + addonSize
+
+	// Build result map
+	result := map[string]interface{}{
+		"total_size":            totalSize,
+		"data_size":             dataSize,
+		"addon_size":            addonSize,
+		"total_size_formatted":  backup.FormatSize(totalSize),
+		"data_size_formatted":   backup.FormatSize(dataSize),
+		"addon_size_formatted":  backup.FormatSize(addonSize),
+	}
+
+	return result, nil
+}
+
+// calculatePathSize calculates the total size of a file or directory
+func (a *App) calculatePathSize(path string) (int64, error) {
+	var size int64
+
+	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Skip errors
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return nil
+	})
+
+	return size, err
+}
+
 // GetSessions returns all sessions for an app
 func (a *App) GetSessions(appKey string, includeAuto bool) ([]backup.Session, error) {
 	return a.backup.GetSessions(appKey, includeAuto)
@@ -533,7 +622,7 @@ func (a *App) GetAllSessions(includeAuto bool) ([]backup.Session, error) {
 }
 
 // CreateBackup creates a new backup session
-func (a *App) CreateBackup(appKey, sessionName string, skipClose bool) error {
+func (a *App) CreateBackup(appKey, sessionName string, addonOnly bool) error {
 	cfg := a.GetApp(appKey)
 	if cfg == nil {
 		return fmt.Errorf("app not found: %s", appKey)
@@ -549,13 +638,21 @@ func (a *App) CreateBackup(appKey, sessionName string, skipClose bool) error {
 		return fmt.Errorf("session '%s' already exists", sessionName)
 	}
 
-	// Smart close the app first (unless skipClose is true)
+	// Check if app is running
+	isRunning := a.IsAppRunning(appKey)
+
+	// If app is running and we need a full backup, return error
+	if isRunning && !addonOnly {
+		return fmt.Errorf("app must be closed for full backup. Please close %s first or choose addon-only backup", cfg.DisplayName)
+	}
+
+	// Smart close the app first (unless addonOnly)
 	var processNames []string
 	for _, exePath := range cfg.Paths.ExePaths {
 		processNames = append(processNames, filepath.Base(exePath))
 	}
 
-	if !skipClose && len(processNames) > 0 {
+	if !addonOnly && len(processNames) > 0 {
 		wailsRuntime.EventsEmit(a.ctx, "progress", map[string]interface{}{
 			"percent": 5,
 			"message": fmt.Sprintf("Closing %s...", cfg.DisplayName),
@@ -563,17 +660,19 @@ func (a *App) CreateBackup(appKey, sessionName string, skipClose bool) error {
 		a.process.SmartClose(cfg.DisplayName, processNames)
 	}
 
-	// Convert backup items
+	// Convert backup items (skip if addonOnly)
 	var backupItems []backup.BackupItem
-	for _, item := range cfg.BackupItems {
-		backupItems = append(backupItems, backup.BackupItem{
-			Path:     item.Path,
-			Optional: item.Optional,
-		})
+	if !addonOnly {
+		for _, item := range cfg.BackupItems {
+			backupItems = append(backupItems, backup.BackupItem{
+				Path:     item.Path,
+				Optional: item.Optional,
+			})
+		}
 	}
 
 	// Create backup
-	return a.backup.CreateBackup(appKey, sessionName, dataPath, backupItems, cfg.AddonPaths, func(p backup.BackupProgress) {
+	return a.backup.CreateBackup(appKey, sessionName, dataPath, backupItems, cfg.AddonPaths, addonOnly, func(p backup.BackupProgress) {
 		wailsRuntime.EventsEmit(a.ctx, "progress", map[string]interface{}{
 			"percent": p.Percent,
 			"message": p.Message,

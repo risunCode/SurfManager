@@ -2,7 +2,7 @@
   import { settings } from './stores/settings.js';
   import { theme } from './stores/theme.js';
   import { 
-    Settings, Cog, Database, FlaskConical,
+    Settings, Cog, Database,
     RotateCcw, ChevronRight, Download, Upload, FolderOpen, AlertTriangle, Trash2, Archive
   } from 'lucide-svelte';
   import { OpenBackupFolder, ClearAllSessions, BackupAllSessions } from '../../wailsjs/go/main/App.js';
@@ -21,7 +21,6 @@
     { id: 'general', label: 'General', icon: Settings },
     { id: 'behavior', label: 'Behavior', icon: Cog },
     { id: 'sessions', label: 'Sessions', icon: Database },
-    { id: 'experimental', label: 'Experimental', icon: FlaskConical },
   ];
 
   function toggle(key) {
@@ -234,13 +233,6 @@
           checked={$settings.autoBackup}
           on:change={() => toggle('autoBackup')}
         />
-
-        <SettingToggle
-          label="Skip Close App"
-          description="Don't close target app before reset/backup/restore operations (may cause file lock errors)"
-          checked={$settings.skipCloseApp}
-          on:change={() => toggle('skipCloseApp')}
-        />
       </div>
 
     {:else if activeSection === 'sessions'}
@@ -323,35 +315,6 @@
         </div>
       </div>
 
-    {:else if activeSection === 'experimental'}
-      <h2 class="text-lg font-semibold mb-4 text-[var(--text-primary)]">Experimental Features</h2>
-      
-      <!-- Warning Banner -->
-      <div class="p-4 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-lg mb-4 flex items-start gap-3">
-        <AlertTriangle size={20} class="text-[var(--warning)] flex-shrink-0 mt-0.5" />
-        <div>
-          <p class="text-sm font-medium text-[var(--warning)]">Use at your own risk</p>
-          <p class="text-sm text-[var(--text-secondary)]">
-            These features are experimental and may not work as expected. They may be removed or changed in future versions.
-          </p>
-        </div>
-      </div>
-
-      <div class="space-y-3">
-        <SettingToggle
-          label="Show Restore Addon Only"
-          description="Enable 'Restore Addon Only' option in session context menu. Restores only addon folders (like .aws, .ssh) without touching main data."
-          checked={$settings.showRestoreAddonOnly}
-          on:change={() => toggle('showRestoreAddonOnly')}
-        />
-
-        <SettingToggle
-          label="Restore Account Only"
-          description="Enable quick account switch in Sessions context menu. Only restores auth state (state.vscdb), preserving extensions and settings."
-          checked={$settings.experimentalRestoreAccountOnly}
-          on:change={() => toggle('experimentalRestoreAccountOnly')}
-        />
-      </div>
     {/if}
   </div>
 </div>

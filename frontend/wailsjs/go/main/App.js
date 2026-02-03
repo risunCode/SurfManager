@@ -6,6 +6,10 @@ export function BackupAllSessions() {
   return window['go']['main']['App']['BackupAllSessions']();
 }
 
+export function CalculateBackupSize(arg1, arg2) {
+  return window['go']['main']['App']['CalculateBackupSize'](arg1, arg2);
+}
+
 export function CheckAppInstalled(arg1) {
   return window['go']['main']['App']['CheckAppInstalled'](arg1);
 }

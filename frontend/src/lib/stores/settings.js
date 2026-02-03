@@ -17,7 +17,6 @@ const defaultSettings = {
   confirmBeforeDelete: true,
   confirmBeforeRestore: true,
   autoBackup: true,
-  skipCloseApp: false,
   
   // Sessions
   showAutoBackups: false,
@@ -30,10 +29,6 @@ const defaultSettings = {
   
   // Advanced (legacy, kept for compatibility)
   logRetention: 100,
-  
-  // Experimental Features
-  showRestoreAddonOnly: false,
-  experimentalRestoreAccountOnly: false, // Quick account switch (restore only state.vscdb)
 };
 
 function createSettingsStore() {
@@ -98,7 +93,6 @@ function createSettingsStore() {
           confirmBeforeDelete: currentSettings.confirmBeforeDelete,
           confirmBeforeRestore: currentSettings.confirmBeforeRestore,
           autoBackup: currentSettings.autoBackup,
-          skipCloseApp: currentSettings.skipCloseApp,
           
           // Sessions
           showAutoBackups: currentSettings.showAutoBackups,
@@ -111,10 +105,6 @@ function createSettingsStore() {
           
           // Advanced
           logRetention: currentSettings.logRetention,
-          
-          // Experimental
-          showRestoreAddonOnly: currentSettings.showRestoreAddonOnly,
-          experimentalRestoreAccountOnly: currentSettings.experimentalRestoreAccountOnly,
         }
       };
       return JSON.stringify(exportData, null, 2);

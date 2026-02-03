@@ -1,8 +1,9 @@
 <script>
   import { onMount } from 'svelte';
   import { Plus, RefreshCw, Search, CheckSquare, FolderOpen, Trash2, RotateCcw, User, Package, Play } from 'lucide-svelte';
-  import { GetActiveApps, GetApp, GetAllSessions, CreateBackup, RestoreBackup, RestoreAccountOnly, RestoreAddonOnly, CheckSessionHasAddons, DeleteSession, SetActiveSession, OpenSessionFolder, CountAutoBackups, LaunchApp } from '../../wailsjs/go/main/App.js';
+  import { GetActiveApps, GetApp, GetAllSessions, CreateBackup, RestoreBackup, RestoreAccountOnly, RestoreAddonOnly, CheckSessionHasAddons, DeleteSession, SetActiveSession, OpenSessionFolder, CountAutoBackups, LaunchApp, IsAppRunning, CalculateBackupSize, KillApp } from '../../wailsjs/go/main/App.js';
   import { confirm } from './ConfirmModal.svelte';
+  import { toast } from './Toast.svelte';
   import { settings } from './stores/settings.js';
 
   export let logs = [];
@@ -19,20 +20,12 @@
   let showNewDialog = false;
   let newBackupApp = '';
   let newBackupName = '';
+  let newBackupAppRunning = false;      // Is selected app running?
+  let backupSizeInfo = null;            // Size calculation result
+  let backupType = 'full';              // 'full' or 'addon'
 
   // Context menu state
-  let contextMenu = { show: false, x: 0, y: 0, session: null, canRestoreAddonOnly: false };
-
-  // Launch prompt modal state
-  let showLaunchPrompt = false;
-  let launchPromptApp = '';
-  let launchPromptDisplayName = '';
-
-  // Helper to get display name from app_name
-  function getAppDisplayName(appName) {
-    const app = apps.find(a => a.app_name.toLowerCase() === appName.toLowerCase());
-    return app?.display_name || appName;
-  }
+  let contextMenu = { show: false, x: 0, y: 0, session: null, appRunning: false, hasAddons: false };
 
   onMount(() => {
     showAuto = $settings.showAutoBackups;
@@ -45,17 +38,8 @@
     const handleClick = () => contextMenu.show = false;
     window.addEventListener('click', handleClick);
 
-    // Handle Escape key to close launch prompt modal
-    const handleKeydown = (e) => {
-      if (e.key === 'Escape' && showLaunchPrompt) {
-        showLaunchPrompt = false;
-      }
-    };
-    window.addEventListener('keydown', handleKeydown);
-
     return () => {
       window.removeEventListener('click', handleClick);
-      window.removeEventListener('keydown', handleKeydown);
     };
   });
 
@@ -93,6 +77,23 @@
     logs = [...logs.slice(-99), `[${time}] ${msg}`];
   }
 
+  async function updateBackupSize() {
+    if (!newBackupApp) return;
+    
+    try {
+      // Check if app is running
+      const running = await IsAppRunning(newBackupApp);
+      newBackupAppRunning = running;
+      
+      // Calculate size (includeData = !running for full backup when app not running)
+      const sizeInfo = await CalculateBackupSize(newBackupApp, !running);
+      backupSizeInfo = sizeInfo;
+    } catch (e) {
+      console.error('Size calculation failed:', e);
+      backupSizeInfo = null;
+    }
+  }
+
   $: filteredSessions = (sessions || []).filter(s => {
     if (filter !== 'all' && s.app.toLowerCase() !== filter.toLowerCase()) return false;
     if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return false;
@@ -101,35 +102,73 @@
     return true;
   });
 
-  function openNewDialog() {
+  async function openNewDialog() {
     if (apps.length === 0) {
       alert('No apps configured. Add apps in Config tab first.');
       return;
     }
     newBackupApp = apps[0]?.app_name || '';
     newBackupName = '';
+    backupType = 'full';
+    
+    // Calculate size and check running state
+    await updateBackupSize();
+    
     showNewDialog = true;
   }
 
   async function handleCreateBackup() {
     if (!newBackupApp || !newBackupName.trim()) {
-      alert('Please select app and enter session name');
+      toast.error('Please enter session name');
       return;
     }
 
-    log(`Creating backup: ${newBackupApp}/${newBackupName}...`);
+    // Determine if addon-only backup
+    const addonOnly = newBackupAppRunning || backupType === 'addon';
+    
+    log(`Creating ${addonOnly ? 'addon-only' : 'full'} backup: ${newBackupApp}/${newBackupName}...`);
+    
     try {
-      await CreateBackup(newBackupApp, newBackupName.trim(), $settings.skipCloseApp);
-      log(`Backup created: ${newBackupName}`);
+      await CreateBackup(newBackupApp, newBackupName.trim(), addonOnly);
+      toast.success('Backup created successfully');
       showNewDialog = false;
       await loadData();
     } catch (e) {
       log(`Error: ${e}`);
-      alert(`Error: ${e}`);
+      toast.error(`Backup failed: ${e}`);
     }
   }
 
   async function handleRestore(session) {
+    // Check if app is running
+    const running = await IsAppRunning(session.app);
+    if (running) {
+      // Show modal with option to kill app
+      const appConfig = await GetApp(session.app);
+      const confirmed = await confirm({
+        title: `${appConfig.display_name} is Currently Running`,
+        message: `The app must be closed before restoring.\n\nWould you like to close it now?`,
+        confirmText: 'Kill App and Continue',
+        cancelText: 'Cancel',
+        danger: true
+      });
+      
+      if (!confirmed) return;
+      
+      // Kill the app
+      log(`Killing ${appConfig.display_name}...`);
+      try {
+        await KillApp(session.app);
+        log(`${appConfig.display_name} closed`);
+        // Wait a moment for app to fully close
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (e) {
+        log(`Error killing app: ${e}`);
+        toast.error(`Failed to close app: ${e}`);
+        return;
+      }
+    }
+
     if ($settings.confirmBeforeRestore) {
       const confirmed = await confirm.restore(session.name);
       if (!confirmed) return;
@@ -137,41 +176,48 @@
     
     log(`Restoring ${session.name}...`);
     try {
-      await RestoreBackup(session.app, session.name, $settings.skipCloseApp);
-      log(`Restored: ${session.name}`);
+      await RestoreBackup(session.app, session.name, false);
+      toast.success('Session restored successfully');
       await loadData();
-      // Show launch prompt on success
-      launchPromptApp = session.app;
-      launchPromptDisplayName = getAppDisplayName(session.app);
-      showLaunchPrompt = true;
     } catch (e) {
       log(`Error: ${e}`);
-      
-      // Check if error is due to file lock (skip close app enabled)
-      const errorStr = e.toString().toLowerCase();
-      if ($settings.skipCloseApp && (errorStr.includes('being used') || errorStr.includes('access') || errorStr.includes('locked') || errorStr.includes('permission'))) {
-        await confirm({
-          title: 'Restore Failed - Files Locked',
-          message: `Cannot restore "${session.name}" because files are locked by the running app.\n\nThe app is still running and has locked the data files.`,
-          confirmText: 'OK',
-          cancelText: 'Disable Skip Close',
-        }).then(result => {
-          if (!result) {
-            // User clicked "Disable Skip Close"
-            settings.update('skipCloseApp', false);
-            log('Disabled "Keep App Running" setting');
-          }
-        });
-      } else {
-        alert(`Error restoring session: ${e}`);
-      }
+      toast.error(`Restore failed: ${e}`);
     }
   }
 
   async function handleRestoreAccountOnly(session) {
+    // Check if app is running
+    const running = await IsAppRunning(session.app);
+    if (running) {
+      // Show modal with option to kill app
+      const appConfig = await GetApp(session.app);
+      const confirmed = await confirm({
+        title: `${appConfig.display_name} is Currently Running`,
+        message: `The app must be closed before restoring account.\n\nThe state.vscdb file is locked while the app is running.\n\nWould you like to close it now?`,
+        confirmText: 'Kill App and Continue',
+        cancelText: 'Cancel',
+        danger: true
+      });
+      
+      if (!confirmed) return;
+      
+      // Kill the app
+      log(`Killing ${appConfig.display_name}...`);
+      try {
+        await KillApp(session.app);
+        log(`${appConfig.display_name} closed`);
+        // Wait a moment for app to fully close
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (e) {
+        log(`Error killing app: ${e}`);
+        toast.error(`Failed to close app: ${e}`);
+        return;
+      }
+    }
+
     const confirmed = await confirm({
       title: 'Restore Account Only',
-      message: `Switch to account from "${session.name}"?\n\nThis will close the app and replace only the auth state file (state.vscdb).\nYour extensions, settings, and workspaces will be preserved.`,
+      message: `Switch to account from "${session.name}"?\n\nThis will replace only the auth state file (state.vscdb).`,
       confirmText: 'Switch Account'
     });
     if (!confirmed) return;
@@ -179,66 +225,36 @@
     log(`Switching account to ${session.name}...`);
     try {
       await RestoreAccountOnly(session.app, session.name);
-      log(`Account switched to: ${session.name}`);
+      toast.success('Account switched successfully');
       await loadData();
-      // Show launch prompt on success
-      launchPromptApp = session.app;
-      launchPromptDisplayName = getAppDisplayName(session.app);
-      showLaunchPrompt = true;
     } catch (e) {
       log(`Error: ${e}`);
+      toast.error(`Account switch failed: ${e}`);
     }
   }
 
   async function handleRestoreAddonOnly(session) {
-    // Get app config to show addon paths in confirmation
-    let appConfig;
-    try {
-      appConfig = await GetApp(session.app);
-    } catch (e) {
-      log(`Error getting app config: ${e}`);
-      return;
-    }
-
+    // Addon restore works even if app is running
+    
+    const appConfig = await GetApp(session.app);
     const addonPaths = appConfig?.addon_backup_paths || [];
     const addonList = addonPaths.map(p => `• ${p}`).join('\n');
 
     const confirmed = await confirm({
       title: 'Restore Addon Folders Only',
-      message: `Restore addon folders from "${session.name}"?\n\nThis will restore:\n${addonList}\n\nMain data folder will NOT be touched.`,
+      message: `Restore addon folders from "${session.name}"?\n\nThis will restore:\n${addonList}`,
       confirmText: 'Restore Addons'
     });
     if (!confirmed) return;
     
     log(`Restoring addon folders from ${session.name}...`);
     try {
-      await RestoreAddonOnly(session.app, session.name, $settings.skipCloseApp);
-      log(`Addon folders restored from: ${session.name}`);
+      await RestoreAddonOnly(session.app, session.name, false);
+      toast.success('Addon folders restored successfully');
       await loadData();
-      // Show launch prompt on success
-      launchPromptApp = session.app;
-      launchPromptDisplayName = getAppDisplayName(session.app);
-      showLaunchPrompt = true;
     } catch (e) {
       log(`Error: ${e}`);
-      alert(`Error restoring addon folders: ${e}`);
-    }
-  }
-
-  // Check if session can show "Restore Addon Only" option
-  async function canShowRestoreAddonOnly(session) {
-    if (!$settings.showRestoreAddonOnly) return false;
-    
-    try {
-      // Check if app has addon_backup_paths configured
-      const appConfig = await GetApp(session.app);
-      if (!appConfig?.addon_backup_paths || appConfig.addon_backup_paths.length === 0) return false;
-      
-      // Check if session has _addons folder
-      const hasAddons = await CheckSessionHasAddons(session.app, session.name);
-      return hasAddons;
-    } catch (e) {
-      return false;
+      toast.error(`Addon restore failed: ${e}`);
     }
   }
 
@@ -285,22 +301,6 @@
       log(`Error launching app: ${e}`);
       alert(`Error launching app: ${e}`);
     }
-  }
-
-  async function handleLaunchFromPrompt() {
-    try {
-      await LaunchApp(launchPromptApp);
-      log(`Launched: ${launchPromptApp}`);
-      showLaunchPrompt = false;
-    } catch (e) {
-      log(`Error launching app: ${e}`);
-      alert(`Error launching app: ${e}`);
-      showLaunchPrompt = false;
-    }
-  }
-
-  function closeLaunchPrompt() {
-    showLaunchPrompt = false;
   }
 
   function formatSize(bytes) {
@@ -366,18 +366,19 @@
   async function handleContextMenu(event, session) {
     event.preventDefault();
     
-    // Check if can show "Restore Addon Only" option
-    let canRestoreAddonOnly = false;
-    if ($settings.showRestoreAddonOnly) {
-      canRestoreAddonOnly = await canShowRestoreAddonOnly(session);
-    }
+    // Check if app is running
+    const running = await IsAppRunning(session.app);
+    
+    // Check if session has addons
+    const hasAddons = await CheckSessionHasAddons(session.app, session.name);
     
     contextMenu = {
       show: true,
       x: event.clientX,
       y: event.clientY,
       session,
-      canRestoreAddonOnly
+      appRunning: running,
+      hasAddons: hasAddons,
     };
   }
 
@@ -553,6 +554,7 @@
     style="left: {contextMenu.x}px; top: {contextMenu.y}px"
     on:click|stopPropagation={closeContextMenu}
   >
+    <!-- Full Restore: Always clickable -->
     <button
       class="w-full px-4 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--primary)] transition-colors flex items-center gap-2"
       on:click={() => { handleRestore(contextMenu.session); closeContextMenu(); }}
@@ -560,16 +562,18 @@
       <RotateCcw size={14} />
       Restore Session
     </button>
-    {#if $settings.experimentalRestoreAccountOnly}
-      <button
-        class="w-full px-4 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--warning)] transition-colors flex items-center gap-2"
-        on:click={() => { handleRestoreAccountOnly(contextMenu.session); closeContextMenu(); }}
-      >
-        <User size={14} />
-        Restore Account Only
-      </button>
-    {/if}
-    {#if contextMenu.canRestoreAddonOnly}
+
+    <!-- Restore Account Only: Always clickable -->
+    <button
+      class="w-full px-4 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--warning)] transition-colors flex items-center gap-2"
+      on:click={() => { handleRestoreAccountOnly(contextMenu.session); closeContextMenu(); }}
+    >
+      <User size={14} />
+      Restore Account Only
+    </button>
+
+    <!-- Restore Addon Only: Enabled only if session has addons -->
+    {#if contextMenu.hasAddons}
       <button
         class="w-full px-4 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--success)] transition-colors flex items-center gap-2"
         on:click={() => { handleRestoreAddonOnly(contextMenu.session); closeContextMenu(); }}
@@ -577,7 +581,20 @@
         <Package size={14} />
         Restore Addon Only
       </button>
+    {:else}
+      <button
+        class="w-full px-4 py-2 text-left text-sm text-[var(--text-muted)] cursor-not-allowed opacity-50 transition-colors flex items-center gap-2"
+        disabled
+        title="No addon folders in this session"
+      >
+        <Package size={14} />
+        Restore Addon Only
+        <span class="ml-auto text-xs text-[var(--text-muted)]">(No addons)</span>
+      </button>
     {/if}
+
+    <div class="border-t border-[var(--border)] my-1"></div>
+
     <button
       class="w-full px-4 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-2"
       on:click={() => { handleOpenFolder(contextMenu.session); closeContextMenu(); }}
@@ -615,6 +632,7 @@
           <select 
             class="w-full bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] focus:border-[var(--primary)] focus:outline-none"
             bind:value={newBackupApp}
+            on:change={updateBackupSize}
           >
             {#each apps as app}
               <option value={app.app_name}>{app.display_name}</option>
@@ -631,6 +649,84 @@
             bind:value={newBackupName}
           />
         </div>
+
+        <!-- App Running Warning -->
+        {#if newBackupAppRunning}
+          <div class="bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-lg p-3">
+            <div class="flex items-start gap-2">
+              <span class="text-[var(--warning)] text-lg">⚠</span>
+              <div class="flex-1">
+                <p class="text-sm font-medium text-[var(--warning)] mb-1">App is Running</p>
+                <p class="text-xs text-[var(--text-secondary)]">
+                  Only addon folders can be backed up while app is running. Close the app for full backup.
+                </p>
+              </div>
+            </div>
+          </div>
+        {/if}
+
+        <!-- Backup Size -->
+        {#if backupSizeInfo}
+          <div>
+            <label class="block text-sm text-[var(--text-secondary)] mb-2">Backup Size</label>
+            <div class="bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg p-3 space-y-1.5">
+              {#if !newBackupAppRunning && backupSizeInfo.data_size > 0}
+                <div class="flex justify-between text-sm">
+                  <span class="text-[var(--text-secondary)]">Data:</span>
+                  <span class="text-[var(--text-primary)] font-medium">{backupSizeInfo.data_size_formatted}</span>
+                </div>
+              {/if}
+              {#if backupSizeInfo.addon_size > 0}
+                <div class="flex justify-between text-sm">
+                  <span class="text-[var(--text-secondary)]">Addons:</span>
+                  <span class="text-[var(--text-primary)] font-medium">{backupSizeInfo.addon_size_formatted}</span>
+                </div>
+              {/if}
+              <div class="border-t border-[var(--border)] pt-1.5 mt-1.5">
+                <div class="flex justify-between text-sm">
+                  <span class="text-[var(--text-secondary)] font-medium">Total:</span>
+                  <span class="text-[var(--text-primary)] font-semibold">{backupSizeInfo.total_size_formatted}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        {/if}
+
+        <!-- Backup Type Selection (only show if app not running) -->
+        {#if !newBackupAppRunning}
+          <div>
+            <label class="block text-sm text-[var(--text-secondary)] mb-2">Backup Type</label>
+            <div class="space-y-2">
+              <label class="flex items-start gap-3 p-3 bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg cursor-pointer hover:border-[var(--primary)] transition-colors">
+                <input
+                  type="radio"
+                  name="backupType"
+                  value="full"
+                  bind:group={backupType}
+                  class="mt-0.5"
+                />
+                <div class="flex-1">
+                  <div class="text-sm font-medium text-[var(--text-primary)]">Full Backup</div>
+                  <div class="text-xs text-[var(--text-muted)] mt-0.5">Backup all data and addon folders</div>
+                </div>
+              </label>
+              
+              <label class="flex items-start gap-3 p-3 bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg cursor-pointer hover:border-[var(--primary)] transition-colors">
+                <input
+                  type="radio"
+                  name="backupType"
+                  value="addon"
+                  bind:group={backupType}
+                  class="mt-0.5"
+                />
+                <div class="flex-1">
+                  <div class="text-sm font-medium text-[var(--text-primary)]">Addon Only</div>
+                  <div class="text-xs text-[var(--text-muted)] mt-0.5">Backup only addon folders</div>
+                </div>
+              </label>
+            </div>
+          </div>
+        {/if}
       </div>
 
       <div class="flex justify-end gap-3 mt-6">
@@ -644,33 +740,7 @@
           class="px-4 py-2 rounded-lg font-medium bg-[var(--primary)] hover:bg-[var(--primary-light)] hover:text-black text-white transition-all"
           on:click={handleCreateBackup}
         >
-          Create
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
-
-<!-- Launch Prompt Modal -->
-{#if showLaunchPrompt}
-  <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-50" on:click|self={closeLaunchPrompt}>
-    <div class="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] w-full max-w-sm p-6 animate-fadeIn">
-      <h3 class="text-lg font-semibold text-[var(--text-primary)] mb-2">Restore Complete!</h3>
-      <p class="text-[var(--text-secondary)] mb-6">Would you like to launch {launchPromptDisplayName}?</p>
-      
-      <div class="flex justify-end gap-3">
-        <button 
-          class="px-4 py-2 rounded-lg font-medium bg-[var(--bg-hover)] hover:bg-[var(--border)] border border-[var(--border)] text-[var(--text-secondary)] transition-all"
-          on:click={closeLaunchPrompt}
-        >
-          Close
-        </button>
-        <button 
-          class="px-4 py-2 rounded-lg font-medium bg-[var(--primary)] hover:bg-[var(--primary-light)] hover:text-black text-white transition-all flex items-center gap-2"
-          on:click={handleLaunchFromPrompt}
-        >
-          <Play size={16} />
-          Launch App
+          Create Backup
         </button>
       </div>
     </div>

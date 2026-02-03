@@ -3,6 +3,7 @@
   import { FolderOpen, RotateCcw, Fingerprint, Play, RefreshCw, Plus, HardDrive, Database, Trash2, XCircle } from 'lucide-svelte';
   import { GetActiveApps, CheckAppInstalled, GetAppDataPath, ResetApp, GenerateNewID, LaunchApp, OpenAppFolder, IsAppRunning, GetSessions, KillApp, ResetAddonData, GetApp } from '../../wailsjs/go/main/App.js';
   import { confirm } from './ConfirmModal.svelte';
+  import { toast } from './Toast.svelte';
   import { settings } from './stores/settings.js';
 
   export let logs = [];
@@ -117,11 +118,13 @@
     
     log(`[Reset] Starting ${selectedApp.display_name}...`);
     try {
-      await ResetApp(selectedApp.app_name, autoBackup, $settings.skipCloseApp);
+      await ResetApp(selectedApp.app_name, autoBackup, false);
       log(`[Reset] ${selectedApp.display_name} complete!`);
+      toast.success('App data reset successfully', 3000);
       await loadApps();
     } catch (e) {
       log(`[Reset] Error: ${e}`);
+      toast.error(`Reset failed: ${e}`, 5000);
     }
   }
 
@@ -132,8 +135,10 @@
     try {
       const count = await GenerateNewID(selectedApp.app_name);
       log(`[NewID] Updated ${count} keys`);
+      toast.success(`New machine ID generated (${count} keys updated)`, 3000);
     } catch (e) {
       log(`[NewID] Error: ${e}`);
+      toast.error(`Failed to generate new ID: ${e}`, 5000);
     }
   }
 
@@ -143,8 +148,10 @@
     try {
       await LaunchApp(selectedApp.app_name);
       log(`Launched ${selectedApp.display_name}`);
+      toast.success(`${selectedApp.display_name} launched successfully`, 3000);
     } catch (e) {
       log(`Error launching: ${e}`);
+      toast.error(`Failed to launch app: ${e}`, 5000);
     }
   }
 
@@ -155,9 +162,11 @@
     try {
       await KillApp(selectedApp.app_name);
       log(`[Kill] ${selectedApp.display_name} stopped`);
+      toast.success('App stopped successfully', 3000);
       await loadApps();
     } catch (e) {
       log(`[Kill] Error: ${e}`);
+      toast.error(`Failed to stop app: ${e}`, 5000);
     }
   }
 
@@ -176,11 +185,13 @@
     
     log(`[ResetAddon] Deleting addon folders for ${selectedApp.display_name}...`);
     try {
-      await ResetAddonData(selectedApp.app_name, $settings.skipCloseApp);
+      await ResetAddonData(selectedApp.app_name, false);
       log(`[ResetAddon] ${selectedApp.display_name} addon data deleted!`);
+      toast.success('Addon folders deleted successfully', 3000);
       await loadApps();
     } catch (e) {
       log(`[ResetAddon] Error: ${e}`);
+      toast.error(`Failed to delete addon folders: ${e}`, 5000);
     }
   }
 
@@ -191,6 +202,7 @@
       await OpenAppFolder(selectedApp.app_name);
     } catch (e) {
       log(`Error opening folder: ${e}`);
+      toast.error(`Failed to open folder: ${e}`, 5000);
     }
   }
 

@@ -6,6 +6,8 @@ import {main} from '../models';
 
 export function BackupAllSessions():Promise<string>;
 
+export function CalculateBackupSize(arg1:string,arg2:boolean):Promise<Record<string, any>>;
+
 export function CheckAppInstalled(arg1:string):Promise<boolean>;
 
 export function CheckSessionHasAddons(arg1:string,arg2:string):Promise<boolean>;

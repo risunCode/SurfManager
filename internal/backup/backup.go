@@ -194,7 +194,7 @@ func (m *Manager) getAutoSessions(appKey string) ([]Session, error) {
 }
 
 // CreateBackup creates a backup of app data to a session folder.
-func (m *Manager) CreateBackup(appKey, sessionName string, sourcePath string, backupItems []BackupItem, addonPaths []string, progressCb ProgressCallback) error {
+func (m *Manager) CreateBackup(appKey, sessionName string, sourcePath string, backupItems []BackupItem, addonPaths []string, addonOnly bool, progressCb ProgressCallback) error {
 	appKey = strings.ToLower(appKey)
 	backupFolder := filepath.Join(m.backupPath, appKey, sessionName)
 
@@ -207,15 +207,14 @@ func (m *Manager) CreateBackup(appKey, sessionName string, sourcePath string, ba
 		progressCb(BackupProgress{Percent: 10, Message: "Starting backup..."})
 	}
 
-	// Backup items - only backup specific items if defined, otherwise skip data folder entirely
-	// This allows users to configure apps that only backup addon paths (like .aws)
-	if len(backupItems) > 0 {
+	// Backup items - only backup specific items if defined and not addonOnly mode
+	// When addonOnly=true, skip backing up the data folder entirely
+	if !addonOnly && len(backupItems) > 0 {
 		if err := m.backupSpecificItems(sourcePath, backupFolder, backupItems, progressCb); err != nil {
 			return err
 		}
 	}
-	// NOTE: If backupItems is empty, we intentionally skip backing up the data folder
-	// The user has chosen to not backup any items from the main data folder
+	// NOTE: If backupItems is empty or addonOnly=true, we intentionally skip backing up the data folder
 
 	// Backup addon folders
 	if len(addonPaths) > 0 {
@@ -922,13 +921,19 @@ func FormatSize(bytes int64) string {
 	}
 }
 
-// copyFile copies a single file from src to dst.
+// copyFile copies a single file from src to dst using a 1MB buffer for better performance.
 func copyFile(src, dst string) error {
 	sourceFile, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer sourceFile.Close()
+
+	// Get source file info for permissions (reuse to avoid extra stat call)
+	sourceInfo, err := sourceFile.Stat()
+	if err != nil {
+		return err
+	}
 
 	// Ensure destination directory exists
 	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
@@ -941,16 +946,13 @@ func copyFile(src, dst string) error {
 	}
 	defer destFile.Close()
 
-	if _, err := io.Copy(destFile, sourceFile); err != nil {
+	// Use 1MB buffer for better performance (32x larger than default 32KB)
+	buf := make([]byte, 1024*1024)
+	if _, err := io.CopyBuffer(destFile, sourceFile, buf); err != nil {
 		return err
 	}
 
 	// Preserve file permissions
-	sourceInfo, err := os.Stat(src)
-	if err != nil {
-		return err
-	}
-
 	return os.Chmod(dst, sourceInfo.Mode())
 }
 
