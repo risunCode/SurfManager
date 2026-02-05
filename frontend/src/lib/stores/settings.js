@@ -7,20 +7,27 @@ const STORAGE_KEY = 'surfmanager-settings';
 const defaultSettings = {
   // General
   theme: 'dark',
+  enableNotepad: false,
+  dontAskStartAfterComplete: false,
+  muteToasts: false,
+  toastSound: true,
+  beepOnComplete: true,
   
   // Remember Selected Apps
   lastSelectedAppReset: '',
   lastSelectedAppSession: '',
+  autoRefreshSessionsOnLaunch: true,
+  rememberLastTab: true,
+  lastActiveTab: '',
   
   // Behavior
   confirmBeforeReset: true,
   confirmBeforeDelete: true,
   confirmBeforeRestore: true,
-  autoBackup: true,
+  autoBackup: false,  // Disabled by default
   
   // Sessions
   showAutoBackups: false,
-  defaultSessionFilter: 'all',
   maxAutoBackups: 5,
   
   // Notes (legacy, kept for compatibility)
@@ -62,6 +69,15 @@ function createSettingsStore() {
         return newSettings;
       });
     },
+    applySettings: (partial) => {
+      update(s => {
+        const newSettings = { ...s, ...partial };
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(newSettings));
+        }
+        return newSettings;
+      });
+    },
     reset: () => {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultSettings));
@@ -83,10 +99,18 @@ function createSettingsStore() {
         settings: {
           // General
           theme: currentSettings.theme,
+          enableNotepad: currentSettings.enableNotepad,
+          dontAskStartAfterComplete: currentSettings.dontAskStartAfterComplete,
+          muteToasts: currentSettings.muteToasts,
+          toastSound: currentSettings.toastSound,
+          beepOnComplete: currentSettings.beepOnComplete,
           
           // Remember Selected Apps
           lastSelectedAppReset: currentSettings.lastSelectedAppReset,
           lastSelectedAppSession: currentSettings.lastSelectedAppSession,
+          autoRefreshSessionsOnLaunch: currentSettings.autoRefreshSessionsOnLaunch,
+          rememberLastTab: currentSettings.rememberLastTab,
+          lastActiveTab: currentSettings.lastActiveTab,
           
           // Behavior
           confirmBeforeReset: currentSettings.confirmBeforeReset,
@@ -96,7 +120,6 @@ function createSettingsStore() {
           
           // Sessions
           showAutoBackups: currentSettings.showAutoBackups,
-          defaultSessionFilter: currentSettings.defaultSessionFilter,
           maxAutoBackups: currentSettings.maxAutoBackups,
           
           // Notes

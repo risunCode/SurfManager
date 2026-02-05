@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"surfmanager/internal/apps"
@@ -31,13 +32,55 @@ type Note struct {
 	UpdatedAt string `json:"updated_at"`
 }
 
+// logLine writes to console, emits to frontend, and appends to log file
+func (a *App) logLine(msg string) {
+	fmt.Println(msg)
+	if a.ctx != nil {
+		wailsRuntime.EventsEmit(a.ctx, "log", msg)
+	}
+	if a.logFilePath == "" {
+		return
+	}
+	a.logMutex.Lock()
+	defer a.logMutex.Unlock()
+	f, err := os.OpenFile(a.logFilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	timestamp := time.Now().Format(time.RFC3339)
+	fmt.Fprintf(f, "%s %s\n", timestamp, msg)
+}
+
+// GetLogs returns the current activity log content
+func (a *App) GetLogs() (string, error) {
+	if a.logFilePath == "" {
+		return "", fmt.Errorf("log file not initialized")
+	}
+	data, err := os.ReadFile(a.logFilePath)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+// LogMessage allows frontend to append a log line
+func (a *App) LogMessage(message string) {
+	if message == "" {
+		return
+	}
+	a.logLine(message)
+}
+
 // App struct holds all backend managers and provides Wails-bound methods.
 type App struct {
-	ctx     context.Context
-	config  *config.Manager
-	process *process.Killer
-	backup  *backup.Manager
-	apps    *apps.ConfigLoader
+	ctx         context.Context
+	config      *config.Manager
+	process     *process.Killer
+	backup      *backup.Manager
+	apps        *apps.ConfigLoader
+	logFilePath string
+	logMutex    sync.Mutex
 }
 
 // NewApp creates a new App application struct.
@@ -54,17 +97,25 @@ func (a *App) startup(ctx context.Context) {
 		fmt.Printf("Warning: Failed to create SurfManager directories: %v\n", err)
 	}
 
+	// Prepare log file under Documents/SurfManager/logs/app.log
+	logsDir := filepath.Join(a.config.GetDocumentsDir(), "SurfManager", "logs")
+	os.MkdirAll(logsDir, 0755)
+	a.logFilePath = filepath.Join(logsDir, "app.log")
+	// Touch file
+	if f, fileErr := os.OpenFile(a.logFilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); fileErr == nil {
+		f.Close()
+	}
+
 	a.process = process.NewKiller(func(msg string) {
-		fmt.Println(msg)
-		wailsRuntime.EventsEmit(ctx, "log", msg)
+		a.logLine(msg)
 	})
 
 	a.backup = backup.NewManager(a.config.GetDocumentsDir())
 
-	var err error
-	a.apps, err = apps.NewConfigLoader()
-	if err != nil {
-		fmt.Printf("Warning: Failed to initialize apps loader: %v\n", err)
+	var loaderErr error
+	a.apps, loaderErr = apps.NewConfigLoader()
+	if loaderErr != nil {
+		fmt.Printf("Warning: Failed to initialize apps loader: %v\n", loaderErr)
 	} else {
 		if err := a.apps.LoadAllConfigs(); err != nil {
 			fmt.Printf("Warning: Failed to load app configs: %v\n", err)
@@ -190,11 +241,7 @@ func (a *App) ResetApp(appKey string, autoBackup bool, skipClose bool) error {
 		return fmt.Errorf("no data folder found for %s", cfg.DisplayName)
 	}
 
-	// Get process names from exe paths
-	var processNames []string
-	for _, exePath := range cfg.Paths.ExePaths {
-		processNames = append(processNames, filepath.Base(exePath))
-	}
+	processNames := a.collectProcessNames(cfg)
 
 	// Smart close the app (unless skipClose is true)
 	if !skipClose && len(processNames) > 0 {
@@ -312,6 +359,12 @@ func (a *App) GenerateNewID(appKey string) (int, error) {
 			return nil
 		}
 
+		// Validate JSON size to prevent potential DoS attacks
+		const maxJSONSize = 10 * 1024 * 1024 // 10MB limit
+		if len(data) > maxJSONSize {
+			return nil
+		}
+
 		var jsonData map[string]interface{}
 		if err := json.Unmarshal(data, &jsonData); err != nil {
 			return nil
@@ -422,10 +475,7 @@ func (a *App) KillApp(appKey string) error {
 		return fmt.Errorf("app not found: %s", appKey)
 	}
 
-	var processNames []string
-	for _, exePath := range cfg.Paths.ExePaths {
-		processNames = append(processNames, filepath.Base(exePath))
-	}
+	processNames := a.collectProcessNames(cfg)
 
 	if len(processNames) == 0 {
 		return nil
@@ -445,11 +495,7 @@ func (a *App) ResetAddonData(appKey string, skipClose bool) error {
 		return fmt.Errorf("no addon folders configured for %s", cfg.DisplayName)
 	}
 
-	// Get process names from exe paths
-	var processNames []string
-	for _, exePath := range cfg.Paths.ExePaths {
-		processNames = append(processNames, filepath.Base(exePath))
-	}
+	processNames := a.collectProcessNames(cfg)
 
 	// Smart close the app (unless skipClose is true)
 	if !skipClose && len(processNames) > 0 {
@@ -492,6 +538,17 @@ func (a *App) ResetAddonData(appKey string, skipClose bool) error {
 	return nil
 }
 
+func (a *App) collectProcessNames(cfg *apps.AppConfig) []string {
+	var processNames []string
+	for _, exePath := range cfg.Paths.ExePaths {
+		processNames = append(processNames, filepath.Base(exePath))
+	}
+	if len(cfg.Paths.ProcessNames) > 0 {
+		processNames = append(processNames, cfg.Paths.ProcessNames...)
+	}
+	return processNames
+}
+
 // IsAppRunning checks if an app is currently running
 func (a *App) IsAppRunning(appKey string) bool {
 	cfg := a.GetApp(appKey)
@@ -499,11 +556,10 @@ func (a *App) IsAppRunning(appKey string) bool {
 		return false
 	}
 
-	var processNames []string
-	for _, exePath := range cfg.Paths.ExePaths {
-		processNames = append(processNames, filepath.Base(exePath))
+	processNames := a.collectProcessNames(cfg)
+	if len(processNames) == 0 {
+		return false
 	}
-
 	return a.process.IsRunning(processNames)
 }
 
@@ -528,7 +584,7 @@ func (a *App) CalculateBackupSize(appKey string, includeData bool) (map[string]i
 			// Calculate size for each backup item
 			for _, item := range cfg.BackupItems {
 				itemPath := filepath.Join(dataPath, item.Path)
-				
+
 				// Check if path exists
 				info, err := os.Stat(itemPath)
 				if err != nil {
@@ -572,12 +628,12 @@ func (a *App) CalculateBackupSize(appKey string, includeData bool) (map[string]i
 
 	// Build result map
 	result := map[string]interface{}{
-		"total_size":            totalSize,
-		"data_size":             dataSize,
-		"addon_size":            addonSize,
-		"total_size_formatted":  backup.FormatSize(totalSize),
-		"data_size_formatted":   backup.FormatSize(dataSize),
-		"addon_size_formatted":  backup.FormatSize(addonSize),
+		"total_size":           totalSize,
+		"data_size":            dataSize,
+		"addon_size":           addonSize,
+		"total_size_formatted": backup.FormatSize(totalSize),
+		"data_size_formatted":  backup.FormatSize(dataSize),
+		"addon_size_formatted": backup.FormatSize(addonSize),
 	}
 
 	return result, nil
@@ -647,10 +703,7 @@ func (a *App) CreateBackup(appKey, sessionName string, addonOnly bool) error {
 	}
 
 	// Smart close the app first (unless addonOnly)
-	var processNames []string
-	for _, exePath := range cfg.Paths.ExePaths {
-		processNames = append(processNames, filepath.Base(exePath))
-	}
+	processNames := a.collectProcessNames(cfg)
 
 	if !addonOnly && len(processNames) > 0 {
 		wailsRuntime.EventsEmit(a.ctx, "progress", map[string]interface{}{
@@ -698,10 +751,7 @@ func (a *App) RestoreBackup(appKey, sessionName string, skipClose bool) error {
 	}
 
 	// Smart close the app first (unless skipClose is true)
-	var processNames []string
-	for _, exePath := range cfg.Paths.ExePaths {
-		processNames = append(processNames, filepath.Base(exePath))
-	}
+	processNames := a.collectProcessNames(cfg)
 
 	if !skipClose && len(processNames) > 0 {
 		wailsRuntime.EventsEmit(a.ctx, "progress", map[string]interface{}{
@@ -751,10 +801,7 @@ func (a *App) RestoreAccountOnly(appKey, sessionName string) error {
 	}
 
 	// Always close the app first (required for file lock release)
-	var processNames []string
-	for _, exePath := range cfg.Paths.ExePaths {
-		processNames = append(processNames, filepath.Base(exePath))
-	}
+	processNames := a.collectProcessNames(cfg)
 
 	if len(processNames) > 0 {
 		wailsRuntime.EventsEmit(a.ctx, "progress", map[string]interface{}{
@@ -985,8 +1032,19 @@ func (a *App) GetNotes() ([]Note, error) {
 			continue
 		}
 
+		// Validate JSON size to prevent potential DoS attacks
+		const maxJSONSize = 1 * 1024 * 1024 // 1MB limit for notes
+		if len(data) > maxJSONSize {
+			continue
+		}
+
 		var note Note
 		if err := json.Unmarshal(data, &note); err != nil {
+			continue
+		}
+
+		// Validate note structure
+		if note.Title == "" || note.Content == "" {
 			continue
 		}
 
@@ -999,6 +1057,11 @@ func (a *App) GetNotes() ([]Note, error) {
 
 // GetNote returns a specific note
 func (a *App) GetNote(id string) (*Note, error) {
+	// Validate ID to prevent path traversal
+	if strings.Contains(id, "..") || strings.Contains(id, "/") || strings.Contains(id, "\\") {
+		return nil, fmt.Errorf("invalid note ID")
+	}
+
 	notesDir := a.config.GetNotesDir()
 	filePath := filepath.Join(notesDir, id+".json")
 
@@ -1007,9 +1070,20 @@ func (a *App) GetNote(id string) (*Note, error) {
 		return nil, err
 	}
 
+	// Validate JSON size to prevent potential DoS attacks
+	const maxJSONSize = 1 * 1024 * 1024 // 1MB limit for notes
+	if len(data) > maxJSONSize {
+		return nil, fmt.Errorf("note file too large")
+	}
+
 	var note Note
 	if err := json.Unmarshal(data, &note); err != nil {
 		return nil, err
+	}
+
+	// Validate note structure
+	if note.Title == "" || note.Content == "" {
+		return nil, fmt.Errorf("invalid note structure")
 	}
 
 	note.ID = id
@@ -1224,11 +1298,7 @@ func (a *App) RestoreAddonOnly(appKey, sessionName string, skipClose bool) error
 		return fmt.Errorf("session '%s' does not have addon backups", sessionName)
 	}
 
-	// Get process names from exe paths
-	var processNames []string
-	for _, exePath := range cfg.Paths.ExePaths {
-		processNames = append(processNames, filepath.Base(exePath))
-	}
+	processNames := a.collectProcessNames(cfg)
 
 	// Smart close the app (unless skipClose is true)
 	if !skipClose && len(processNames) > 0 {

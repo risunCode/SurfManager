@@ -87,7 +87,9 @@
   <div 
     class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[200]"
     transition:fade={{ duration: 150 }}
+    tabindex="0"
     on:click|self={handleCancel}
+    on:keydown={(e) => { if (e.key === 'Escape') handleCancel(); if (e.key === 'Enter') handleConfirm(); }}
   >
     <div 
       class="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] w-full max-w-md p-6 shadow-2xl"

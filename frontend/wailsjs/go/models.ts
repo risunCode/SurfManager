@@ -22,6 +22,7 @@ export namespace apps {
 	    data_paths: string[];
 	    exe_paths: string[];
 	    reset_folder: string;
+	    process_names?: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new AppPaths(source);
@@ -32,6 +33,7 @@ export namespace apps {
 	        this.data_paths = source["data_paths"];
 	        this.exe_paths = source["exe_paths"];
 	        this.reset_folder = source["reset_folder"];
+	        this.process_names = source["process_names"];
 	    }
 	}
 	export class AppConfig {
@@ -94,6 +96,7 @@ export namespace backup {
 	    modified: any;
 	    is_active: boolean;
 	    is_auto: boolean;
+	    corrupted?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Session(source);
@@ -108,6 +111,7 @@ export namespace backup {
 	        this.modified = this.convertValues(source["modified"], null);
 	        this.is_active = source["is_active"];
 	        this.is_auto = source["is_auto"];
+	        this.corrupted = source["corrupted"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

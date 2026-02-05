@@ -78,6 +78,10 @@ export function GetCurrentUser() {
   return window['go']['main']['App']['GetCurrentUser']();
 }
 
+export function GetLogs() {
+  return window['go']['main']['App']['GetLogs']();
+}
+
 export function GetNote(arg1) {
   return window['go']['main']['App']['GetNote'](arg1);
 }
@@ -104,6 +108,10 @@ export function KillApp(arg1) {
 
 export function LaunchApp(arg1) {
   return window['go']['main']['App']['LaunchApp'](arg1);
+}
+
+export function LogMessage(arg1) {
+  return window['go']['main']['App']['LogMessage'](arg1);
 }
 
 export function OpenAppFolder(arg1) {

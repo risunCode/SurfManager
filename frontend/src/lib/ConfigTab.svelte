@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { Plus, Trash2, FolderOpen, RefreshCw, X, Check, FileJson, ToggleLeft, Edit } from 'lucide-svelte';
-  import { GetApps, CheckAppInstalled, SaveApp, DeleteApp, ToggleApp, OpenConfigFolder, SelectFile, SelectFolder, SelectFolderFromHome, SelectExeFromLocalPrograms, SelectFolderFromRoaming, OpenFolder, GetApp } from '../../wailsjs/go/main/App.js';
+  import { GetApps, CheckAppInstalled, SaveApp, DeleteApp, ToggleApp, OpenConfigFolder, SelectFile, SelectFolder, SelectFolderFromHome, SelectExeFromLocalPrograms, SelectFolderFromRoaming, OpenFolder, GetApp, GetPlatformInfo } from '../../wailsjs/go/main/App.js';
   import { confirm } from './ConfirmModal.svelte';
   import { settings } from './stores/settings.js';
 
@@ -10,6 +10,7 @@
 
   let apps = [];
   let loading = false;
+  let platformInfo = {};
   
   // Context menu state
   let contextMenu = { show: false, x: 0, y: 0, app: null };
@@ -44,8 +45,17 @@
   // Custom backup item input
   let customItemPath = '';
   let customItemDesc = '';
+  let processNamesInput = '';
 
   onMount(loadApps);
+
+  onMount(async () => {
+    try {
+      platformInfo = await GetPlatformInfo();
+    } catch (e) {
+      platformInfo = {};
+    }
+  });
 
   onMount(() => {
     // Close context menu on click outside
@@ -216,6 +226,7 @@
     newApp.exe_path = fullConfig.paths?.exe_paths?.[0] || '';
     newApp.data_path = fullConfig.paths?.data_paths?.[0] || '';
     newApp.addon_paths = fullConfig.addon_backup_paths || [];
+    processNamesInput = fullConfig.paths?.process_names?.join(', ') || '';
     
     // Determine app type and populate backup items
     const existingItems = fullConfig.backup_items || [];
@@ -327,6 +338,11 @@
       return;
     }
 
+    const processNames = processNamesInput
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+
     const config = {
       app_name: newApp.app_name,
       display_name: newApp.display_name || newApp.app_name,
@@ -336,7 +352,8 @@
       paths: {
         data_paths: [newApp.data_path],
         exe_paths: [newApp.exe_path],
-        reset_folder: newApp.data_path
+        reset_folder: newApp.data_path,
+        process_names: processNames
       },
       backup_items: enabledItems,
       addon_backup_paths: newApp.addon_paths
@@ -365,8 +382,24 @@
     };
     customItemPath = '';
     customItemDesc = '';
+    processNamesInput = '';
     dialogMode = 'add';
     editingAppKey = null;
+  }
+
+  function getDataPathHint() {
+    const platform = platformInfo?.platform;
+    const user = platformInfo?.user || 'user';
+    if (platform === 'windows') {
+      return `C:\\Users\\${user}\\AppData\\Roaming\\<app>`;
+    }
+    if (platform === 'darwin') {
+      return `~/Library/Application Support/<app>`;
+    }
+    if (platform === 'linux') {
+      return `~/.config/<app>`;
+    }
+    return '';
   }
 
   // Initialize backup items when dialog opens for ADD mode only
@@ -548,7 +581,7 @@
 
 <!-- Add/Edit App Dialog -->
 {#if showAddDialog}
-  <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-50" on:click|self={() => { showAddDialog = false; resetNewApp(); }}>
+  <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-50" role="dialog" aria-modal="true" on:keydown={(e) => { if (e.key === 'Escape') { showAddDialog = false; resetNewApp(); } }} on:click|self={() => { showAddDialog = false; resetNewApp(); }}>
     <div class="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] w-full max-w-4xl p-6 animate-fadeIn max-h-[90vh] overflow-auto">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-lg font-semibold text-[var(--text-primary)]">
@@ -568,8 +601,9 @@
         <div class="space-y-4">
           <!-- App Name -->
           <div>
-            <label class="block text-sm text-[var(--text-secondary)] mb-1">App Name</label>
+            <label class="block text-sm text-[var(--text-secondary)] mb-1" for="app-name">App Name</label>
             <input
+              id="app-name"
               type="text"
               class="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-muted)]"
               bind:value={newApp.display_name}
@@ -582,7 +616,7 @@
 
           <!-- App Type Toggle -->
           <div>
-            <label class="block text-sm text-[var(--text-secondary)] mb-2">App Type</label>
+            <p class="block text-sm text-[var(--text-secondary)] mb-2">App Type</p>
             <div class="grid grid-cols-2 gap-2">
               <button
                 class="p-2.5 rounded-lg border-2 text-left transition-all
@@ -623,9 +657,10 @@
 
           <!-- Executable -->
           <div>
-            <label class="block text-sm text-[var(--text-secondary)] mb-1">Executable *</label>
+            <label class="block text-sm text-[var(--text-secondary)] mb-1" for="exe-path">Executable *</label>
             <div class="flex gap-2">
               <input
+                id="exe-path"
                 type="text"
                 class="flex-1 bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-muted)] text-sm"
                 bind:value={newApp.exe_path}
@@ -643,13 +678,14 @@
 
           <!-- Data Folder -->
           <div>
-            <label class="block text-sm text-[var(--text-secondary)] mb-1">Data Folder *</label>
+            <label class="block text-sm text-[var(--text-secondary)] mb-1" for="data-path">Data Folder *</label>
             <div class="flex gap-2">
               <input
+                id="data-path"
                 type="text"
                 class="flex-1 bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-muted)] text-sm"
                 bind:value={newApp.data_path}
-                placeholder="AppData/Roaming/..."
+                placeholder={getDataPathHint() || 'AppData/Roaming/...'}
                 readonly
               />
               <button 
@@ -659,13 +695,29 @@
                 Browse
               </button>
             </div>
+            {#if getDataPathHint()}
+              <p class="text-xs text-[var(--text-muted)] mt-1">Hint: {getDataPathHint()}</p>
+            {/if}
+          </div>
+
+          <!-- Process Names -->
+          <div>
+            <label class="block text-sm text-[var(--text-secondary)] mb-1" for="process-names">Process Names (optional)</label>
+            <input
+              id="process-names"
+              type="text"
+              class="w-full bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-muted)] text-sm"
+              bind:value={processNamesInput}
+              placeholder="code.exe, slack.exe"
+            />
+            <p class="text-xs text-[var(--text-muted)] mt-1">Comma-separated. Used for running app detection.</p>
           </div>
 
           <!-- Additional Folders -->
           <div>
-            <label class="block text-sm text-[var(--text-secondary)] mb-1">📁 Additional Folders</label>
+            <label class="block text-sm text-[var(--text-secondary)] mb-1" for="extra-folders">📁 Additional Folders</label>
             <p class="text-xs text-[var(--text-muted)] mb-2">Also backed up & restored (e.g., ~/.aws)</p>
-            <div class="space-y-1.5 max-h-24 overflow-auto">
+            <div id="extra-folders" class="space-y-1.5 max-h-24 overflow-auto">
               {#each newApp.addon_paths as path}
                 <div class="flex items-center gap-2 bg-[var(--bg-hover)] rounded px-2 py-1.5 text-xs">
                   <span class="flex-1 truncate text-[var(--text-secondary)] font-mono">{path}</span>
@@ -686,7 +738,7 @@
 
         <!-- Right Column: Backup Items -->
         <div>
-          <label class="block text-sm text-[var(--text-secondary)] mb-2">📦 Backup Items</label>
+          <p class="block text-sm text-[var(--text-secondary)] mb-2">📦 Backup Items</p>
           <div class="bg-[var(--bg-elevated)] rounded-lg border border-[var(--border)] p-3 h-[320px] overflow-auto">
             {#if newApp.backup_items.length === 0}
               <p class="text-sm text-[var(--text-muted)] text-center py-4">No backup items. Add below.</p>

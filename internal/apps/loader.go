@@ -29,9 +29,10 @@ type AppConfig struct {
 
 // AppPaths contains the various paths associated with an application.
 type AppPaths struct {
-	DataPaths   []string `json:"data_paths"`
-	ExePaths    []string `json:"exe_paths"`
-	ResetFolder string   `json:"reset_folder"`
+	DataPaths    []string `json:"data_paths"`
+	ExePaths     []string `json:"exe_paths"`
+	ResetFolder  string   `json:"reset_folder"`
+	ProcessNames []string `json:"process_names,omitempty"`
 }
 
 // BackupItem represents a single item to be backed up.
@@ -79,15 +80,20 @@ func NewConfigLoader() (*ConfigLoader, error) {
 
 // GetLoader returns the global ConfigLoader instance, initializing it if necessary.
 func GetLoader() (*ConfigLoader, error) {
-	var initErr error
 	once.Do(func() {
+		var initErr error
 		globalLoader, initErr = NewConfigLoader()
 		if initErr == nil {
 			initErr = globalLoader.LoadAllConfigs()
 		}
+		if initErr != nil {
+			// Store initialization error for subsequent calls
+			globalLoader = nil
+		}
 	})
-	if initErr != nil {
-		return nil, initErr
+
+	if globalLoader == nil {
+		return nil, fmt.Errorf("ConfigLoader initialization failed")
 	}
 	return globalLoader, nil
 }
@@ -148,9 +154,28 @@ func (cl *ConfigLoader) loadConfigFile(filePath string) (*AppConfig, error) {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
+	// Validate JSON size to prevent potential DoS attacks
+	const maxJSONSize = 10 * 1024 * 1024 // 10MB limit
+	if len(data) > maxJSONSize {
+		return nil, fmt.Errorf("config file too large: %d bytes (max: %d)", len(data), maxJSONSize)
+	}
+
 	var config AppConfig
 	if err := json.Unmarshal(data, &config); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+	}
+
+	// Validate required fields
+	if config.AppName == "" {
+		return nil, fmt.Errorf("app_name is required")
+	}
+	if config.DisplayName == "" {
+		return nil, fmt.Errorf("display_name is required")
+	}
+
+	// Validate for dangerous characters
+	if strings.Contains(config.AppName, "..") || strings.Contains(config.AppName, "/") || strings.Contains(config.AppName, "\\") {
+		return nil, fmt.Errorf("app_name contains invalid characters")
 	}
 
 	return &config, nil

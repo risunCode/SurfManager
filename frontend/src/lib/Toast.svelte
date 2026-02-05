@@ -5,10 +5,42 @@
   const toasts = writable([]);
   let toastId = 0;
 
+  // Settings-aware controls
+  import { settings } from './stores/settings.js';
+  import { get as getStore } from 'svelte/store';
+  let currentSettings = getStore(settings);
+  settings.subscribe(v => currentSettings = v);
+
+  function playBeep() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 880;
+      gain.gain.value = 0.05;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.12);
+    } catch (e) {
+      // ignore
+    }
+  }
+
   // Export toast function for use anywhere
   export function toast(message, type = 'info', duration = 3000) {
+    const cfg = currentSettings || {};
+    if (cfg.muteToasts && type !== 'error') {
+      return ++toastId; // still increment id to avoid clashes
+    }
     const id = ++toastId;
     toasts.update(t => [...t, { id, message, type, duration }]);
+
+    // Optional beep for completes
+    if (type === 'success' && cfg.beepOnComplete && cfg.toastSound) {
+      playBeep();
+    }
     
     if (duration > 0) {
       setTimeout(() => {

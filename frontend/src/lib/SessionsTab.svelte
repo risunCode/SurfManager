@@ -1,12 +1,13 @@
 <script>
   import { onMount } from 'svelte';
-  import { Plus, RefreshCw, Search, CheckSquare, FolderOpen, Trash2, RotateCcw, User, Package, Play } from 'lucide-svelte';
-  import { GetActiveApps, GetApp, GetAllSessions, CreateBackup, RestoreBackup, RestoreAccountOnly, RestoreAddonOnly, CheckSessionHasAddons, DeleteSession, SetActiveSession, OpenSessionFolder, CountAutoBackups, LaunchApp, IsAppRunning, CalculateBackupSize, KillApp } from '../../wailsjs/go/main/App.js';
+  import { Plus, RefreshCw, Search, CheckSquare, FolderOpen, Trash2, RotateCcw, User, Package, Play, AlertTriangle } from 'lucide-svelte';
+  import { GetActiveApps, GetApp, GetAllSessions, CreateBackup, RestoreBackup, RestoreAccountOnly, RestoreAddonOnly, CheckSessionHasAddons, DeleteSession, SetActiveSession, OpenSessionFolder, CountAutoBackups, LaunchApp, CalculateBackupSize, KillApp } from '../../wailsjs/go/main/App.js';
   import { confirm } from './ConfirmModal.svelte';
   import { toast } from './Toast.svelte';
   import { settings } from './stores/settings.js';
 
   export let logs = [];
+  export let globalRunningAppsStatus = {};
 
   let apps = [];
   let sessions = [];
@@ -32,7 +33,11 @@
     // Restore last selected app filter from settings
     const lastSelectedApp = $settings.lastSelectedAppSession;
     filter = lastSelectedApp || 'all';
-    loadData();
+    if ($settings.autoRefreshSessionsOnLaunch) {
+      loadData();
+    } else {
+      loadData();
+    }
 
     // Close context menu on click outside
     const handleClick = () => contextMenu.show = false;
@@ -81,15 +86,13 @@
     if (!newBackupApp) return;
     
     try {
-      // Check if app is running
-      const running = await IsAppRunning(newBackupApp);
+      const running = await isAppRunning(newBackupApp);
       newBackupAppRunning = running;
       
       // Calculate size (includeData = !running for full backup when app not running)
       const sizeInfo = await CalculateBackupSize(newBackupApp, !running);
       backupSizeInfo = sizeInfo;
     } catch (e) {
-      console.error('Size calculation failed:', e);
       backupSizeInfo = null;
     }
   }
@@ -140,96 +143,112 @@
   }
 
   async function handleRestore(session) {
-    // Check if app is running
-    const running = await IsAppRunning(session.app);
+    const running = await isAppRunning(session.app);
     if (running) {
-      // Show modal with option to kill app
       const appConfig = await GetApp(session.app);
       const confirmed = await confirm({
-        title: `${appConfig.display_name} is Currently Running`,
-        message: `The app must be closed before restoring.\n\nWould you like to close it now?`,
+        title: `${appConfig.display_name} is Running`,
+        message: 'The app must be closed before restoring.\n\nKill the app and continue?',
         confirmText: 'Kill App and Continue',
-        cancelText: 'Cancel',
         danger: true
       });
-      
       if (!confirmed) return;
-      
-      // Kill the app
-      log(`Killing ${appConfig.display_name}...`);
       try {
-        await KillApp(session.app);
-        log(`${appConfig.display_name} closed`);
-        // Wait a moment for app to fully close
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await killAppSilently(session.app);
       } catch (e) {
-        log(`Error killing app: ${e}`);
-        toast.error(`Failed to close app: ${e}`);
-        return;
+        const override = await confirm({
+          title: `${appConfig.display_name} still running`,
+          message: 'We could not close the app automatically. If you already closed it, continue without closing step.',
+          confirmText: "I've closed the app",
+          cancelText: 'Cancel',
+          danger: true
+        });
+        if (!override) return;
       }
     }
 
-    if ($settings.confirmBeforeRestore) {
-      const confirmed = await confirm.restore(session.name);
-      if (!confirmed) return;
-    }
-    
-    log(`Restoring ${session.name}...`);
+    log(`Restoring session: ${session.name}...`);
     try {
       await RestoreBackup(session.app, session.name, false);
       toast.success('Session restored successfully');
       await loadData();
+      await promptLaunchIfAllowed(session.app);
     } catch (e) {
+      const msg = e?.toString?.() || '';
+      if (msg.toLowerCase().includes('failed to close')) {
+        const appConfig = await GetApp(session.app);
+        const override = await confirm({
+          title: `${appConfig.display_name} still running`,
+          message: 'We could not close the app automatically. If you already closed it, continue without closing step.',
+          confirmText: "I've closed the app",
+          cancelText: 'Cancel',
+          danger: true
+        });
+        if (override) {
+          await RestoreBackup(session.app, session.name, true);
+          toast.success('Session restored successfully');
+          await loadData();
+          await promptLaunchIfAllowed(session.app);
+          return;
+        }
+      }
       log(`Error: ${e}`);
       toast.error(`Restore failed: ${e}`);
     }
   }
 
   async function handleRestoreAccountOnly(session) {
-    // Check if app is running
-    const running = await IsAppRunning(session.app);
+    const running = await isAppRunning(session.app);
     if (running) {
-      // Show modal with option to kill app
       const appConfig = await GetApp(session.app);
       const confirmed = await confirm({
-        title: `${appConfig.display_name} is Currently Running`,
-        message: `The app must be closed before restoring account.\n\nThe state.vscdb file is locked while the app is running.\n\nWould you like to close it now?`,
+        title: `${appConfig.display_name} is Running`,
+        message: 'The app must be closed before restoring account.\n\nKill the app and continue?',
         confirmText: 'Kill App and Continue',
-        cancelText: 'Cancel',
         danger: true
       });
-      
       if (!confirmed) return;
-      
-      // Kill the app
-      log(`Killing ${appConfig.display_name}...`);
       try {
-        await KillApp(session.app);
-        log(`${appConfig.display_name} closed`);
-        // Wait a moment for app to fully close
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await killAppSilently(session.app);
       } catch (e) {
-        log(`Error killing app: ${e}`);
-        toast.error(`Failed to close app: ${e}`);
-        return;
+        const override = await confirm({
+          title: `${appConfig.display_name} still running`,
+          message: 'We could not close the app automatically. If you already closed it, continue without closing step.',
+          confirmText: "I've closed the app",
+          cancelText: 'Cancel',
+          danger: true
+        });
+        if (!override) return;
       }
     }
 
-    const confirmed = await confirm({
-      title: 'Restore Account Only',
-      message: `Switch to account from "${session.name}"?\n\nThis will replace only the auth state file (state.vscdb).`,
-      confirmText: 'Switch Account'
-    });
-    if (!confirmed) return;
-    
-    log(`Switching account to ${session.name}...`);
+    log(`Restoring account from: ${session.name}...`);
     try {
       await RestoreAccountOnly(session.app, session.name);
-      toast.success('Account switched successfully');
+      toast.success('Account restored successfully');
       await loadData();
+      await promptLaunchIfAllowed(session.app);
     } catch (e) {
+      const msg = e?.toString?.() || '';
+      if (msg.toLowerCase().includes('failed to close')) {
+        const appConfig = await GetApp(session.app);
+        const override = await confirm({
+          title: `${appConfig.display_name} still running`,
+          message: 'We could not close the app automatically. If you already closed it, continue without closing step.',
+          confirmText: "I've closed the app",
+          cancelText: 'Cancel',
+          danger: true
+        });
+        if (override) {
+          await RestoreAccountOnly(session.app, session.name);
+          toast.success('Account restored successfully');
+          await loadData();
+          await promptLaunchIfAllowed(session.app);
+          return;
+        }
+      }
       log(`Error: ${e}`);
-      toast.error(`Account switch failed: ${e}`);
+      toast.error(`Restore failed: ${e}`);
     }
   }
 
@@ -253,6 +272,23 @@
       toast.success('Addon folders restored successfully');
       await loadData();
     } catch (e) {
+      const msg = e?.toString?.() || '';
+      if (msg.toLowerCase().includes('failed to close')) {
+        const appConfig = await GetApp(session.app);
+        const override = await confirm({
+          title: `${appConfig.display_name} still running`,
+          message: 'We could not close the app automatically. If you already closed it, continue without closing step.',
+          confirmText: "I've closed the app",
+          cancelText: 'Cancel',
+          danger: true
+        });
+        if (override) {
+          await RestoreAddonOnly(session.app, session.name, true);
+          toast.success('Addon folders restored successfully');
+          await loadData();
+          return;
+        }
+      }
       log(`Error: ${e}`);
       toast.error(`Addon restore failed: ${e}`);
     }
@@ -367,23 +403,72 @@
     event.preventDefault();
     
     // Check if app is running
-    const running = await IsAppRunning(session.app);
+    const running = await isAppRunning(session.app);
     
     // Check if session has addons
     const hasAddons = await CheckSessionHasAddons(session.app, session.name);
     
+    // Clamp to viewport so the menu never overflows
+    const menuWidth = 220;
+    const menuHeight = 260; // approximate height of menu content
+    const padding = 8;
+    const maxX = Math.max(padding, (window.innerWidth || 0) - menuWidth - padding);
+    const maxY = Math.max(padding, (window.innerHeight || 0) - menuHeight - padding);
+    const nextX = Math.min(event.clientX, maxX);
+    const nextY = Math.min(event.clientY, maxY);
+
     contextMenu = {
       show: true,
-      x: event.clientX,
-      y: event.clientY,
+      x: Math.max(padding, nextX),
+      y: Math.max(padding, nextY),
       session,
       appRunning: running,
-      hasAddons: hasAddons,
+      hasAddons
     };
   }
 
   function closeContextMenu() {
     contextMenu.show = false;
+  }
+
+  function isAppRunning(appKey) {
+    if (globalRunningAppsStatus && Object.prototype.hasOwnProperty.call(globalRunningAppsStatus, appKey)) {
+      return Promise.resolve(!!globalRunningAppsStatus[appKey]);
+    }
+    // Fallback: no status yet, assume not running
+    return Promise.resolve(false);
+  }
+
+  async function killAppSilently(appKey) {
+    try {
+      const appConfig = await GetApp(appKey);
+      log(`[Kill] Stopping ${appConfig.display_name} before restore...`);
+      await KillApp(appKey);
+      await new Promise(r => setTimeout(r, 400));
+      log(`[Kill] ${appConfig.display_name} closed`);
+    } catch (e) {
+      log(`Error stopping app: ${e}`);
+      toast.error(`Failed to close app: ${e}`);
+      throw e;
+    }
+  }
+
+  async function promptLaunchIfAllowed(appKey) {
+    if ($settings.dontAskStartAfterComplete) return;
+    const appConfig = await GetApp(appKey);
+    const confirmed = await confirm({
+      title: 'Launch App?',
+      message: `Restore completed for ${appConfig.display_name}.\n\nStart the app now?`,
+      confirmText: 'Launch',
+    });
+    if (confirmed) {
+      try {
+        await LaunchApp(appKey);
+        toast.success(`${appConfig.display_name} launched`, 2000);
+      } catch (e) {
+        toast.error(`Failed to launch: ${e}`);
+      }
+    }
   }
 </script>
 
@@ -508,7 +593,12 @@
               <td class="p-3 text-[var(--text-muted)] text-sm">{formatSize(session.size)}</td>
               <td class="p-3 text-[var(--text-muted)] text-sm">{formatDate(session.created)}</td>
               <td class="p-3">
-                {#if session.is_auto}
+                {#if session.corrupted}
+                  <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--danger)]/20 text-[var(--danger)] inline-flex items-center gap-1">
+                    <AlertTriangle size={12} />
+                    Corrupted
+                  </span>
+                {:else if session.is_auto}
                   <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--warning)]/20 text-[var(--warning)]">Auto</span>
                 {:else if session.is_active}
                   <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--success)]/20 text-[var(--success)]">Active</span>
@@ -552,7 +642,9 @@
   <div 
     class="fixed bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-xl py-1 z-50 min-w-[180px]"
     style="left: {contextMenu.x}px; top: {contextMenu.y}px"
-    on:click|stopPropagation={closeContextMenu}
+    role="menu"
+    on:click|stopPropagation
+    on:keydown={(e) => { if (e.key === 'Escape') closeContextMenu(); }}
   >
     <!-- Full Restore: Always clickable -->
     <button
@@ -622,15 +714,16 @@
 
 <!-- New Backup Dialog -->
 {#if showNewDialog}
-  <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-50" on:click|self={() => showNewDialog = false}>
+  <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-50" role="dialog" aria-modal="true" on:click|self={() => showNewDialog = false} on:keydown={(e) => { if (e.key === 'Escape') showNewDialog = false; }}>
     <div class="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] w-full max-w-md p-6 animate-fadeIn">
       <h3 class="text-lg font-semibold text-[var(--text-primary)] mb-4">Create New Backup</h3>
       
       <div class="space-y-4">
         <div>
-          <label class="block text-sm text-[var(--text-secondary)] mb-1">Application</label>
+          <label class="block text-sm text-[var(--text-secondary)] mb-1" for="new-backup-app">Application</label>
           <select 
             class="w-full bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] focus:border-[var(--primary)] focus:outline-none"
+            id="new-backup-app"
             bind:value={newBackupApp}
             on:change={updateBackupSize}
           >
@@ -641,11 +734,12 @@
         </div>
 
         <div>
-          <label class="block text-sm text-[var(--text-secondary)] mb-1">Session Name</label>
+          <label class="block text-sm text-[var(--text-secondary)] mb-1" for="new-backup-name">Session Name</label>
           <input
             type="text"
             class="w-full bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--primary)] focus:outline-none"
             placeholder="e.g., work-main, personal"
+            id="new-backup-name"
             bind:value={newBackupName}
           />
         </div>
@@ -668,7 +762,7 @@
         <!-- Backup Size -->
         {#if backupSizeInfo}
           <div>
-            <label class="block text-sm text-[var(--text-secondary)] mb-2">Backup Size</label>
+            <p class="block text-sm text-[var(--text-secondary)] mb-2">Backup Size</p>
             <div class="bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg p-3 space-y-1.5">
               {#if !newBackupAppRunning && backupSizeInfo.data_size > 0}
                 <div class="flex justify-between text-sm">

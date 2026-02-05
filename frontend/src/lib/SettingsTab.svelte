@@ -3,19 +3,15 @@
   import { theme } from './stores/theme.js';
   import { 
     Settings, Cog, Database,
-    RotateCcw, ChevronRight, Download, Upload, FolderOpen, AlertTriangle, Trash2, Archive
+    RotateCcw, ChevronRight, Download, Upload, FolderOpen
   } from 'lucide-svelte';
-  import { OpenBackupFolder, ClearAllSessions, BackupAllSessions } from '../../wailsjs/go/main/App.js';
+  import { OpenBackupFolder } from '../../wailsjs/go/main/App.js';
   import ThemeSelector from './ThemeSelector.svelte';
   import SettingToggle from './SettingToggle.svelte';
   import { confirm } from './ConfirmModal.svelte';
-  import { toast } from './Toast.svelte';
 
   let activeSection = 'general';
   
-  // Loading states
-  let isClearing = false;
-  let isBackingUp = false;
 
   const sections = [
     { id: 'general', label: 'General', icon: Settings },
@@ -23,8 +19,31 @@
     { id: 'sessions', label: 'Sessions', icon: Database },
   ];
 
+  const settingsSectionOptions = [
+    { id: 'all', label: 'All Settings' },
+    { id: 'general', label: 'General' },
+    { id: 'notifications', label: 'Notifications' },
+    { id: 'startup', label: 'Startup' },
+    { id: 'behavior', label: 'Behavior' },
+    { id: 'sessions', label: 'Sessions' }
+  ];
+
+  const settingsSectionKeys = {
+    general: ['theme', 'enableNotepad', 'dontAskStartAfterComplete'],
+    notifications: ['muteToasts', 'toastSound', 'beepOnComplete'],
+    startup: ['rememberLastTab', 'lastActiveTab', 'autoRefreshSessionsOnLaunch'],
+    behavior: ['confirmBeforeReset', 'confirmBeforeDelete', 'confirmBeforeRestore', 'autoBackup'],
+    sessions: ['showAutoBackups', 'maxAutoBackups']
+  };
+
+  let selectedSettingsSection = 'all';
+
   function toggle(key) {
     settings.update(key, !$settings[key]);
+    if (key === 'enableNotepad') {
+      // Restart UI to apply tab visibility immediately
+      setTimeout(() => window.location.reload(), 150);
+    }
   }
 
   function updateSetting(key, value) {
@@ -34,12 +53,28 @@
   // Export settings to file
   async function handleExportSettings() {
     try {
-      const jsonData = settings.exportSettings();
+      let jsonData = '';
+      if (selectedSettingsSection === 'all') {
+        jsonData = settings.exportSettings();
+      } else {
+        const keys = settingsSectionKeys[selectedSettingsSection] || [];
+        const sectionData = {};
+        for (const key of keys) {
+          sectionData[key] = $settings[key];
+        }
+        jsonData = JSON.stringify({
+          version: 'partial',
+          exported_at: new Date().toISOString(),
+          section: selectedSettingsSection,
+          settings: sectionData
+        }, null, 2);
+      }
       const blob = new Blob([jsonData], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `surfmanager-settings-${new Date().toISOString().split('T')[0]}.json`;
+      const suffix = selectedSettingsSection === 'all' ? 'all' : selectedSettingsSection;
+      a.download = `surfmanager-settings-${suffix}-${new Date().toISOString().split('T')[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -60,12 +95,37 @@
       
       try {
         const text = await file.text();
-        const result = settings.importSettings(text);
-        if (result.success) {
-          alert('Settings imported successfully!');
-        } else {
-          alert(result.message);
+        const importData = JSON.parse(text);
+        const importSection = importData.section || selectedSettingsSection || 'all';
+        const keys = importSection === 'all'
+          ? Object.keys(settings.getDefaults())
+          : (settingsSectionKeys[importSection] || []);
+
+        const incoming = importData.settings || {};
+        const filtered = {};
+        for (const key of keys) {
+          if (Object.prototype.hasOwnProperty.call(incoming, key) && typeof incoming[key] === typeof settings.getDefaults()[key]) {
+            filtered[key] = incoming[key];
+          }
         }
+
+        const previewLines = Object.keys(filtered)
+          .map((key) => `- ${key}: ${JSON.stringify(filtered[key])}`)
+          .join('\n');
+
+        const confirmed = await confirm({
+          title: 'Import Settings',
+          message: `Section: ${importSection}\n\n${previewLines || 'No valid keys found.'}`,
+          confirmText: 'Import',
+          cancelText: 'Cancel'
+        });
+        if (!confirmed) return;
+        if (Object.keys(filtered).length === 0) {
+          alert('No valid settings to import.');
+          return;
+        }
+        settings.applySettings(filtered);
+        alert('Settings imported successfully!');
       } catch (err) {
         alert(`Import failed: ${err.message}`);
       }
@@ -90,47 +150,6 @@
     }
   }
   
-  // Backup all sessions
-  async function handleBackupAllSessions() {
-    if (isBackingUp) return;
-    
-    isBackingUp = true;
-    try {
-      const archivePath = await BackupAllSessions();
-      toast.success(`Backup saved successfully`);
-    } catch (e) {
-      if (e.toString().includes('cancelled')) {
-        // User cancelled, no toast needed
-      } else {
-        toast.error(`Backup failed: ${e}`);
-      }
-    } finally {
-      isBackingUp = false;
-    }
-  }
-  
-  // Clear all sessions
-  async function handleClearAllSessions() {
-    if (isClearing) return;
-    
-    const confirmed = await confirm.danger({
-      title: 'Clear All Sessions',
-      message: 'Are you sure you want to delete ALL backup sessions for ALL apps?\n\nThis action cannot be undone.',
-      confirmText: 'Clear All'
-    });
-    
-    if (!confirmed) return;
-    
-    isClearing = true;
-    try {
-      const deletedCount = await ClearAllSessions();
-      toast.success(`Deleted ${deletedCount} session(s)`);
-    } catch (e) {
-      toast.error(`Clear failed: ${e}`);
-    } finally {
-      isClearing = false;
-    }
-  }
 </script>
 
 <div class="h-full flex animate-fadeIn gap-4">
@@ -166,10 +185,61 @@
           <ThemeSelector />
         </div>
 
+        <SettingToggle
+          label="Enable Notepad"
+          description="Show Notes tab and features (UI will reload immediately)"
+          checked={$settings.enableNotepad}
+          on:change={() => toggle('enableNotepad')}
+        />
+
+        <SettingToggle
+          label="Mute non-critical toasts"
+          description="Only show error toasts"
+          checked={$settings.muteToasts}
+          on:change={() => toggle('muteToasts')}
+        />
+
+        <SettingToggle
+          label="Toast sound"
+          description="Enable sound for toasts"
+          checked={$settings.toastSound}
+          on:change={() => toggle('toastSound')}
+        />
+
+        <SettingToggle
+          label="Beep on complete"
+          description="Play a short beep when operations finish"
+          checked={$settings.beepOnComplete}
+          on:change={() => toggle('beepOnComplete')}
+        />
+
+        <SettingToggle
+          label="Remember last tab"
+          description="Restore the last opened tab on startup"
+          checked={$settings.rememberLastTab}
+          on:change={() => toggle('rememberLastTab')}
+        />
+
+        <SettingToggle
+          label="Auto refresh sessions on launch"
+          description="Refresh Sessions list when app starts"
+          checked={$settings.autoRefreshSessionsOnLaunch}
+          on:change={() => toggle('autoRefreshSessionsOnLaunch')}
+        />
+
         <!-- Settings Management Section -->
         <div class="p-4 bg-[var(--bg-card)] rounded-lg border border-[var(--border)]">
           <p class="font-medium mb-2 text-[var(--text-primary)]">Settings Management</p>
           <p class="text-sm text-[var(--text-secondary)] mb-4">Import, export, or reset your settings</p>
+
+          <select
+            class="w-full mb-3 bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)]"
+            bind:value={selectedSettingsSection}
+          >
+            {#each settingsSectionOptions as opt}
+              <option value={opt.id}>{opt.label}</option>
+            {/each}
+          </select>
           
           <div class="grid grid-cols-3 gap-2">
             <button
@@ -228,6 +298,13 @@
         />
 
         <SettingToggle
+          label="Don't ask to start app after restore"
+          description="Skip launch prompt after restore completes"
+          checked={$settings.dontAskStartAfterComplete}
+          on:change={() => toggle('dontAskStartAfterComplete')}
+        />
+
+        <SettingToggle
           label="Auto-Backup on Reset"
           description="Automatically create backup before reset operations"
           checked={$settings.autoBackup}
@@ -237,79 +314,55 @@
 
     {:else if activeSection === 'sessions'}
       <h2 class="text-lg font-semibold mb-4 text-[var(--text-primary)]">Sessions</h2>
-      
-      <div class="space-y-3">
-        <SettingToggle
-          label="Show Auto-Backups"
-          description="Include auto-generated backups in session list by default"
-          checked={$settings.showAutoBackups}
-          on:change={() => toggle('showAutoBackups')}
-        />
 
-        <div class="p-4 bg-[var(--bg-card)] rounded-lg border border-[var(--border)]">
-          <p class="font-medium mb-2 text-[var(--text-primary)]">Max Auto-Backups</p>
-          <p class="text-sm text-[var(--text-secondary)] mb-3">
-            Maximum number of auto-backups to keep per app (oldest will be deleted)
-          </p>
-          <input 
-            type="number" 
-            min="1" 
-            max="20" 
-            value={$settings.maxAutoBackups}
-            on:change={(e) => updateSetting('maxAutoBackups', parseInt(e.target.value) || 5)}
-            class="w-full bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)]"
+      <!-- Info Block -->
+      <div class="p-4 mb-4 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] space-y-2">
+        <div class="flex items-center gap-2 text-[var(--text-primary)] font-semibold">
+          <Database size={16} />
+          <span>Sessions Backup & Restore</span>
+        </div>
+        <ul class="text-sm text-[var(--text-secondary)] space-y-1 list-disc list-inside">
+          <li>Sessions may expire after weeks/months.</li>
+          <li>Sessions are tied to this machine; cannot be transferred PC-to-PC due to Windows cryptography (encrypted data).</li>
+        </ul>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div class="space-y-3">
+          <SettingToggle
+            label="Show Auto-Backups"
+            description="Include auto-generated backups in session list by default"
+            checked={$settings.showAutoBackups}
+            on:change={() => toggle('showAutoBackups')}
           />
+
+          <div class="p-4 bg-[var(--bg-card)] rounded-lg border border-[var(--border)] space-y-3">
+            <div>
+              <p class="font-medium text-[var(--text-primary)]">Max Auto-Backups</p>
+              <p class="text-sm text-[var(--text-secondary)] mb-2">Keep recent auto-backups per app (oldest will be deleted)</p>
+              <input 
+                type="number" 
+                min="1" 
+                max="20" 
+                value={$settings.maxAutoBackups}
+                on:change={(e) => updateSetting('maxAutoBackups', parseInt(e.target.value) || 5)}
+                class="w-full bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)]"
+              />
+            </div>
+          </div>
         </div>
 
-        <div class="p-4 bg-[var(--bg-card)] rounded-lg border border-[var(--border)]">
-          <p class="font-medium mb-2 text-[var(--text-primary)]">Default Filter</p>
-          <p class="text-sm text-[var(--text-secondary)] mb-3">Default app filter when opening Sessions tab</p>
-          <select 
-            class="w-full bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)]"
-            bind:value={$settings.defaultSessionFilter}
-            on:change={(e) => updateSetting('defaultSessionFilter', e.target.value)}
-          >
-            <option value="all">All Apps</option>
-            <option value="active">Active Only</option>
-          </select>
-        </div>
-
-        <!-- Open Backup Folder Button -->
-        <button
-          class="w-full p-3 bg-[var(--bg-card)] hover:bg-[var(--bg-hover)] rounded-lg 
-            transition-colors flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--text-primary)]"
-          on:click={handleOpenBackupFolder}
-        >
-          <FolderOpen size={16} />
-          Open Backup Folder
-        </button>
-
-        <!-- Bulk Session Management -->
-        <div class="p-4 bg-[var(--bg-card)] rounded-lg border border-[var(--border)]">
-          <p class="font-medium mb-2 text-[var(--text-primary)]">Bulk Session Management</p>
-          <p class="text-sm text-[var(--text-secondary)] mb-4">Backup or clear all sessions at once</p>
-          
-          <div class="grid grid-cols-2 gap-2">
+        <div class="space-y-3">
+          <div class="p-4 bg-[var(--bg-card)] rounded-lg border border-[var(--border)] space-y-2">
+            <p class="font-medium text-[var(--text-primary)]">Backup Folder</p>
+            <p class="text-sm text-[var(--text-secondary)]">Open the folder where sessions are stored</p>
             <button
-              class="p-3 bg-[var(--bg-hover)] hover:bg-[var(--border)] rounded-lg 
-                transition-colors flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--text-primary)]
-                disabled:opacity-50 disabled:cursor-not-allowed"
-              on:click={handleBackupAllSessions}
-              disabled={isBackingUp}
+              class="w-full p-3 bg-[var(--bg-hover)] hover:bg-[var(--bg-card)] rounded-lg 
+                     text-[var(--text-primary)] border border-[var(--border)] transition-colors flex items-center justify-center gap-2"
+              on:click={handleOpenBackupFolder}
             >
-              <Archive size={16} />
-              {isBackingUp ? 'Backing up...' : 'Backup All'}
-            </button>
-            
-            <button
-              class="p-3 bg-[var(--danger)]/10 text-[var(--danger)] rounded-lg 
-                hover:bg-[var(--danger)]/20 transition-colors flex items-center justify-center gap-2 border border-[var(--danger)]/30
-                disabled:opacity-50 disabled:cursor-not-allowed"
-              on:click={handleClearAllSessions}
-              disabled={isClearing}
-            >
-              <Trash2 size={16} />
-              {isClearing ? 'Clearing...' : 'Clear All'}
+              <FolderOpen size={16} />
+              Open Backup Folder
             </button>
           </div>
         </div>

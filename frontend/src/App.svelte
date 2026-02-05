@@ -12,7 +12,7 @@
   import ConfirmModal from './lib/ConfirmModal.svelte';
   import { theme } from './lib/stores/theme.js';
   import { settings } from './lib/stores/settings.js';
-  import { GetCurrentUser, GetPlatformInfo } from '../wailsjs/go/main/App.js';
+  import { GetCurrentUser, GetPlatformInfo, GetActiveApps, IsAppRunning, LogMessage } from '../wailsjs/go/main/App.js';
   import { EventsOn } from '../wailsjs/runtime/runtime.js';
 
   let activeTab = 'reset';
@@ -26,7 +26,11 @@
   let currentTime = '';
   let clockInterval;
 
-  const tabs = [
+  // Global running apps detection
+  let globalRunningAppsStatus = {};     // { appKey: boolean }
+  let globalRunningCheckInterval;      // Interval for checking running status
+
+  const baseTabs = [
     { id: 'reset', label: 'Reset', icon: RotateCcw },
     { id: 'sessions', label: 'Sessions', icon: Database },
     { id: 'config', label: 'Config', icon: Settings },
@@ -34,6 +38,7 @@
     { id: 'settings', label: 'Settings', icon: Sliders },
     { id: 'about', label: 'About', icon: Info },
   ];
+  let tabs = baseTabs;
 
   function updateClock() {
     const now = new Date();
@@ -45,6 +50,9 @@
     });
   }
 
+  let handleWindowError;
+  let handleUnhandledRejection;
+
   onMount(async () => {
     // Initialize theme
     theme.init();
@@ -52,6 +60,9 @@
     // Start clock
     updateClock();
     clockInterval = setInterval(updateClock, 1000);
+
+    // Start global running apps detection
+    startGlobalRunningAppsDetection();
 
     // Restore last tab if enabled
     if ($settings.rememberLastTab && $settings.lastActiveTab) {
@@ -74,11 +85,71 @@
       const maxLogs = $settings.logRetention || 100;
       logs = [...logs.slice(-(maxLogs - 1)), msg];
     });
+
+    handleWindowError = (event) => {
+      const message = event?.error?.stack || event?.message || String(event);
+      LogMessage(`[FrontendError] ${message}`);
+    };
+    handleUnhandledRejection = (event) => {
+      const reason = event?.reason;
+      const message = reason?.stack || reason?.message || JSON.stringify(reason);
+      LogMessage(`[UnhandledRejection] ${message}`);
+    };
+    window.addEventListener('error', handleWindowError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    // Initialize tabs based on settings
+    refreshTabs();
   });
 
   onDestroy(() => {
     if (clockInterval) clearInterval(clockInterval);
+    if (globalRunningCheckInterval) clearInterval(globalRunningCheckInterval);
+    if (handleWindowError) window.removeEventListener('error', handleWindowError);
+    if (handleUnhandledRejection) window.removeEventListener('unhandledrejection', handleUnhandledRejection);
   });
+
+  $: refreshTabs();
+
+  function refreshTabs() {
+    const allowNotes = $settings.enableNotepad;
+    const computed = allowNotes ? baseTabs : baseTabs.filter(t => t.id !== 'notes');
+    tabs = computed;
+    // If current tab is notes but disabled, fallback to reset
+    if (!allowNotes && activeTab === 'notes') {
+      activeTab = 'reset';
+    }
+  }
+
+  // Global running apps detection functions
+  async function startGlobalRunningAppsDetection() {
+    // Initial check
+    await updateGlobalRunningAppsStatus();
+    
+    // Set up interval for periodic checks
+    globalRunningCheckInterval = setInterval(async () => {
+      await updateGlobalRunningAppsStatus();
+    }, 3000); // Check every 3 seconds
+  }
+
+  async function updateGlobalRunningAppsStatus() {
+    try {
+      const activeApps = await GetActiveApps();
+      const newStatus = {};
+      
+      for (const app of activeApps) {
+        newStatus[app.app_name] = await IsAppRunning(app.app_name);
+      }
+      
+      // Only update if status changed to avoid unnecessary re-renders
+      const hasChanges = JSON.stringify(globalRunningAppsStatus) !== JSON.stringify(newStatus);
+      if (hasChanges) {
+        globalRunningAppsStatus = newStatus;
+      }
+    } catch (e) {
+      console.error('Error updating global running apps status:', e);
+    }
+  }
 
   // Save active tab when changed
   $: if (activeTab && $settings.rememberLastTab) {
@@ -102,6 +173,10 @@
     }
   }
 </script>
+
+<!-- Global Components - Dipindahkan ke atas -->
+<Toast />
+<ConfirmModal />
 
 <main class="h-screen flex bg-[var(--bg-base)]">
   <!-- Sidebar -->
@@ -146,6 +221,17 @@
           <Clock size={14} class="text-[var(--primary)]" />
           <span class="font-mono text-[var(--text-primary)]">{currentTime}</span>
         </span>
+        
+        <!-- Global Running Apps Indicator -->
+        {#if Object.values(globalRunningAppsStatus).some(running => running)}
+          <span class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/20 border border-red-500/30">
+            <div class="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+            <span class="text-red-400 font-medium">
+              {Object.values(globalRunningAppsStatus).filter(running => running).length} Running
+            </span>
+          </span>
+        {/if}
+        
         <span class="capitalize">{platform}</span>
         <span class="flex items-center gap-1">
           <User size={14} />
@@ -157,12 +243,12 @@
     <!-- Content Area -->
     <div class="flex-1 overflow-auto p-4">
       {#if activeTab === 'reset'}
-        <ResetTab bind:logs on:navigate={handleNavigate} />
+        <ResetTab bind:logs on:navigate={handleNavigate} globalRunningAppsStatus={globalRunningAppsStatus} />
       {:else if activeTab === 'sessions'}
-        <SessionsTab bind:logs />
+        <SessionsTab bind:logs globalRunningAppsStatus={globalRunningAppsStatus} />
       {:else if activeTab === 'config'}
-        <ConfigTab bind:logs bind:showAddDialog={configShowAddDialog} />
-      {:else if activeTab === 'notes'}
+        <ConfigTab bind:logs bind:showAddDialog={configShowAddDialog} globalRunningAppsStatus={globalRunningAppsStatus} />
+      {:else if activeTab === 'notes' && $settings.enableNotepad}
         <NotesTab />
       {:else if activeTab === 'settings'}
         <SettingsTab />
@@ -184,7 +270,3 @@
     </footer>
   </div>
 </main>
-
-<!-- Global Components -->
-<Toast />
-<ConfirmModal />

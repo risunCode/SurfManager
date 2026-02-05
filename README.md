@@ -1,8 +1,8 @@
-# SurfManager v2.0
+# SurfManager v2.2.0
 
 > **Advanced Session & Data Manager for Development Tools**
 
-[![Version](https://img.shields.io/badge/version-2.0.0-brightgreen.svg)](https://github.com/risunCode/SurfManager)
+[![Version](https://img.shields.io/badge/version-2.2.0-brightgreen.svg)](https://github.com/risunCode/SurfManager)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue.svg)](https://github.com/risunCode/SurfManager)
 [![Go](https://img.shields.io/badge/go-1.22+-00ADD8.svg)](https://golang.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)

@@ -4,6 +4,7 @@
 package backup
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,6 +15,22 @@ import (
 	"time"
 )
 
+// validatePath ensures the path is safe and doesn't allow directory traversal
+func validatePath(basePath, inputPath string) (string, error) {
+	// Clean the input path
+	cleanPath := filepath.Clean(inputPath)
+
+	// Join with base path and clean again
+	fullPath := filepath.Clean(filepath.Join(basePath, cleanPath))
+
+	// Check if the resulting path is still within the base path
+	if !strings.HasPrefix(fullPath, filepath.Clean(basePath)+string(os.PathSeparator)) {
+		return "", fmt.Errorf("path traversal detected: %s", inputPath)
+	}
+
+	return fullPath, nil
+}
+
 // Session represents a backup session with metadata.
 type Session struct {
 	Name     string    `json:"name"`
@@ -23,6 +40,7 @@ type Session struct {
 	Modified time.Time `json:"modified"`
 	IsActive bool      `json:"is_active"`
 	IsAuto   bool      `json:"is_auto"`
+	Corrupted bool     `json:"corrupted,omitempty"`
 }
 
 // BackupItem represents an item to be backed up with optional flag.
@@ -42,8 +60,8 @@ type ProgressCallback func(progress BackupProgress)
 
 // Manager handles backup operations and session management.
 type Manager struct {
-	documentsPath string
-	backupPath    string
+	documentsPath  string
+	backupPath     string
 	autoBackupPath string
 }
 
@@ -130,14 +148,26 @@ func (m *Manager) getManualSessions(appKey string) ([]Session, error) {
 
 		size, _ := m.calculateDirSize(sessionPath)
 
+		metaCreated, metaHash := m.readBackupMetadata(sessionPath)
+		corrupted := false
+		if metaHash != "" {
+			corrupted = !m.verifyBackupHash(sessionPath, metaHash)
+		}
+
+		createdAt := info.ModTime()
+		if metaCreated != nil {
+			createdAt = *metaCreated
+		}
+
 		session := Session{
-			Name:     name,
-			App:      appKey,
-			Size:     size,
-			Created:  info.ModTime(),
-			Modified: info.ModTime(),
-			IsActive: name == activeSession,
-			IsAuto:   false,
+			Name:      name,
+			App:       appKey,
+			Size:      size,
+			Created:   createdAt,
+			Modified:  info.ModTime(),
+			IsActive:  name == activeSession,
+			IsAuto:    false,
+			Corrupted: corrupted,
 		}
 		sessions = append(sessions, session)
 	}
@@ -178,14 +208,26 @@ func (m *Manager) getAutoSessions(appKey string) ([]Session, error) {
 
 		size, _ := m.calculateDirSize(sessionPath)
 
+		metaCreated, metaHash := m.readBackupMetadata(sessionPath)
+		corrupted := false
+		if metaHash != "" {
+			corrupted = !m.verifyBackupHash(sessionPath, metaHash)
+		}
+
+		createdAt := info.ModTime()
+		if metaCreated != nil {
+			createdAt = *metaCreated
+		}
+
 		session := Session{
-			Name:     name,
-			App:      appKey,
-			Size:     size,
-			Created:  info.ModTime(),
-			Modified: info.ModTime(),
-			IsActive: false,
-			IsAuto:   true,
+			Name:      name,
+			App:       appKey,
+			Size:      size,
+			Created:   createdAt,
+			Modified:  info.ModTime(),
+			IsActive:  false,
+			IsAuto:    true,
+			Corrupted: corrupted,
 		}
 		sessions = append(sessions, session)
 	}
@@ -196,6 +238,12 @@ func (m *Manager) getAutoSessions(appKey string) ([]Session, error) {
 // CreateBackup creates a backup of app data to a session folder.
 func (m *Manager) CreateBackup(appKey, sessionName string, sourcePath string, backupItems []BackupItem, addonPaths []string, addonOnly bool, progressCb ProgressCallback) error {
 	appKey = strings.ToLower(appKey)
+
+	// Validate appKey and sessionName to prevent path traversal
+	if strings.Contains(appKey, "..") || strings.Contains(sessionName, "..") {
+		return fmt.Errorf("invalid characters in appKey or sessionName")
+	}
+
 	backupFolder := filepath.Join(m.backupPath, appKey, sessionName)
 
 	// Create backup directory
@@ -223,7 +271,7 @@ func (m *Manager) CreateBackup(appKey, sessionName string, sourcePath string, ba
 		}
 	}
 
-	// Save metadata
+	// Save metadata with checksum
 	if err := m.saveBackupMetadata(backupFolder, appKey, sessionName); err != nil {
 		// Non-fatal error, just log
 	}
@@ -244,8 +292,19 @@ func (m *Manager) backupSpecificItems(sourcePath, backupFolder string, items []B
 			continue
 		}
 
-		src := filepath.Join(sourcePath, item.Path)
-		dst := filepath.Join(backupFolder, item.Path)
+		// Validate paths to prevent traversal
+		src, err := validatePath(sourcePath, item.Path)
+		if err != nil {
+			if item.Optional {
+				continue // Skip optional items with invalid paths
+			}
+			return fmt.Errorf("invalid source path for item %s: %w", item.Path, err)
+		}
+
+		dst, err := validatePath(backupFolder, item.Path)
+		if err != nil {
+			return fmt.Errorf("invalid destination path for item %s: %w", item.Path, err)
+		}
 
 		if _, err := os.Stat(src); os.IsNotExist(err) {
 			if !item.Optional {
@@ -824,10 +883,13 @@ func (m *Manager) CountAllAutoBackups() int {
 
 // saveBackupMetadata saves metadata about the backup.
 func (m *Manager) saveBackupMetadata(backupFolder, appKey, sessionName string) error {
+	hashValue, _ := m.computeBackupHash(backupFolder)
+
 	metadata := map[string]interface{}{
 		"app":     appKey,
 		"session": sessionName,
 		"created": time.Now().Format(time.RFC3339),
+		"hash":    hashValue,
 	}
 
 	data, err := json.MarshalIndent(metadata, "", "  ")
@@ -837,6 +899,81 @@ func (m *Manager) saveBackupMetadata(backupFolder, appKey, sessionName string) e
 
 	metadataFile := filepath.Join(backupFolder, ".backup_meta.json")
 	return os.WriteFile(metadataFile, data, 0644)
+}
+
+// readBackupMetadata returns created time (if present) and hash
+func (m *Manager) readBackupMetadata(backupFolder string) (*time.Time, string) {
+	metadataFile := filepath.Join(backupFolder, ".backup_meta.json")
+	data, err := os.ReadFile(metadataFile)
+	if err != nil {
+		return nil, ""
+	}
+
+	var meta struct {
+		Created string `json:"created"`
+		Hash    string `json:"hash"`
+	}
+	if err := json.Unmarshal(data, &meta); err != nil {
+		return nil, ""
+	}
+
+	var createdPtr *time.Time
+	if meta.Created != "" {
+		if t, err := time.Parse(time.RFC3339, meta.Created); err == nil {
+			createdPtr = &t
+		}
+	}
+	return createdPtr, meta.Hash
+}
+
+// computeBackupHash computes a deterministic SHA256 hash of all files in the backup folder (excluding metadata)
+func (m *Manager) computeBackupHash(backupFolder string) (string, error) {
+	hasher := sha256.New()
+	var files []string
+
+	// Collect file paths
+	filepath.Walk(backupFolder, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			return nil
+		}
+		// Skip metadata file
+		if info.Name() == ".backup_meta.json" {
+			return nil
+		}
+		rel, _ := filepath.Rel(backupFolder, path)
+		files = append(files, rel)
+		return nil
+	})
+
+	sort.Strings(files)
+
+	for _, rel := range files {
+		full := filepath.Join(backupFolder, rel)
+		data, err := os.ReadFile(full)
+		if err != nil {
+			continue
+		}
+		// include filename to keep ordering stable
+		hasher.Write([]byte(rel))
+		hasher.Write(data)
+	}
+
+	return fmt.Sprintf("%x", hasher.Sum(nil)), nil
+}
+
+// verifyBackupHash recomputes hash and compares with expected
+func (m *Manager) verifyBackupHash(backupFolder, expected string) bool {
+	if expected == "" {
+		return true
+	}
+	computed, err := m.computeBackupHash(backupFolder)
+	if err != nil {
+		return false
+	}
+	return computed == expected
 }
 
 // calculateDirSize calculates the total size of a directory.
@@ -893,7 +1030,7 @@ func (m *Manager) SessionHasAddons(appKey, sessionName string) bool {
 	appKey = strings.ToLower(appKey)
 	backupFolder := m.GetSessionPath(appKey, sessionName)
 	addonBackupDir := filepath.Join(backupFolder, "_addons")
-	
+
 	info, err := os.Stat(addonBackupDir)
 	if err != nil {
 		return false

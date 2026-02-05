@@ -2,6 +2,39 @@
 
 All notable changes to SurfManager will be documented in this file.
 
+## [2.2.0] - 2026-02-05
+
+### ✨ New Features
+
+**Reliability & Safety**
+- Context menu in Sessions tab is now clamped to the viewport so it never overflows off-screen
+- Manual override prompts when auto-close fails on reset/restore/addon restore, so you can proceed after closing apps yourself
+- Corrupted backup detection now surfaces a badge in Sessions and a count in Reset tab stats
+
+**Configuration & Platform Help**
+- Added process name mapping in Config tab to improve running-app detection
+- Added platform-aware data path hints for Windows/macOS/Linux in Config and Reset tabs
+
+**Observability**
+- Frontend crash/unhandled rejection events are logged to backend log file
+- Reset tab now lets you download logs directly from the UI
+
+**Settings & Behavior**
+- Settings can be exported/imported per section with a preview of incoming keys
+- Startup actions: remember last tab and auto-refresh Sessions on launch; defaults updated for smoother startup
+- Notification controls: mute non-critical toasts, toggle toast sound, and beep on completion
+
+### 🗑️ Removed Features
+
+- Removed batch "Backup All Sessions" and "Clear All Sessions" actions from Settings
+
+### 🔧 Fixes & Improvements
+
+- Reused process-name collection helper across close/kill/restore paths for consistency
+- Default auto-refresh sessions on launch enabled; assorted UI text updates
+
+---
+
 ## [2.1.0] - 2026-01-13
 
 ### ✨ New Features

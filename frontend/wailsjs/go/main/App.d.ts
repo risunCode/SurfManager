@@ -42,6 +42,8 @@ export function GetApps():Promise<Array<apps.AppConfig>>;
 
 export function GetCurrentUser():Promise<string>;
 
+export function GetLogs():Promise<string>;
+
 export function GetNote(arg1:string):Promise<main.Note>;
 
 export function GetNotes():Promise<Array<main.Note>>;
@@ -55,6 +57,8 @@ export function IsAppRunning(arg1:string):Promise<boolean>;
 export function KillApp(arg1:string):Promise<void>;
 
 export function LaunchApp(arg1:string):Promise<void>;
+
+export function LogMessage(arg1:string):Promise<void>;
 
 export function OpenAppFolder(arg1:string):Promise<void>;
 

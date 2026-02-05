@@ -1,12 +1,13 @@
 <script>
   import { onMount, createEventDispatcher } from 'svelte';
-  import { FolderOpen, RotateCcw, Fingerprint, Play, RefreshCw, Plus, HardDrive, Database, Trash2, XCircle } from 'lucide-svelte';
-  import { GetActiveApps, CheckAppInstalled, GetAppDataPath, ResetApp, GenerateNewID, LaunchApp, OpenAppFolder, IsAppRunning, GetSessions, KillApp, ResetAddonData, GetApp } from '../../wailsjs/go/main/App.js';
+  import { FolderOpen, RotateCcw, Fingerprint, Play, RefreshCw, Plus, Trash2, XCircle, Copy, Database, HardDrive, Download, AlertTriangle } from 'lucide-svelte';
+  import { GetActiveApps, CheckAppInstalled, GetAppDataPath, ResetApp, GenerateNewID, LaunchApp, OpenAppFolder, GetSessions, KillApp, ResetAddonData, GetApp, GetPlatformInfo, GetLogs } from '../../wailsjs/go/main/App.js';
   import { confirm } from './ConfirmModal.svelte';
   import { toast } from './Toast.svelte';
   import { settings } from './stores/settings.js';
 
   export let logs = [];
+  export let globalRunningAppsStatus = {};
   
   const dispatch = createEventDispatcher();
 
@@ -15,13 +16,22 @@
   let loading = false;
   let sessionCount = 0;
   let addonCount = 0;
+  let corruptedCount = 0;
   
   // Store counts for each app in the list
   let appCounts = {};
+  let platformInfo = {};
 
   $: autoBackup = $settings.autoBackup;
 
   onMount(loadApps);
+  onMount(async () => {
+    try {
+      platformInfo = await GetPlatformInfo();
+    } catch (e) {
+      platformInfo = {};
+    }
+  });
 
   async function loadApps() {
     loading = true;
@@ -30,7 +40,7 @@
       apps = await Promise.all((activeApps || []).map(async (app) => {
         const installed = await CheckAppInstalled(app.app_name);
         const dataPath = await GetAppDataPath(app.app_name);
-        const running = await IsAppRunning(app.app_name);
+        const running = !!globalRunningAppsStatus[app.app_name];
         return { ...app, installed, dataPath, running };
       }));
       
@@ -58,25 +68,32 @@
     loading = false;
   }
   
+  // Keep running status in sync with global map
+  $: if (apps && Object.keys(globalRunningAppsStatus).length >= 0) {
+    apps = apps.map(app => ({ ...app, running: !!globalRunningAppsStatus[app.app_name] }));
+  }
+
+  $: if (selectedApp) {
+    selectedApp = { ...selectedApp, running: !!globalRunningAppsStatus[selectedApp.app_name] };
+  }
+  
   async function loadAppCounts() {
     const counts = {};
     for (const app of apps) {
       try {
         // Get regular sessions (not including auto-backups)
-        const sessions = await GetSessions(app.app_name, false);
-        const sessionCount = sessions?.length || 0;
-        
-        // Get auto-backups by getting all sessions and filtering
         const allSessions = await GetSessions(app.app_name, true);
+        const sessionCount = (allSessions || []).filter(s => !s.is_auto).length;
         const autoBackupCount = (allSessions?.length || 0) - sessionCount;
+        const corruptedCount = (allSessions || []).filter(s => s.corrupted).length;
         
         // Get addon count from app config
         const fullConfig = await GetApp(app.app_name);
         const addonCount = fullConfig?.addon_backup_paths?.length || 0;
         
-        counts[app.app_name] = { sessionCount, autoBackupCount, addonCount };
+        counts[app.app_name] = { sessionCount, autoBackupCount, addonCount, corruptedCount };
       } catch (e) {
-        counts[app.app_name] = { sessionCount: 0, autoBackupCount: 0, addonCount: 0 };
+        counts[app.app_name] = { sessionCount: 0, autoBackupCount: 0, addonCount: 0, corruptedCount: 0 };
       }
     }
     appCounts = counts;
@@ -89,10 +106,12 @@
     settings.update('lastSelectedAppReset', app.app_name);
     // Load session count for selected app
     try {
-      const sessions = await GetSessions(app.app_name, false);
-      sessionCount = sessions?.length || 0;
+      const allSessions = await GetSessions(app.app_name, true);
+      sessionCount = (allSessions || []).filter(s => !s.is_auto).length;
+      corruptedCount = (allSessions || []).filter(s => s.corrupted).length;
     } catch (e) {
       sessionCount = 0;
+      corruptedCount = 0;
     }
     // Load addon count
     try {
@@ -108,24 +127,57 @@
     logs = [...logs.slice(-99), `[${time}] ${msg}`];
   }
 
-  async function handleReset() {
+  function getDataPathHint() {
+    const platform = platformInfo?.platform;
+    const user = platformInfo?.user || 'user';
+    if (platform === 'windows') {
+      return `C:\\Users\\${user}\\AppData\\Roaming\\<app>`;
+    }
+    if (platform === 'darwin') {
+      return `~/Library/Application Support/<app>`;
+    }
+    if (platform === 'linux') {
+      return `~/.config/<app>`;
+    }
+    return '';
+  }
+
+  async function handleResetWithOverride(skipClose) {
     if (!selectedApp) return;
-    
+
     if ($settings.confirmBeforeReset) {
       const confirmed = await confirm.reset(selectedApp.display_name, autoBackup);
       if (!confirmed) return;
     }
-    
+
     log(`[Reset] Starting ${selectedApp.display_name}...`);
     try {
-      await ResetApp(selectedApp.app_name, autoBackup, false);
+      await ResetApp(selectedApp.app_name, autoBackup, skipClose);
       log(`[Reset] ${selectedApp.display_name} complete!`);
       toast.success('App data reset successfully', 3000);
       await loadApps();
     } catch (e) {
+      const msg = e?.toString?.() || '';
+      if (!skipClose && msg.toLowerCase().includes('failed to close')) {
+        const override = await confirm({
+          title: `${selectedApp.display_name} still running`,
+          message: 'We could not close the app automatically. If you already closed it, continue without closing step.',
+          confirmText: "I've closed the app",
+          cancelText: 'Cancel',
+          danger: true
+        });
+        if (override) {
+          await handleResetWithOverride(true);
+          return;
+        }
+      }
       log(`[Reset] Error: ${e}`);
       toast.error(`Reset failed: ${e}`, 5000);
     }
+  }
+
+  async function handleReset() {
+    await handleResetWithOverride(false);
   }
 
   async function handleNewID() {
@@ -190,8 +242,49 @@
       toast.success('Addon folders deleted successfully', 3000);
       await loadApps();
     } catch (e) {
+      const msg = e?.toString?.() || '';
+      if (msg.toLowerCase().includes('failed to close')) {
+        const override = await confirm({
+          title: `${selectedApp.display_name} still running`,
+          message: 'We could not close the app automatically. If you already closed it, continue without closing step.',
+          confirmText: "I've closed the app",
+          cancelText: 'Cancel',
+          danger: true
+        });
+        if (override) {
+          try {
+            await ResetAddonData(selectedApp.app_name, true);
+            log(`[ResetAddon] ${selectedApp.display_name} addon data deleted!`);
+            toast.success('Addon folders deleted successfully', 3000);
+            await loadApps();
+            return;
+          } catch (inner) {
+            log(`[ResetAddon] Error: ${inner}`);
+            toast.error(`Failed to delete addon folders: ${inner}`, 5000);
+            return;
+          }
+        }
+      }
       log(`[ResetAddon] Error: ${e}`);
       toast.error(`Failed to delete addon folders: ${e}`, 5000);
+    }
+  }
+
+  async function handleDownloadLogs() {
+    try {
+      const data = await GetLogs();
+      const blob = new Blob([data], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `surfmanager-activity-${new Date().toISOString().split('T')[0]}.log`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Log downloaded', 2000);
+    } catch (e) {
+      toast.error(`Failed to download logs: ${e}`, 4000);
     }
   }
 
@@ -281,24 +374,6 @@
               style="background-color: {getStatusColor(app)}"
             ></span>
             <span class="text-sm font-medium text-[var(--text-primary)] truncate flex-1">{app.display_name}</span>
-            <!-- Badges for counts -->
-            <div class="flex items-center gap-1 flex-shrink-0">
-              {#if appCounts[app.app_name]?.sessionCount > 0}
-                <span class="px-1.5 py-0.5 text-[10px] font-medium rounded bg-[var(--primary)]/20 text-[var(--primary)]" title="Sessions">
-                  {appCounts[app.app_name].sessionCount}
-                </span>
-              {/if}
-              {#if appCounts[app.app_name]?.autoBackupCount > 0}
-                <span class="px-1.5 py-0.5 text-[10px] font-medium rounded bg-[var(--success)]/20 text-[var(--success)]" title="Auto-backups">
-                  {appCounts[app.app_name].autoBackupCount}
-                </span>
-              {/if}
-              {#if appCounts[app.app_name]?.addonCount > 0}
-                <span class="px-1.5 py-0.5 text-[10px] font-medium rounded bg-[var(--warning)]/20 text-[var(--warning)]" title="Addons">
-                  {appCounts[app.app_name].addonCount}
-                </span>
-              {/if}
-            </div>
           </button>
         {/each}
       </div>
@@ -329,18 +404,35 @@
                 ></span>
                 <span class="text-xs" style="color: {getStatusColor(selectedApp)}">{getStatusText(selectedApp)}</span>
               </div>
+              {#if getDataPathHint()}
+                <p class="text-[10px] text-[var(--text-muted)] mt-1">Hint: {getDataPathHint()}</p>
+              {/if}
             </div>
           </div>
 
           <!-- Path -->
           <div class="mb-4">
             <span class="text-xs text-[var(--text-muted)] block mb-1">Data Path</span>
-            <p class="text-xs text-[var(--text-secondary)] font-mono bg-[var(--bg-card)] px-3 py-1.5 rounded-lg truncate" title={selectedApp.dataPath || 'Not found'}>
-              {selectedApp.dataPath || 'Data folder not found'}
-            </p>
+            <div class="flex items-center gap-2">
+              <p class="text-xs text-[var(--text-secondary)] font-mono bg-[var(--bg-card)] px-3 py-1.5 rounded-lg truncate flex-1" title={selectedApp.dataPath || 'Not found'}>
+                {selectedApp.dataPath || 'Data folder not found'}
+              </p>
+              <button
+                class="p-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--primary)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                on:click={() => {
+                  if (!selectedApp.dataPath) return;
+                  navigator.clipboard?.writeText(selectedApp.dataPath);
+                  toast.success('Path copied to clipboard', 2000);
+                }}
+                disabled={!selectedApp.dataPath}
+                title="Copy path"
+              >
+                <Copy size={16} />
+              </button>
+            </div>
           </div>
 
-          <!-- Action Buttons - 2 rows, 3 columns -->
+          <!-- Action Buttons -->
           <div class="grid grid-cols-3 gap-2">
             <button
               class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--primary)] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
@@ -351,8 +443,9 @@
               <FolderOpen size={18} />
               <span class="text-xs font-medium">Folder</span>
             </button>
+
             <button
-              class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--danger)] hover:border-[var(--danger)] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--primary)]/15 border border-[var(--primary)] text-[var(--primary)] hover:bg-[var(--primary)]/25 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               on:click={handleReset}
               disabled={!selectedApp.dataPath}
               title="Reset all app data"
@@ -360,39 +453,29 @@
               <RotateCcw size={18} />
               <span class="text-xs font-medium">Reset</span>
             </button>
-            {#if addonCount > 0}
-              <button
-                class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--warning)] hover:border-[var(--warning)] transition-all"
-                on:click={handleResetAddon}
-                title="Delete addon folders ({addonCount})"
-              >
-                <Trash2 size={18} />
-                <span class="text-xs font-medium">Addons</span>
-              </button>
-            {:else}
-              <button
-                class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--warning)] hover:border-[var(--warning)] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                on:click={handleNewID}
-                disabled={!selectedApp.dataPath}
-                title="Generate new machine ID"
-              >
-                <Fingerprint size={18} />
-                <span class="text-xs font-medium">NewID</span>
-              </button>
-            {/if}
-            {#if addonCount > 0}
-              <button
-                class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--warning)] hover:border-[var(--warning)] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                on:click={handleNewID}
-                disabled={!selectedApp.dataPath}
-                title="Generate new machine ID"
-              >
-                <Fingerprint size={18} />
-                <span class="text-xs font-medium">NewID</span>
-              </button>
-            {/if}
+
             <button
-              class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--danger)] hover:border-[var(--danger)] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--warning)] hover:border-[var(--warning)] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              on:click={handleResetAddon}
+              disabled={addonCount === 0}
+              title={addonCount > 0 ? `Delete addon folders (${addonCount})` : 'No addons configured'}
+            >
+              <Trash2 size={18} />
+              <span class="text-xs font-medium">Addons</span>
+            </button>
+
+            <button
+              class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--primary)] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              on:click={handleNewID}
+              disabled={!selectedApp.dataPath}
+              title="Generate new machine ID"
+            >
+              <Fingerprint size={18} />
+              <span class="text-xs font-medium">New ID</span>
+            </button>
+
+            <button
+              class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--danger)]/10 border border-[var(--danger)]/50 text-[var(--danger)] hover:bg-[var(--danger)]/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               on:click={handleKillApp}
               disabled={!selectedApp.running}
               title="Force close app"
@@ -400,6 +483,7 @@
               <XCircle size={18} />
               <span class="text-xs font-medium">Kill</span>
             </button>
+
             <button
               class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--success)] hover:border-[var(--success)] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               on:click={handleLaunch}
@@ -420,6 +504,15 @@
                 <span class="text-xs font-medium text-[var(--text-primary)]">{sessionCount} backup(s)</span>
               </div>
             </div>
+            {#if corruptedCount > 0}
+              <div class="flex items-center gap-2">
+                <AlertTriangle size={14} class="text-[var(--danger)]" />
+                <div>
+                  <span class="text-[10px] text-[var(--text-muted)] block">Corrupted</span>
+                  <span class="text-xs font-medium text-[var(--danger)]">{corruptedCount} found</span>
+                </div>
+              </div>
+            {/if}
             <div class="flex items-center gap-2">
               <HardDrive size={14} class="text-[var(--text-muted)]" />
               <div>
@@ -443,7 +536,13 @@
         <div class="flex-1 min-h-[120px] bg-[var(--bg-elevated)] rounded-xl border border-[var(--border)] flex flex-col overflow-hidden">
           <div class="flex items-center justify-between px-4 py-2 border-b border-[var(--border)]">
             <span class="text-sm text-[var(--text-secondary)]">Log Output</span>
-            <button class="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)]" on:click={clearLogs}>Clear</button>
+            <div class="flex items-center gap-3">
+              <button class="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)]" on:click={clearLogs}>Clear</button>
+              <button class="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] flex items-center gap-1" on:click={handleDownloadLogs}>
+                <Download size={12} />
+                Download
+              </button>
+            </div>
           </div>
           <div class="flex-1 overflow-auto p-4 font-mono text-xs text-[var(--text-secondary)] space-y-1">
             {#if logs.length === 0}
