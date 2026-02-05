@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { Plus, Search, Edit, Trash2, FolderOpen, Save, X, Check, RefreshCw, ToggleLeft, FileJson } from 'lucide-svelte';
-  import { GetApps, SaveApp, DeleteApp, SelectExeFromLocalPrograms, SelectFolderFromRoaming, SelectFolderFromLocalPrograms, GetPlatformInfo } from '../../wailsjs/go/main/App.js';
+  import { CheckAppInstalled, GetApp, GetApps, OpenConfigFolder, SaveApp, DeleteApp, SelectExeFromLocalPrograms, SelectFolderFromHome, SelectFolderFromRoaming, SelectFolderFromLocalPrograms, ToggleApp, GetPlatformInfo } from '../../wailsjs/go/main/App.js';
   import { confirm } from './ConfirmModal.svelte';
   import { toast } from './Toast.svelte';
   import { settings } from './stores/settings.js';
