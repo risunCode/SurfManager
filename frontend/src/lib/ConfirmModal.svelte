@@ -76,8 +76,16 @@
 
   function handleKeydown(e) {
     if (!state) return;
-    if (e.key === 'Escape') handleCancel();
-    if (e.key === 'Enter') handleConfirm();
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      handleCancel();
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      handleConfirm();
+    }
   }
 </script>
 

@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
-  import { Plus, RefreshCw, Search, CheckSquare, FolderOpen, Trash2, RotateCcw, User, Package, Play, AlertTriangle } from 'lucide-svelte';
-  import { GetActiveApps, GetApp, GetAllSessions, CreateBackup, RestoreBackup, RestoreAccountOnly, RestoreAddonOnly, CheckSessionHasAddons, DeleteSession, SetActiveSession, OpenSessionFolder, CountAutoBackups, LaunchApp, CalculateBackupSize, KillApp } from '../../wailsjs/go/main/App.js';
+  import { Plus, RefreshCw, Search, CheckSquare, FolderOpen, Trash2, RotateCcw, Package, Play, AlertTriangle } from 'lucide-svelte';
+  import { GetActiveApps, GetApp, GetAllSessions, CreateBackup, RestoreBackup, RestoreAddonOnly, CheckSessionHasAddons, DeleteSession, SetActiveSession, OpenSessionFolder, CountAutoBackups, LaunchApp, CalculateBackupSize, KillApp } from '../../wailsjs/go/main/App.js';
   import { confirm } from './ConfirmModal.svelte';
   import { toast } from './Toast.svelte';
   import { settings } from './stores/settings.js';
@@ -82,6 +82,21 @@
     logs = [...logs.slice(-99), `[${time}] ${msg}`];
   }
 
+  function handleWindowKeydown(e) {
+    if (e.key === 'Escape' && showNewDialog) {
+      showNewDialog = false;
+    }
+  }
+
+  let newBackupSizeKey = '';
+  $: if (showNewDialog && newBackupApp) {
+    const nextKey = `${newBackupApp}|${backupType}`;
+    if (nextKey !== newBackupSizeKey) {
+      newBackupSizeKey = nextKey;
+      updateBackupSize();
+    }
+  }
+
   async function updateBackupSize() {
     if (!newBackupApp) return;
     
@@ -89,11 +104,46 @@
       const running = await isAppRunning(newBackupApp);
       newBackupAppRunning = running;
       
-      // Calculate size (includeData = !running for full backup when app not running)
-      const sizeInfo = await CalculateBackupSize(newBackupApp, !running);
+      const includeData = backupType === 'full';
+      const sizeInfo = await CalculateBackupSize(newBackupApp, includeData);
       backupSizeInfo = sizeInfo;
     } catch (e) {
       backupSizeInfo = null;
+    }
+  }
+
+  async function handleKillAndCreateBackup() {
+    if (!newBackupApp || !newBackupName.trim()) {
+      toast.error('Please enter session name');
+      return;
+    }
+
+    try {
+      await killAppSilently(newBackupApp);
+    } catch (e) {
+      return;
+    }
+
+    // After killing, proceed with the selected backup type
+    const addonOnly = backupType === 'addon';
+
+    // Best-effort refresh size (avoid stale "running" state)
+    newBackupAppRunning = false;
+    try {
+      backupSizeInfo = await CalculateBackupSize(newBackupApp, !addonOnly);
+    } catch (e) {
+      // ignore
+    }
+
+    log(`Creating ${addonOnly ? 'addon-only' : 'full'} backup: ${newBackupApp}/${newBackupName}...`);
+    try {
+      await CreateBackup(newBackupApp, newBackupName.trim(), addonOnly);
+      toast.success('Backup created successfully');
+      showNewDialog = false;
+      await loadData();
+    } catch (e) {
+      log(`Error: ${e}`);
+      toast.error(`Backup failed: ${e}`);
     }
   }
 
@@ -187,61 +237,6 @@
         if (override) {
           await RestoreBackup(session.app, session.name, true);
           toast.success('Session restored successfully');
-          await loadData();
-          await promptLaunchIfAllowed(session.app);
-          return;
-        }
-      }
-      log(`Error: ${e}`);
-      toast.error(`Restore failed: ${e}`);
-    }
-  }
-
-  async function handleRestoreAccountOnly(session) {
-    const running = await isAppRunning(session.app);
-    if (running) {
-      const appConfig = await GetApp(session.app);
-      const confirmed = await confirm({
-        title: `${appConfig.display_name} is Running`,
-        message: 'The app must be closed before restoring account.\n\nKill the app and continue?',
-        confirmText: 'Kill App and Continue',
-        danger: true
-      });
-      if (!confirmed) return;
-      try {
-        await killAppSilently(session.app);
-      } catch (e) {
-        const override = await confirm({
-          title: `${appConfig.display_name} still running`,
-          message: 'We could not close the app automatically. If you already closed it, continue without closing step.',
-          confirmText: "I've closed the app",
-          cancelText: 'Cancel',
-          danger: true
-        });
-        if (!override) return;
-      }
-    }
-
-    log(`Restoring account from: ${session.name}...`);
-    try {
-      await RestoreAccountOnly(session.app, session.name);
-      toast.success('Account restored successfully');
-      await loadData();
-      await promptLaunchIfAllowed(session.app);
-    } catch (e) {
-      const msg = e?.toString?.() || '';
-      if (msg.toLowerCase().includes('failed to close')) {
-        const appConfig = await GetApp(session.app);
-        const override = await confirm({
-          title: `${appConfig.display_name} still running`,
-          message: 'We could not close the app automatically. If you already closed it, continue without closing step.',
-          confirmText: "I've closed the app",
-          cancelText: 'Cancel',
-          danger: true
-        });
-        if (override) {
-          await RestoreAccountOnly(session.app, session.name);
-          toast.success('Account restored successfully');
           await loadData();
           await promptLaunchIfAllowed(session.app);
           return;
@@ -442,7 +437,7 @@
   async function killAppSilently(appKey) {
     try {
       const appConfig = await GetApp(appKey);
-      log(`[Kill] Stopping ${appConfig.display_name} before restore...`);
+      log(`[Kill] Stopping ${appConfig.display_name}...`);
       await KillApp(appKey);
       await new Promise(r => setTimeout(r, 400));
       log(`[Kill] ${appConfig.display_name} closed`);
@@ -471,6 +466,8 @@
     }
   }
 </script>
+
+<svelte:window on:keydown={handleWindowKeydown} />
 
 <div class="h-full flex flex-col gap-4 animate-fadeIn">
   <!-- Header -->
@@ -655,15 +652,6 @@
       Restore Session
     </button>
 
-    <!-- Restore Account Only: Always clickable -->
-    <button
-      class="w-full px-4 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--warning)] transition-colors flex items-center gap-2"
-      on:click={() => { handleRestoreAccountOnly(contextMenu.session); closeContextMenu(); }}
-    >
-      <User size={14} />
-      Restore Account Only
-    </button>
-
     <!-- Restore Addon Only: Enabled only if session has addons -->
     {#if contextMenu.hasAddons}
       <button
@@ -715,112 +703,116 @@
 <!-- New Backup Dialog -->
 {#if showNewDialog}
   <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-50" role="dialog" aria-modal="true" on:click|self={() => showNewDialog = false} on:keydown={(e) => { if (e.key === 'Escape') showNewDialog = false; }}>
-    <div class="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] w-full max-w-md p-6 animate-fadeIn">
+    <div class="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] w-full max-w-2xl p-6 animate-fadeIn">
       <h3 class="text-lg font-semibold text-[var(--text-primary)] mb-4">Create New Backup</h3>
       
       <div class="space-y-4">
-        <div>
-          <label class="block text-sm text-[var(--text-secondary)] mb-1" for="new-backup-app">Application</label>
-          <select 
-            class="w-full bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] focus:border-[var(--primary)] focus:outline-none"
-            id="new-backup-app"
-            bind:value={newBackupApp}
-            on:change={updateBackupSize}
-          >
-            {#each apps as app}
-              <option value={app.app_name}>{app.display_name}</option>
-            {/each}
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-sm text-[var(--text-secondary)] mb-1" for="new-backup-name">Session Name</label>
-          <input
-            type="text"
-            class="w-full bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--primary)] focus:outline-none"
-            placeholder="e.g., work-main, personal"
-            id="new-backup-name"
-            bind:value={newBackupName}
-          />
-        </div>
-
         <!-- App Running Warning -->
         {#if newBackupAppRunning}
-          <div class="bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-lg p-3">
+          <div class="bg-[var(--warning)]/10 rounded-lg p-3">
             <div class="flex items-start gap-2">
               <span class="text-[var(--warning)] text-lg">⚠</span>
               <div class="flex-1">
                 <p class="text-sm font-medium text-[var(--warning)] mb-1">App is Running</p>
                 <p class="text-xs text-[var(--text-secondary)]">
-                  Only addon folders can be backed up while app is running. Close the app for full backup.
+                  Choose backup type. For Full Backup, click "Kill and Continue" to close the app and proceed.
                 </p>
               </div>
             </div>
           </div>
         {/if}
 
-        <!-- Backup Size -->
-        {#if backupSizeInfo}
-          <div>
-            <p class="block text-sm text-[var(--text-secondary)] mb-2">Backup Size</p>
-            <div class="bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg p-3 space-y-1.5">
-              {#if !newBackupAppRunning && backupSizeInfo.data_size > 0}
-                <div class="flex justify-between text-sm">
-                  <span class="text-[var(--text-secondary)]">Data:</span>
-                  <span class="text-[var(--text-primary)] font-medium">{backupSizeInfo.data_size_formatted}</span>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm text-[var(--text-secondary)] mb-1" for="new-backup-app">Application</label>
+              <select 
+                class="w-full bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] focus:border-[var(--primary)] focus:outline-none"
+                id="new-backup-app"
+                bind:value={newBackupApp}
+                on:change={updateBackupSize}
+              >
+                {#each apps as app}
+                  <option value={app.app_name}>{app.display_name}</option>
+                {/each}
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm text-[var(--text-secondary)] mb-1" for="new-backup-name">Session Name</label>
+              <input
+                type="text"
+                class="w-full bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--primary)] focus:outline-none"
+                placeholder="e.g., work-main, personal"
+                id="new-backup-name"
+                bind:value={newBackupName}
+              />
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <!-- Backup Size -->
+            {#if backupSizeInfo}
+              <div>
+                <p class="block text-sm text-[var(--text-secondary)] mb-2">Backup Size</p>
+                <div class="bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg p-3 space-y-1.5">
+                  {#if backupType === 'full' && backupSizeInfo.data_size > 0}
+                    <div class="flex justify-between text-sm">
+                      <span class="text-[var(--text-secondary)]">Data:</span>
+                      <span class="text-[var(--text-primary)] font-medium">{backupSizeInfo.data_size_formatted}</span>
+                    </div>
+                  {/if}
+                  {#if backupSizeInfo.addon_size > 0}
+                    <div class="flex justify-between text-sm">
+                      <span class="text-[var(--text-secondary)]">Addons:</span>
+                      <span class="text-[var(--text-primary)] font-medium">{backupSizeInfo.addon_size_formatted}</span>
+                    </div>
+                  {/if}
+                  <div class="border-t border-[var(--border)] pt-1.5 mt-1.5">
+                    <div class="flex justify-between text-sm">
+                      <span class="text-[var(--text-secondary)] font-medium">Total:</span>
+                      <span class="text-[var(--text-primary)] font-semibold">{backupSizeInfo.total_size_formatted}</span>
+                    </div>
+                  </div>
                 </div>
-              {/if}
-              {#if backupSizeInfo.addon_size > 0}
-                <div class="flex justify-between text-sm">
-                  <span class="text-[var(--text-secondary)]">Addons:</span>
-                  <span class="text-[var(--text-primary)] font-medium">{backupSizeInfo.addon_size_formatted}</span>
-                </div>
-              {/if}
-              <div class="border-t border-[var(--border)] pt-1.5 mt-1.5">
-                <div class="flex justify-between text-sm">
-                  <span class="text-[var(--text-secondary)] font-medium">Total:</span>
-                  <span class="text-[var(--text-primary)] font-semibold">{backupSizeInfo.total_size_formatted}</span>
-                </div>
+              </div>
+            {/if}
+
+            <!-- Backup Type Selection -->
+            <div>
+              <label class="block text-sm text-[var(--text-secondary)] mb-2">Backup Type</label>
+              <div class="grid gap-2 sm:grid-cols-2">
+                <label class="flex items-start gap-3 p-3 bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg cursor-pointer hover:border-[var(--primary)] transition-colors">
+                  <input
+                    type="radio"
+                    name="backupType"
+                    value="full"
+                    bind:group={backupType}
+                    class="mt-0.5"
+                  />
+                  <div class="flex-1">
+                    <div class="text-sm font-medium text-[var(--text-primary)]">Full Backup</div>
+                    <div class="text-xs text-[var(--text-muted)] mt-0.5">Backup all data and addon folders</div>
+                  </div>
+                </label>
+                
+                <label class="flex items-start gap-3 p-3 bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg cursor-pointer hover:border-[var(--primary)] transition-colors">
+                  <input
+                    type="radio"
+                    name="backupType"
+                    value="addon"
+                    bind:group={backupType}
+                    class="mt-0.5"
+                  />
+                  <div class="flex-1">
+                    <div class="text-sm font-medium text-[var(--text-primary)]">Addon Only</div>
+                    <div class="text-xs text-[var(--text-muted)] mt-0.5">Backup only addon folders</div>
+                  </div>
+                </label>
               </div>
             </div>
           </div>
-        {/if}
-
-        <!-- Backup Type Selection (only show if app not running) -->
-        {#if !newBackupAppRunning}
-          <div>
-            <label class="block text-sm text-[var(--text-secondary)] mb-2">Backup Type</label>
-            <div class="space-y-2">
-              <label class="flex items-start gap-3 p-3 bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg cursor-pointer hover:border-[var(--primary)] transition-colors">
-                <input
-                  type="radio"
-                  name="backupType"
-                  value="full"
-                  bind:group={backupType}
-                  class="mt-0.5"
-                />
-                <div class="flex-1">
-                  <div class="text-sm font-medium text-[var(--text-primary)]">Full Backup</div>
-                  <div class="text-xs text-[var(--text-muted)] mt-0.5">Backup all data and addon folders</div>
-                </div>
-              </label>
-              
-              <label class="flex items-start gap-3 p-3 bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg cursor-pointer hover:border-[var(--primary)] transition-colors">
-                <input
-                  type="radio"
-                  name="backupType"
-                  value="addon"
-                  bind:group={backupType}
-                  class="mt-0.5"
-                />
-                <div class="flex-1">
-                  <div class="text-sm font-medium text-[var(--text-primary)]">Addon Only</div>
-                  <div class="text-xs text-[var(--text-muted)] mt-0.5">Backup only addon folders</div>
-                </div>
-              </label>
-            </div>
-          </div>
-        {/if}
+        </div>
       </div>
 
       <div class="flex justify-end gap-3 mt-6">
@@ -830,12 +822,21 @@
         >
           Cancel
         </button>
-        <button 
-          class="px-4 py-2 rounded-lg font-medium bg-[var(--primary)] hover:bg-[var(--primary-light)] hover:text-black text-white transition-all"
-          on:click={handleCreateBackup}
-        >
-          Create Backup
-        </button>
+        {#if newBackupAppRunning}
+          <button 
+            class="px-4 py-2 rounded-lg font-medium bg-[var(--danger)] hover:bg-[var(--danger)]/80 text-white transition-all"
+            on:click={handleKillAndCreateBackup}
+          >
+            Kill and Continue Create Backup
+          </button>
+        {:else}
+          <button 
+            class="px-4 py-2 rounded-lg font-medium bg-[var(--primary)] hover:bg-[var(--primary-light)] hover:text-black text-white transition-all"
+            on:click={handleCreateBackup}
+          >
+            Create Backup
+          </button>
+        {/if}
       </div>
     </div>
   </div>

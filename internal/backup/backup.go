@@ -33,14 +33,14 @@ func validatePath(basePath, inputPath string) (string, error) {
 
 // Session represents a backup session with metadata.
 type Session struct {
-	Name     string    `json:"name"`
-	App      string    `json:"app"`
-	Size     int64     `json:"size"`
-	Created  time.Time `json:"created"`
-	Modified time.Time `json:"modified"`
-	IsActive bool      `json:"is_active"`
-	IsAuto   bool      `json:"is_auto"`
-	Corrupted bool     `json:"corrupted,omitempty"`
+	Name      string `json:"name"`
+	App       string `json:"app"`
+	Size      int64  `json:"size"`
+	Created   string `json:"created"`
+	Modified  string `json:"modified"`
+	IsActive  bool   `json:"is_active"`
+	IsAuto    bool   `json:"is_auto"`
+	Corrupted bool   `json:"corrupted,omitempty"`
 }
 
 // BackupItem represents an item to be backed up with optional flag.
@@ -107,7 +107,17 @@ func (m *Manager) GetSessions(appKey string, includeAuto bool) ([]Session, error
 
 	// Sort by created time (newest first)
 	sort.Slice(sessions, func(i, j int) bool {
-		return sessions[i].Created.After(sessions[j].Created)
+		parse := func(s string) time.Time {
+			if s == "" {
+				return time.Time{}
+			}
+			t, err := time.Parse(time.RFC3339, s)
+			if err != nil {
+				return time.Time{}
+			}
+			return t
+		}
+		return parse(sessions[i].Created).After(parse(sessions[j].Created))
 	})
 
 	return sessions, nil
@@ -163,8 +173,8 @@ func (m *Manager) getManualSessions(appKey string) ([]Session, error) {
 			Name:      name,
 			App:       appKey,
 			Size:      size,
-			Created:   createdAt,
-			Modified:  info.ModTime(),
+			Created:   createdAt.Format(time.RFC3339),
+			Modified:  info.ModTime().Format(time.RFC3339),
 			IsActive:  name == activeSession,
 			IsAuto:    false,
 			Corrupted: corrupted,
@@ -223,8 +233,8 @@ func (m *Manager) getAutoSessions(appKey string) ([]Session, error) {
 			Name:      name,
 			App:       appKey,
 			Size:      size,
-			Created:   createdAt,
-			Modified:  info.ModTime(),
+			Created:   createdAt.Format(time.RFC3339),
+			Modified:  info.ModTime().Format(time.RFC3339),
 			IsActive:  false,
 			IsAuto:    true,
 			Corrupted: corrupted,
@@ -489,58 +499,6 @@ func (m *Manager) RestoreBackup(appKey, sessionName string, targetPath string, a
 
 	if progressCb != nil {
 		progressCb(BackupProgress{Percent: 100, Message: "Restore complete!"})
-	}
-
-	return nil
-}
-
-// RestoreAccountOnly restores only the auth state file (state.vscdb) for quick account switch
-func (m *Manager) RestoreAccountOnly(appKey, sessionName string, targetPath string, progressCb ProgressCallback) error {
-	appKey = strings.ToLower(appKey)
-	backupFolder := filepath.Join(m.backupPath, appKey, sessionName)
-
-	// Check if backup exists
-	if _, err := os.Stat(backupFolder); os.IsNotExist(err) {
-		return fmt.Errorf("backup not found: %s", sessionName)
-	}
-
-	// The auth state file path
-	authFile := "User/globalStorage/state.vscdb"
-	srcFile := filepath.Join(backupFolder, authFile)
-	dstFile := filepath.Join(targetPath, authFile)
-
-	// Check if auth file exists in backup
-	if _, err := os.Stat(srcFile); os.IsNotExist(err) {
-		return fmt.Errorf("auth state file not found in backup: %s", authFile)
-	}
-
-	if progressCb != nil {
-		progressCb(BackupProgress{Percent: 30, Message: "Removing existing auth state..."})
-	}
-
-	// Remove existing auth file
-	if _, err := os.Stat(dstFile); err == nil {
-		if err := os.Remove(dstFile); err != nil {
-			return fmt.Errorf("failed to remove existing auth file: %w", err)
-		}
-	}
-
-	// Ensure destination directory exists
-	if err := os.MkdirAll(filepath.Dir(dstFile), 0755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
-	}
-
-	if progressCb != nil {
-		progressCb(BackupProgress{Percent: 60, Message: "Copying auth state..."})
-	}
-
-	// Copy auth file
-	if err := copyFile(srcFile, dstFile); err != nil {
-		return fmt.Errorf("failed to copy auth file: %w", err)
-	}
-
-	if progressCb != nil {
-		progressCb(BackupProgress{Percent: 100, Message: "Account switched!"})
 	}
 
 	return nil

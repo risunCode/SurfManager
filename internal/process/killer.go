@@ -16,11 +16,11 @@ import (
 
 // Default timeouts and retry settings
 const (
-	DefaultGracefulTimeout = 5 * time.Second
+	DefaultGracefulTimeout = 3 * time.Second
 	DefaultForceTimeout    = 2 * time.Second
-	DefaultFileReleaseWait = 3 * time.Second
-	DefaultMaxRetries      = 3
-	DefaultRetryDelay      = 2 * time.Second
+	DefaultFileReleaseWait = 1 * time.Second
+	DefaultMaxRetries      = 2
+	DefaultRetryDelay      = 750 * time.Millisecond
 	CacheDuration          = 2 * time.Second
 )
 

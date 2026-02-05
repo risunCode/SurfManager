@@ -1,8 +1,8 @@
-# SurfManager v2.2.0
+# SurfManager v2.2.1
 
 > **Advanced Session & Data Manager for Development Tools**
 
-[![Version](https://img.shields.io/badge/version-2.2.0-brightgreen.svg)](https://github.com/risunCode/SurfManager)
+[![Version](https://img.shields.io/badge/version-2.2.1-brightgreen.svg)](https://github.com/risunCode/SurfManager)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue.svg)](https://github.com/risunCode/SurfManager)
 [![Go](https://img.shields.io/badge/go-1.22+-00ADD8.svg)](https://golang.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -14,7 +14,7 @@
 **SurfManager** is a modern solution for managing session data of development tools like VS Code, Cursor, Windsurf, and similar applications. Built with Go + Wails + Svelte for blazing fast performance and a beautiful native UI.
 
 Perfect for developers who need to:
-- 🔄 Switch between multiple accounts/profiles effortlessly
+- 🔄 Switch between multiple sessions/profiles effortlessly
 - 💾 Backup workspace settings before experimenting
 - 🚀 Maintain organized development workflows
 - 🛡️ Have a safety net for important configurations
@@ -45,7 +45,7 @@ Perfect for developers who need to:
 | Feature | Description |
 |---------|-------------|
 | **📱 Session Management** | Backup, restore, and manage multiple app sessions |
-| **🔄 Account Switching** | Switch between different accounts in seconds |
+| **🔄 Profile Switching** | Switch between different sessions/profiles in seconds |
 | **🛠️ Smart App Close** | Auto-close running apps before operations (optional) |
 | **📊 Progress Tracking** | Real-time progress bars for all operations |
 | **🔍 Search & Filter** | Quick search through sessions and auto-backups |
@@ -108,7 +108,7 @@ SurfManager manages app data stored in platform-specific locations:
 
 **Step 3: Switch Between Accounts**
 1. Go to Sessions tab
-2. Right-click session → Restore
+2. Restore the session
 3. Launch your IDE - you're logged in! 🎉
 
 ### Tips

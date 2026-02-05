@@ -1,42 +1,24 @@
 <script>
   import { settings } from './stores/settings.js';
-  import { theme } from './stores/theme.js';
   import { 
     Settings, Cog, Database,
-    RotateCcw, ChevronRight, Download, Upload, FolderOpen
+    ChevronRight, FolderOpen,
+    Bell, Power
   } from 'lucide-svelte';
   import { OpenBackupFolder } from '../../wailsjs/go/main/App.js';
   import ThemeSelector from './ThemeSelector.svelte';
   import SettingToggle from './SettingToggle.svelte';
-  import { confirm } from './ConfirmModal.svelte';
 
   let activeSection = 'general';
   
 
   const sections = [
     { id: 'general', label: 'General', icon: Settings },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'startup', label: 'Startup', icon: Power },
     { id: 'behavior', label: 'Behavior', icon: Cog },
     { id: 'sessions', label: 'Sessions', icon: Database },
   ];
-
-  const settingsSectionOptions = [
-    { id: 'all', label: 'All Settings' },
-    { id: 'general', label: 'General' },
-    { id: 'notifications', label: 'Notifications' },
-    { id: 'startup', label: 'Startup' },
-    { id: 'behavior', label: 'Behavior' },
-    { id: 'sessions', label: 'Sessions' }
-  ];
-
-  const settingsSectionKeys = {
-    general: ['theme', 'enableNotepad', 'dontAskStartAfterComplete'],
-    notifications: ['muteToasts', 'toastSound', 'beepOnComplete'],
-    startup: ['rememberLastTab', 'lastActiveTab', 'autoRefreshSessionsOnLaunch'],
-    behavior: ['confirmBeforeReset', 'confirmBeforeDelete', 'confirmBeforeRestore', 'autoBackup'],
-    sessions: ['showAutoBackups', 'maxAutoBackups']
-  };
-
-  let selectedSettingsSection = 'all';
 
   function toggle(key) {
     settings.update(key, !$settings[key]);
@@ -48,97 +30,6 @@
 
   function updateSetting(key, value) {
     settings.update(key, value);
-  }
-
-  // Export settings to file
-  async function handleExportSettings() {
-    try {
-      let jsonData = '';
-      if (selectedSettingsSection === 'all') {
-        jsonData = settings.exportSettings();
-      } else {
-        const keys = settingsSectionKeys[selectedSettingsSection] || [];
-        const sectionData = {};
-        for (const key of keys) {
-          sectionData[key] = $settings[key];
-        }
-        jsonData = JSON.stringify({
-          version: 'partial',
-          exported_at: new Date().toISOString(),
-          section: selectedSettingsSection,
-          settings: sectionData
-        }, null, 2);
-      }
-      const blob = new Blob([jsonData], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const suffix = selectedSettingsSection === 'all' ? 'all' : selectedSettingsSection;
-      a.download = `surfmanager-settings-${suffix}-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      alert(`Export failed: ${e.message}`);
-    }
-  }
-
-  // Import settings from file
-  async function handleImportSettings() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      
-      try {
-        const text = await file.text();
-        const importData = JSON.parse(text);
-        const importSection = importData.section || selectedSettingsSection || 'all';
-        const keys = importSection === 'all'
-          ? Object.keys(settings.getDefaults())
-          : (settingsSectionKeys[importSection] || []);
-
-        const incoming = importData.settings || {};
-        const filtered = {};
-        for (const key of keys) {
-          if (Object.prototype.hasOwnProperty.call(incoming, key) && typeof incoming[key] === typeof settings.getDefaults()[key]) {
-            filtered[key] = incoming[key];
-          }
-        }
-
-        const previewLines = Object.keys(filtered)
-          .map((key) => `- ${key}: ${JSON.stringify(filtered[key])}`)
-          .join('\n');
-
-        const confirmed = await confirm({
-          title: 'Import Settings',
-          message: `Section: ${importSection}\n\n${previewLines || 'No valid keys found.'}`,
-          confirmText: 'Import',
-          cancelText: 'Cancel'
-        });
-        if (!confirmed) return;
-        if (Object.keys(filtered).length === 0) {
-          alert('No valid settings to import.');
-          return;
-        }
-        settings.applySettings(filtered);
-        alert('Settings imported successfully!');
-      } catch (err) {
-        alert(`Import failed: ${err.message}`);
-      }
-    };
-    input.click();
-  }
-
-  // Reset all settings
-  async function handleResetSettings() {
-    if (confirm('Reset all settings to default values?\n\nThis cannot be undone.')) {
-      settings.resetSettings();
-      alert('Settings reset to defaults!');
-    }
   }
 
   // Open backup folder
@@ -191,7 +82,12 @@
           checked={$settings.enableNotepad}
           on:change={() => toggle('enableNotepad')}
         />
+      </div>
 
+    {:else if activeSection === 'notifications'}
+      <h2 class="text-lg font-semibold mb-4 text-[var(--text-primary)]">Notifications</h2>
+
+      <div class="space-y-3">
         <SettingToggle
           label="Mute non-critical toasts"
           description="Only show error toasts"
@@ -205,14 +101,12 @@
           checked={$settings.toastSound}
           on:change={() => toggle('toastSound')}
         />
+      </div>
 
-        <SettingToggle
-          label="Beep on complete"
-          description="Play a short beep when operations finish"
-          checked={$settings.beepOnComplete}
-          on:change={() => toggle('beepOnComplete')}
-        />
+    {:else if activeSection === 'startup'}
+      <h2 class="text-lg font-semibold mb-4 text-[var(--text-primary)]">Startup</h2>
 
+      <div class="space-y-3">
         <SettingToggle
           label="Remember last tab"
           description="Restore the last opened tab on startup"
@@ -226,50 +120,6 @@
           checked={$settings.autoRefreshSessionsOnLaunch}
           on:change={() => toggle('autoRefreshSessionsOnLaunch')}
         />
-
-        <!-- Settings Management Section -->
-        <div class="p-4 bg-[var(--bg-card)] rounded-lg border border-[var(--border)]">
-          <p class="font-medium mb-2 text-[var(--text-primary)]">Settings Management</p>
-          <p class="text-sm text-[var(--text-secondary)] mb-4">Import, export, or reset your settings</p>
-
-          <select
-            class="w-full mb-3 bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)]"
-            bind:value={selectedSettingsSection}
-          >
-            {#each settingsSectionOptions as opt}
-              <option value={opt.id}>{opt.label}</option>
-            {/each}
-          </select>
-          
-          <div class="grid grid-cols-3 gap-2">
-            <button
-              class="p-3 bg-[var(--bg-hover)] hover:bg-[var(--border)] rounded-lg 
-                transition-colors flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--text-primary)]"
-              on:click={handleImportSettings}
-            >
-              <Upload size={16} />
-              Import
-            </button>
-            
-            <button
-              class="p-3 bg-[var(--bg-hover)] hover:bg-[var(--border)] rounded-lg 
-                transition-colors flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--text-primary)]"
-              on:click={handleExportSettings}
-            >
-              <Download size={16} />
-              Export
-            </button>
-            
-            <button
-              class="p-3 bg-[var(--danger)]/10 text-[var(--danger)] rounded-lg 
-                hover:bg-[var(--danger)]/20 transition-colors flex items-center justify-center gap-2 border border-[var(--danger)]/30"
-              on:click={handleResetSettings}
-            >
-              <RotateCcw size={16} />
-              Reset
-            </button>
-          </div>
-        </div>
       </div>
 
     {:else if activeSection === 'behavior'}

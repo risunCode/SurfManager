@@ -1,8 +1,9 @@
 <script>
   import { onMount } from 'svelte';
-  import { Plus, Trash2, FolderOpen, RefreshCw, X, Check, FileJson, ToggleLeft, Edit } from 'lucide-svelte';
-  import { GetApps, CheckAppInstalled, SaveApp, DeleteApp, ToggleApp, OpenConfigFolder, SelectFile, SelectFolder, SelectFolderFromHome, SelectExeFromLocalPrograms, SelectFolderFromRoaming, OpenFolder, GetApp, GetPlatformInfo } from '../../wailsjs/go/main/App.js';
+  import { Plus, Search, Edit, Trash2, FolderOpen, Save, X } from 'lucide-svelte';
+  import { GetApps, SaveApp, DeleteApp, SelectExeFromLocalPrograms, SelectFolderFromRoaming, SelectFolderFromLocalPrograms, GetPlatformInfo } from '../../wailsjs/go/main/App.js';
   import { confirm } from './ConfirmModal.svelte';
+  import { toast } from './Toast.svelte';
   import { settings } from './stores/settings.js';
 
   export let logs = [];
@@ -32,20 +33,21 @@
 
   // VSCode preset backup items
   const vscodePresetItems = [
-    { path: 'User', description: 'Settings & keybindings', optional: false, enabled: true },
-    { path: 'Local Storage', description: 'Extension data', optional: true, enabled: true },
-    { path: 'Session Storage', description: 'Session data', optional: true, enabled: true },
-    { path: 'Preferences', description: 'App preferences', optional: true, enabled: true },
-    { path: 'Local State', description: 'Local state', optional: true, enabled: true },
-    { path: 'Cache', description: 'Cache files (large)', optional: true, enabled: false },
-    { path: 'CachedData', description: 'Cached data', optional: true, enabled: false },
-    { path: 'CachedExtensions', description: 'Cached extensions', optional: true, enabled: false },
+    { type: 'file', path: 'Preferences', description: 'Preferences', optional: false, enabled: true },
+    { type: 'file', path: 'Local State', description: 'Local state', optional: false, enabled: true },
+    { type: 'file', path: 'machineid', description: 'Machine ID', optional: false, enabled: true },
+    { type: 'file', path: 'DIPS', description: 'DIPS', optional: false, enabled: true },
+    { type: 'file', path: 'languagepacks.json', description: 'Language packs', optional: false, enabled: true },
+    { type: 'folder', path: 'Network', description: 'Login/cookies', optional: false, enabled: true },
+    { type: 'file', path: 'User/settings.json', description: 'User settings', optional: false, enabled: true },
+    { type: 'file', path: 'User/globalStorage/state.vscdb', description: 'Global storage DB', optional: false, enabled: true },
+    { type: 'file', path: 'User/globalStorage/storage.json', description: 'Global storage', optional: false, enabled: true },
+    { type: 'file', path: 'User/globalStorage/state.vscdb.backup', description: 'Global storage DB backup', optional: false, enabled: true },
   ];
 
   // Custom backup item input
   let customItemPath = '';
   let customItemDesc = '';
-  let processNamesInput = '';
 
   onMount(loadApps);
 
@@ -226,7 +228,6 @@
     newApp.exe_path = fullConfig.paths?.exe_paths?.[0] || '';
     newApp.data_path = fullConfig.paths?.data_paths?.[0] || '';
     newApp.addon_paths = fullConfig.addon_backup_paths || [];
-    processNamesInput = fullConfig.paths?.process_names?.join(', ') || '';
     
     // Determine app type and populate backup items
     const existingItems = fullConfig.backup_items || [];
@@ -248,6 +249,7 @@
       existingItems.forEach(item => {
         if (!vscodePresetItems.find(p => p.path === item.path)) {
           newApp.backup_items.push({
+            type: item.type || (item.path.endsWith('/') ? 'folder' : (item.path.includes('.') ? 'file' : 'folder')),
             path: item.path,
             description: item.description || 'Custom item',
             optional: item.optional ?? true,
@@ -271,6 +273,7 @@
         } else {
           // Custom item not in preset, add it
           allItems.push({
+            type: item.type || (item.path.endsWith('/') ? 'folder' : (item.path.includes('.') ? 'file' : 'folder')),
             path: item.path,
             description: item.description || 'Custom item',
             optional: item.optional ?? true,
@@ -321,11 +324,17 @@
       return;
     }
 
+    // Prevent duplicate app IDs when adding
+    if (dialogMode === 'add' && apps.some((a) => a.app_name.toLowerCase() === newApp.app_name.toLowerCase())) {
+      alert('This app is already added. Please edit the existing entry.');
+      return;
+    }
+
     // Filter enabled backup items
     const enabledItems = newApp.backup_items
       .filter(item => item.enabled)
       .map(item => ({
-        type: item.path.includes('.') ? 'file' : 'folder',
+        type: item.type || (item.path.endsWith('/') ? 'folder' : (item.path.includes('.') ? 'file' : 'folder')),
         path: item.path,
         description: item.description,
         optional: item.optional
@@ -338,11 +347,6 @@
       return;
     }
 
-    const processNames = processNamesInput
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean);
-
     const config = {
       app_name: newApp.app_name,
       display_name: newApp.display_name || newApp.app_name,
@@ -352,8 +356,7 @@
       paths: {
         data_paths: [newApp.data_path],
         exe_paths: [newApp.exe_path],
-        reset_folder: newApp.data_path,
-        process_names: processNames
+        reset_folder: newApp.data_path
       },
       backup_items: enabledItems,
       addon_backup_paths: newApp.addon_paths
@@ -382,7 +385,6 @@
     };
     customItemPath = '';
     customItemDesc = '';
-    processNamesInput = '';
     dialogMode = 'add';
     editingAppKey = null;
   }
@@ -402,11 +404,29 @@
     return '';
   }
 
+  function getAdditionalFolderExample() {
+    const key = (newApp.app_name || newApp.display_name || '').toLowerCase();
+    if (key.includes('codeium')) return '~/.codeium';
+    if (key.includes('antigravity')) return '~/.antigravity';
+    if (newApp.app_type === 'vscode' || key.includes('vscode') || key === 'code' || key.includes('visual studio code')) return '~/.vscode';
+    if (key) return `~/.${key.replace(/\s+/g, '')}`;
+    return '~/.vscode';
+  }
+
+  function handleWindowKeydown(e) {
+    if (e.key === 'Escape' && showAddDialog) {
+      showAddDialog = false;
+      resetNewApp();
+    }
+  }
+
   // Initialize backup items when dialog opens for ADD mode only
   $: if (showAddDialog && dialogMode === 'add' && newApp.backup_items.length === 0) {
     newApp.backup_items = vscodePresetItems.map(item => ({ ...item }));
   }
 </script>
+
+<svelte:window on:keydown={handleWindowKeydown} />
 
 <div class="h-full flex flex-col gap-4 animate-fadeIn">
   <div class="flex items-center justify-between">
@@ -582,7 +602,7 @@
 <!-- Add/Edit App Dialog -->
 {#if showAddDialog}
   <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-50" role="dialog" aria-modal="true" on:keydown={(e) => { if (e.key === 'Escape') { showAddDialog = false; resetNewApp(); } }} on:click|self={() => { showAddDialog = false; resetNewApp(); }}>
-    <div class="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] w-full max-w-4xl p-6 animate-fadeIn max-h-[90vh] overflow-auto">
+    <div class="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] w-full max-w-4xl p-5 animate-fadeIn max-h-[90vh] overflow-auto">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-lg font-semibold text-[var(--text-primary)]">
           {dialogMode === 'edit' ? 'Edit Application' : 'Add Application'}
@@ -700,34 +720,26 @@
             {/if}
           </div>
 
-          <!-- Process Names -->
-          <div>
-            <label class="block text-sm text-[var(--text-secondary)] mb-1" for="process-names">Process Names (optional)</label>
-            <input
-              id="process-names"
-              type="text"
-              class="w-full bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-muted)] text-sm"
-              bind:value={processNamesInput}
-              placeholder="code.exe, slack.exe"
-            />
-            <p class="text-xs text-[var(--text-muted)] mt-1">Comma-separated. Used for running app detection.</p>
-          </div>
-
-          <!-- Additional Folders -->
-          <div>
-            <label class="block text-sm text-[var(--text-secondary)] mb-1" for="extra-folders">📁 Additional Folders</label>
-            <p class="text-xs text-[var(--text-muted)] mb-2">Also backed up & restored (e.g., ~/.aws)</p>
-            <div id="extra-folders" class="space-y-1.5 max-h-24 overflow-auto">
+          <!-- Additional Folders (moved under Data Folder) -->
+          <div class="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border)] p-2.5">
+            <div class="flex items-center gap-2 mb-1">
+              <span>📁</span>
+              <div>
+                <p class="text-sm text-[var(--text-primary)] font-semibold">Additional Folders</p>
+                <p class="text-xs text-[var(--text-muted)]">Also backed up & restored (e.g., {getAdditionalFolderExample()})</p>
+              </div>
+            </div>
+            <div id="extra-folders" class="space-y-1.5 max-h-20 overflow-auto pr-1">
               {#each newApp.addon_paths as path}
-                <div class="flex items-center gap-2 bg-[var(--bg-hover)] rounded px-2 py-1.5 text-xs">
-                  <span class="flex-1 truncate text-[var(--text-secondary)] font-mono">{path}</span>
-                  <button class="text-[var(--danger)] hover:text-[var(--danger)]/80" on:click={() => removeAddonFolder(path)}>
+                <div class="flex items-center gap-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-3 py-2 text-xs">
+                  <span class="flex-1 truncate text-[var(--text-secondary)] font-mono" title={path}>{path}</span>
+                  <button class="p-1 rounded text-[var(--danger)] hover:text-[var(--danger)]/80 hover:bg-[var(--bg-hover)]" on:click={() => removeAddonFolder(path)} title="Remove">
                     <X size={14} />
                   </button>
                 </div>
               {/each}
             </div>
-            <button 
+            <button
               class="w-full mt-2 px-3 py-1.5 rounded-lg text-sm bg-[var(--bg-hover)] hover:bg-[var(--border)] border border-[var(--border)] border-dashed text-[var(--text-secondary)] transition-all"
               on:click={addAddonFolder}
             >
@@ -737,75 +749,97 @@
         </div>
 
         <!-- Right Column: Backup Items -->
-        <div>
-          <p class="block text-sm text-[var(--text-secondary)] mb-2">📦 Backup Items</p>
-          <div class="bg-[var(--bg-elevated)] rounded-lg border border-[var(--border)] p-3 h-[320px] overflow-auto">
-            {#if newApp.backup_items.length === 0}
-              <p class="text-sm text-[var(--text-muted)] text-center py-4">No backup items. Add below.</p>
-            {/if}
-            <div class="space-y-1.5">
-              {#each newApp.backup_items as item, index}
-                <div 
-                  class="flex items-center gap-2 p-2 rounded hover:bg-[var(--bg-hover)] transition-colors
-                         {item.enabled ? '' : 'opacity-50'}"
-                >
-                  <button
-                    class="w-4 h-4 rounded border flex items-center justify-center transition-all flex-shrink-0
-                           {item.enabled 
-                             ? 'bg-[var(--primary)] border-[var(--primary)]' 
-                             : 'border-[var(--border)] hover:border-[var(--text-muted)]'}"
-                    on:click={() => toggleBackupItem(index)}
-                  >
-                    {#if item.enabled}
-                      <Check size={10} class="text-white" />
-                    {/if}
-                  </button>
-                  <div class="flex-1 min-w-0">
-                    <span class="text-xs text-[var(--text-primary)] font-mono">{item.path}</span>
-                    <span class="text-[10px] text-[var(--text-muted)] ml-1">{item.description}</span>
-                  </div>
-                  <span class="text-[9px] px-1 py-0.5 rounded flex-shrink-0 {item.optional ? 'bg-[var(--bg-hover)] text-[var(--text-muted)]' : 'bg-[var(--warning)]/20 text-[var(--warning)]'}">
-                    {item.optional ? 'Opt' : 'Req'}
-                  </span>
-                  {#if newApp.app_type === 'custom' || !vscodePresetItems.find(p => p.path === item.path)}
-                    <button
-                      class="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--danger)] flex-shrink-0"
-                      on:click={() => removeBackupItem(index)}
-                    >
-                      <X size={12} />
-                    </button>
-                  {/if}
-                </div>
-              {/each}
+        <div class="space-y-4">
+          <div class="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border)] overflow-hidden min-h-[280px]">
+            <div class="px-3.5 py-2.5 border-b border-[var(--border)] bg-[var(--bg-card)]">
+              <div class="flex items-center justify-between gap-3">
+                <p class="text-sm font-semibold text-[var(--text-primary)]">📦 Backup Items</p>
+                <p class="text-xs text-[var(--text-muted)]">
+                  {newApp.backup_items.filter(i => i.enabled).length}/{newApp.backup_items.length}
+                </p>
+              </div>
+              <p class="text-xs text-[var(--text-muted)] mt-0.5">Choose what gets backed up & restored</p>
             </div>
-            
-            <!-- Helper text for Custom apps with no items selected -->
-            {#if newApp.app_type === 'custom' && !newApp.backup_items.some(item => item.enabled)}
-              <p class="text-xs text-[var(--text-muted)] text-center py-2 mt-2 bg-[var(--bg-hover)] rounded">
-                No items selected = only Additional Folders will be backed up
-              </p>
-            {/if}
-            
-            <!-- Add Custom Item -->
-            <div class="flex gap-2 mt-3 pt-3 border-t border-[var(--border)]">
-              <input
-                type="text"
-                class="flex-1 bg-[var(--bg-hover)] border border-[var(--border)] rounded px-2 py-1 text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)]"
-                placeholder="Folder/file"
-                bind:value={customItemPath}
-              />
-              <input
-                type="text"
-                class="flex-1 bg-[var(--bg-hover)] border border-[var(--border)] rounded px-2 py-1 text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)]"
-                placeholder="Description"
-                bind:value={customItemDesc}
-              />
-              <button 
-                class="px-2 py-1 rounded text-xs font-medium bg-[var(--primary)] hover:bg-[var(--primary-light)] hover:text-black text-white transition-all"
-                on:click={addCustomBackupItem}
-              >
-                Add
-              </button>
+
+            <div class="p-2">
+              <div class="max-h-[200px] overflow-auto pr-1 space-y-1">
+                {#if newApp.backup_items.length === 0}
+                  <p class="text-sm text-[var(--text-muted)] text-center py-4">No backup items yet.</p>
+                {/if}
+                {#each newApp.backup_items as item, index}
+                  <div
+                    class="flex items-start gap-2 p-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--border-hover)] transition-colors
+                           {item.enabled ? '' : 'opacity-60'}"
+                  >
+                    <button
+                      class="mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition-all flex-shrink-0
+                             {item.enabled
+                               ? 'bg-[var(--primary)] border-[var(--primary)]'
+                               : 'border-[var(--border)] hover:border-[var(--text-muted)]'}"
+                      on:click={() => toggleBackupItem(index)}
+                      title={item.enabled ? 'Enabled' : 'Disabled'}
+                    >
+                      {#if item.enabled}
+                        <Check size={12} class="text-white" />
+                      {/if}
+                    </button>
+
+                    <div class="flex-1 min-w-0">
+                      <p class="text-xs text-[var(--text-primary)] font-mono truncate" title={item.path}>{item.path}</p>
+                      <p class="text-xs text-[var(--text-muted)] truncate" title={item.description}>{item.description}</p>
+                    </div>
+
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                      <span class="text-[10px] px-2 py-0.5 rounded-full {item.optional ? 'bg-[var(--bg-hover)] text-[var(--text-muted)]' : 'bg-[var(--warning)]/20 text-[var(--warning)]'}">
+                        {item.optional ? 'Optional' : 'Required'}
+                      </span>
+                      {#if newApp.app_type === 'custom' || !vscodePresetItems.find(p => p.path === item.path)}
+                        <button
+                          class="p-1 rounded text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--bg-hover)]"
+                          on:click={() => removeBackupItem(index)}
+                          title="Remove"
+                        >
+                          <X size={14} />
+                        </button>
+                      {/if}
+                    </div>
+                  </div>
+                {/each}
+              </div>
+
+              <!-- Helper text for Custom apps with no items selected -->
+              {#if newApp.app_type === 'custom' && !newApp.backup_items.some(item => item.enabled)}
+                <p class="text-xs text-[var(--text-muted)] text-center py-2 mt-3 bg-[var(--bg-hover)] rounded-lg">
+                  No items selected = only Additional Folders will be backed up
+                </p>
+              {/if}
+
+              <!-- Add Custom Item -->
+              <div class="mt-1.5 pt-1.5 border-t border-[var(--border)]">
+                <p class="text-xs text-[var(--text-secondary)] mb-1">Add custom item</p>
+                <div class="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    class="w-full bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)]"
+                    placeholder="Folder/file path"
+                    bind:value={customItemPath}
+                  />
+                  <input
+                    type="text"
+                    class="w-full bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)]"
+                    placeholder="Description"
+                    bind:value={customItemDesc}
+                  />
+                </div>
+                <div class="flex justify-end mt-2">
+                  <button
+                    class="px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--primary)] hover:bg-[var(--primary-light)] hover:text-black text-white transition-all"
+                    on:click={addCustomBackupItem}
+                  >
+                    Add Item
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

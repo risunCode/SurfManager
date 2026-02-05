@@ -154,10 +154,6 @@ export function ResetApp(arg1, arg2, arg3) {
   return window['go']['main']['App']['ResetApp'](arg1, arg2, arg3);
 }
 
-export function RestoreAccountOnly(arg1, arg2) {
-  return window['go']['main']['App']['RestoreAccountOnly'](arg1, arg2);
-}
-
 export function RestoreAddonOnly(arg1, arg2, arg3) {
   return window['go']['main']['App']['RestoreAddonOnly'](arg1, arg2, arg3);
 }

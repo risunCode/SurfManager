@@ -145,14 +145,40 @@
   async function handleResetWithOverride(skipClose) {
     if (!selectedApp) return;
 
-    if ($settings.confirmBeforeReset) {
+    let skipCloseStep = skipClose;
+    let alreadyConfirmed = false;
+
+    if (!skipClose && selectedApp.running) {
+      const confirmed = await confirm({
+        title: 'Reset Confirmation',
+        message: `App is running.\n\nKill the app and reset?${autoBackup ? '\n\nAuto-backup will be created first.' : ''}`,
+        confirmText: 'Kill and reset',
+        cancelText: 'Cancel',
+        danger: true
+      });
+      if (!confirmed) return;
+
+      alreadyConfirmed = true;
+      try {
+        log(`[Kill] Stopping ${selectedApp.display_name}...`);
+        await KillApp(selectedApp.app_name);
+        log(`[Kill] ${selectedApp.display_name} stopped`);
+      } catch (e) {
+        log(`[Kill] Error: ${e}`);
+        toast.error(`Failed to stop app: ${e}`, 5000);
+        return;
+      }
+      skipCloseStep = true;
+    }
+
+    if ($settings.confirmBeforeReset && !alreadyConfirmed) {
       const confirmed = await confirm.reset(selectedApp.display_name, autoBackup);
       if (!confirmed) return;
     }
 
     log(`[Reset] Starting ${selectedApp.display_name}...`);
     try {
-      await ResetApp(selectedApp.app_name, autoBackup, skipClose);
+      await ResetApp(selectedApp.app_name, autoBackup, skipCloseStep);
       log(`[Reset] ${selectedApp.display_name} complete!`);
       toast.success('App data reset successfully', 3000);
       await loadApps();
@@ -183,6 +209,7 @@
   async function handleNewID() {
     if (!selectedApp) return;
     
+    toast.info('Generating new machine ID...');
     log(`[NewID] Generating for ${selectedApp.display_name}...`);
     try {
       const count = await GenerateNewID(selectedApp.app_name);
@@ -394,7 +421,7 @@
       {#if selectedApp}
         <!-- App Info Card -->
         <div class="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border)] p-4">
-          <div class="flex items-center justify-between mb-3">
+          <div class="flex items-start justify-between gap-4 mb-3">
             <div>
               <h3 class="text-xl font-bold text-[var(--text-primary)]">{selectedApp.display_name}</h3>
               <div class="flex items-center gap-2 mt-0.5">
@@ -406,6 +433,41 @@
               </div>
               {#if getDataPathHint()}
                 <p class="text-[10px] text-[var(--text-muted)] mt-1">Hint: {getDataPathHint()}</p>
+              {/if}
+            </div>
+
+            <div class="flex flex-wrap items-start justify-end gap-4 text-right">
+              <div class="flex items-center gap-2">
+                <Database size={14} class="text-[var(--text-muted)]" />
+                <div>
+                  <span class="text-[10px] text-[var(--text-muted)] block">Sessions</span>
+                  <span class="text-xs font-medium text-[var(--text-primary)]">{sessionCount} backup(s)</span>
+                </div>
+              </div>
+              {#if corruptedCount > 0}
+                <div class="flex items-center gap-2">
+                  <AlertTriangle size={14} class="text-[var(--danger)]" />
+                  <div>
+                    <span class="text-[10px] text-[var(--text-muted)] block">Corrupted</span>
+                    <span class="text-xs font-medium text-[var(--danger)]">{corruptedCount} found</span>
+                  </div>
+                </div>
+              {/if}
+              <div class="flex items-center gap-2">
+                <HardDrive size={14} class="text-[var(--text-muted)]" />
+                <div>
+                  <span class="text-[10px] text-[var(--text-muted)] block">Auto-Backup</span>
+                  <span class="text-xs font-medium text-[var(--text-primary)]">{autoBackup ? 'Enabled' : 'Disabled'}</span>
+                </div>
+              </div>
+              {#if addonCount > 0}
+                <div class="flex items-center gap-2">
+                  <FolderOpen size={14} class="text-[var(--text-muted)]" />
+                  <div>
+                    <span class="text-[10px] text-[var(--text-muted)] block">Addons</span>
+                    <span class="text-xs font-medium text-[var(--text-primary)]">{addonCount} folder(s)</span>
+                  </div>
+                </div>
               {/if}
             </div>
           </div>
@@ -445,7 +507,7 @@
             </button>
 
             <button
-              class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--primary)]/15 border border-[var(--primary)] text-[var(--primary)] hover:bg-[var(--primary)]/25 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               on:click={handleReset}
               disabled={!selectedApp.dataPath}
               title="Reset all app data"
@@ -475,7 +537,7 @@
             </button>
 
             <button
-              class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--danger)]/10 border border-[var(--danger)]/50 text-[var(--danger)] hover:bg-[var(--danger)]/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--danger)] hover:border-[var(--danger)] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               on:click={handleKillApp}
               disabled={!selectedApp.running}
               title="Force close app"
@@ -495,41 +557,6 @@
             </button>
           </div>
 
-          <!-- Stats -->
-          <div class="flex items-center gap-6 mt-4 pt-4 border-t border-[var(--border)]">
-            <div class="flex items-center gap-2">
-              <Database size={14} class="text-[var(--text-muted)]" />
-              <div>
-                <span class="text-[10px] text-[var(--text-muted)] block">Sessions</span>
-                <span class="text-xs font-medium text-[var(--text-primary)]">{sessionCount} backup(s)</span>
-              </div>
-            </div>
-            {#if corruptedCount > 0}
-              <div class="flex items-center gap-2">
-                <AlertTriangle size={14} class="text-[var(--danger)]" />
-                <div>
-                  <span class="text-[10px] text-[var(--text-muted)] block">Corrupted</span>
-                  <span class="text-xs font-medium text-[var(--danger)]">{corruptedCount} found</span>
-                </div>
-              </div>
-            {/if}
-            <div class="flex items-center gap-2">
-              <HardDrive size={14} class="text-[var(--text-muted)]" />
-              <div>
-                <span class="text-[10px] text-[var(--text-muted)] block">Auto-Backup</span>
-                <span class="text-xs font-medium text-[var(--text-primary)]">{autoBackup ? 'Enabled' : 'Disabled'}</span>
-              </div>
-            </div>
-            {#if addonCount > 0}
-              <div class="flex items-center gap-2">
-                <FolderOpen size={14} class="text-[var(--text-muted)]" />
-                <div>
-                  <span class="text-[10px] text-[var(--text-muted)] block">Addons</span>
-                  <span class="text-xs font-medium text-[var(--text-primary)]">{addonCount} folder(s)</span>
-                </div>
-              </div>
-            {/if}
-          </div>
         </div>
 
         <!-- Log Output -->

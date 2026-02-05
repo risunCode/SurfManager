@@ -80,8 +80,6 @@ export function ResetAddonData(arg1:string,arg2:boolean):Promise<void>;
 
 export function ResetApp(arg1:string,arg2:boolean,arg3:boolean):Promise<void>;
 
-export function RestoreAccountOnly(arg1:string,arg2:string):Promise<void>;
-
 export function RestoreAddonOnly(arg1:string,arg2:string,arg3:boolean):Promise<void>;
 
 export function RestoreBackup(arg1:string,arg2:string,arg3:boolean):Promise<void>;

@@ -2,6 +2,31 @@
 
 All notable changes to SurfManager will be documented in this file.
 
+## [2.2.1] - 2026-02-05
+
+### Summary (vs 2.2.0)
+
+This release focuses on simplifying the product surface area and making backup/restore flows clearer.
+
+### 🗑️ Removed Features
+
+- Removed "Restore Account Only" (Sessions UI + backend API)
+- Removed "Beep on completion" setting
+- Removed Settings > Management section (Import/Export/Reset UI)
+
+### ✨ Improvements
+
+**Sessions**
+- Create New Backup: when the app is running, the primary action becomes "Kill and Continue Create Backup"
+- Backup size now recalculates based on selected Backup Type (Full vs Addon Only)
+- Running warning text updated to match the new kill-and-continue flow
+- Sessions context menu simplified (removed account-only restore)
+
+**Config**
+- Add Application modal refined (more compact layout, reduced scrolling)
+- VSCode preset backup items updated to core data layout (Roaming/Code) and marked as required
+- Additional Folders hint example is now app-relevant (e.g., ~/.vscode)
+
 ## [2.2.0] - 2026-02-05
 
 ### ✨ New Features
@@ -12,7 +37,6 @@ All notable changes to SurfManager will be documented in this file.
 - Corrupted backup detection now surfaces a badge in Sessions and a count in Reset tab stats
 
 **Configuration & Platform Help**
-- Added process name mapping in Config tab to improve running-app detection
 - Added platform-aware data path hints for Windows/macOS/Linux in Config and Reset tabs
 
 **Observability**
@@ -22,7 +46,7 @@ All notable changes to SurfManager will be documented in this file.
 **Settings & Behavior**
 - Settings can be exported/imported per section with a preview of incoming keys
 - Startup actions: remember last tab and auto-refresh Sessions on launch; defaults updated for smoother startup
-- Notification controls: mute non-critical toasts, toggle toast sound, and beep on completion
+- Notification controls: mute non-critical toasts, toggle toast sound
 
 ### 🗑️ Removed Features
 

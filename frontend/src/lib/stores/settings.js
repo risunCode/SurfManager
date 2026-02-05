@@ -11,7 +11,6 @@ const defaultSettings = {
   dontAskStartAfterComplete: false,
   muteToasts: false,
   toastSound: true,
-  beepOnComplete: true,
   
   // Remember Selected Apps
   lastSelectedAppReset: '',
@@ -103,7 +102,6 @@ function createSettingsStore() {
           dontAskStartAfterComplete: currentSettings.dontAskStartAfterComplete,
           muteToasts: currentSettings.muteToasts,
           toastSound: currentSettings.toastSound,
-          beepOnComplete: currentSettings.beepOnComplete,
           
           // Remember Selected Apps
           lastSelectedAppReset: currentSettings.lastSelectedAppReset,

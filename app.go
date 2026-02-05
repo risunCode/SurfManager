@@ -784,63 +784,6 @@ func (a *App) RestoreBackup(appKey, sessionName string, skipClose bool) error {
 	return err
 }
 
-// RestoreAccountOnly restores only the auth state file (state.vscdb) for quick account switch
-func (a *App) RestoreAccountOnly(appKey, sessionName string) error {
-	cfg := a.GetApp(appKey)
-	if cfg == nil {
-		return fmt.Errorf("app not found: %s", appKey)
-	}
-
-	dataPath := a.GetAppDataPath(appKey)
-	if dataPath == "" {
-		if len(cfg.Paths.DataPaths) > 0 {
-			dataPath = cfg.Paths.DataPaths[0]
-		} else {
-			return fmt.Errorf("no data path configured for %s", cfg.DisplayName)
-		}
-	}
-
-	// Always close the app first (required for file lock release)
-	processNames := a.collectProcessNames(cfg)
-
-	if len(processNames) > 0 {
-		wailsRuntime.EventsEmit(a.ctx, "progress", map[string]interface{}{
-			"percent": 10,
-			"message": fmt.Sprintf("Closing %s...", cfg.DisplayName),
-		})
-		if err := a.process.SmartClose(cfg.DisplayName, processNames); err != nil {
-			return fmt.Errorf("failed to close %s: %w", cfg.DisplayName, err)
-		}
-	}
-
-	// Restore only the auth state file
-	wailsRuntime.EventsEmit(a.ctx, "progress", map[string]interface{}{
-		"percent": 50,
-		"message": "Switching account...",
-	})
-
-	err := a.backup.RestoreAccountOnly(appKey, sessionName, dataPath, func(p backup.BackupProgress) {
-		wailsRuntime.EventsEmit(a.ctx, "progress", map[string]interface{}{
-			"percent": p.Percent,
-			"message": p.Message,
-		})
-	})
-
-	if err == nil {
-		// Set as active session after successful restore
-		a.backup.SetActiveSession(appKey, sessionName)
-
-		// Generate new IDs after successful restore
-		count, _ := a.GenerateNewID(appKey)
-		wailsRuntime.EventsEmit(a.ctx, "progress", map[string]interface{}{
-			"percent": 100,
-			"message": fmt.Sprintf("Account switched! Updated %d ID(s)", count),
-		})
-	}
-
-	return err
-}
-
 // DeleteSession deletes a backup session
 func (a *App) DeleteSession(appKey, sessionName string) error {
 	return a.backup.DeleteSession(appKey, sessionName)
