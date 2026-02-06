@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { Plus, RefreshCw, Search, CheckSquare, FolderOpen, Trash2, RotateCcw, Package, Play, AlertTriangle } from 'lucide-svelte';
+  import { Plus, RefreshCw, Search, CheckSquare, FolderOpen, Trash2, RotateCcw, Package, Play, AlertTriangle, Loader2 } from 'lucide-svelte';
   import { GetActiveApps, GetApp, GetAllSessions, CreateBackup, RestoreBackup, RestoreAddonOnly, CheckSessionHasAddons, DeleteSession, SetActiveSession, OpenSessionFolder, CountAutoBackups, LaunchApp, CalculateBackupSize, KillApp } from '../../wailsjs/go/main/App.js';
   import { confirm } from './ConfirmModal.svelte';
   import { toast } from './Toast.svelte';
@@ -17,6 +17,12 @@
   let autoBackupCount = 0;
   let loading = false;
   let selectedSessions = new Set();
+
+  // Loading states for actions
+  let loadingCreateBackup = false;
+  let loadingRestore = {};      // { sessionKey: boolean }
+  let loadingDelete = {};       // { sessionKey: boolean }
+  let loadingKillCreate = false;
 
   let showNewDialog = false;
   let newBackupApp = '';
@@ -113,14 +119,16 @@
   }
 
   async function handleKillAndCreateBackup() {
-    if (!newBackupApp || !newBackupName.trim()) {
+    if (!newBackupApp || !newBackupName.trim() || loadingKillCreate) {
       toast.error('Please enter session name');
       return;
     }
 
+    loadingKillCreate = true;
     try {
       await killAppSilently(newBackupApp);
     } catch (e) {
+      loadingKillCreate = false;
       return;
     }
 
@@ -144,6 +152,8 @@
     } catch (e) {
       log(`Error: ${e}`);
       toast.error(`Backup failed: ${e}`);
+    } finally {
+      loadingKillCreate = false;
     }
   }
 
@@ -171,16 +181,17 @@
   }
 
   async function handleCreateBackup() {
-    if (!newBackupApp || !newBackupName.trim()) {
+    if (!newBackupApp || !newBackupName.trim() || loadingCreateBackup) {
       toast.error('Please enter session name');
       return;
     }
 
     // Determine if addon-only backup
     const addonOnly = newBackupAppRunning || backupType === 'addon';
-    
+
+    loadingCreateBackup = true;
     log(`Creating ${addonOnly ? 'addon-only' : 'full'} backup: ${newBackupApp}/${newBackupName}...`);
-    
+
     try {
       await CreateBackup(newBackupApp, newBackupName.trim(), addonOnly);
       toast.success('Backup created successfully');
@@ -189,10 +200,15 @@
     } catch (e) {
       log(`Error: ${e}`);
       toast.error(`Backup failed: ${e}`);
+    } finally {
+      loadingCreateBackup = false;
     }
   }
 
   async function handleRestore(session) {
+    const sessionKey = `${session.app}/${session.name}`;
+    if (loadingRestore[sessionKey]) return;
+
     const running = await isAppRunning(session.app);
     if (running) {
       const appConfig = await GetApp(session.app);
@@ -203,6 +219,7 @@
         danger: true
       });
       if (!confirmed) return;
+      loadingRestore = { ...loadingRestore, [sessionKey]: true };
       try {
         await killAppSilently(session.app);
       } catch (e) {
@@ -213,8 +230,13 @@
           cancelText: 'Cancel',
           danger: true
         });
-        if (!override) return;
+        if (!override) {
+          loadingRestore = { ...loadingRestore, [sessionKey]: false };
+          return;
+        }
       }
+    } else {
+      loadingRestore = { ...loadingRestore, [sessionKey]: true };
     }
 
     log(`Restoring session: ${session.name}...`);
@@ -222,6 +244,7 @@
       await RestoreBackup(session.app, session.name, false);
       toast.success('Session restored successfully');
       await loadData();
+      loadingRestore = { ...loadingRestore, [sessionKey]: false };
       await promptLaunchIfAllowed(session.app);
     } catch (e) {
       const msg = e?.toString?.() || '';
@@ -238,12 +261,14 @@
           await RestoreBackup(session.app, session.name, true);
           toast.success('Session restored successfully');
           await loadData();
+          loadingRestore = { ...loadingRestore, [sessionKey]: false };
           await promptLaunchIfAllowed(session.app);
           return;
         }
       }
       log(`Error: ${e}`);
       toast.error(`Restore failed: ${e}`);
+      loadingRestore = { ...loadingRestore, [sessionKey]: false };
     }
   }
 
@@ -290,11 +315,15 @@
   }
 
   async function handleDelete(session) {
+    const sessionKey = `${session.app}/${session.name}`;
+    if (loadingDelete[sessionKey]) return;
+
     if ($settings.confirmBeforeDelete) {
       const confirmed = await confirm.delete(session.name);
       if (!confirmed) return;
     }
-    
+
+    loadingDelete = { ...loadingDelete, [sessionKey]: true };
     try {
       await DeleteSession(session.app, session.name);
       log(`Deleted: ${session.name}`);
@@ -303,6 +332,8 @@
       await loadData();
     } catch (e) {
       log(`Error: ${e}`);
+    } finally {
+      loadingDelete = { ...loadingDelete, [sessionKey]: false };
     }
   }
 
@@ -613,11 +644,17 @@
                     Folder
                   </button>
                   <button
-                    class="px-2 py-1 rounded text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--danger)] hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-1"
+                    class="px-2 py-1 rounded text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--danger)] hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                     on:click|stopPropagation={() => handleDelete(session)}
+                    disabled={loadingDelete[`${session.app}/${session.name}`]}
                   >
-                    <Trash2 size={12} />
-                    Delete
+                    {#if loadingDelete[`${session.app}/${session.name}`]}
+                      <Loader2 size={12} class="animate-spin" />
+                      Deleting...
+                    {:else}
+                      <Trash2 size={12} />
+                      Delete
+                    {/if}
                   </button>
                 </div>
               </td>
@@ -645,11 +682,17 @@
   >
     <!-- Full Restore: Always clickable -->
     <button
-      class="w-full px-4 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--primary)] transition-colors flex items-center gap-2"
+      class="w-full px-4 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--primary)] transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
       on:click={() => { handleRestore(contextMenu.session); closeContextMenu(); }}
+      disabled={loadingRestore[`${contextMenu.session?.app}/${contextMenu.session?.name}`]}
     >
-      <RotateCcw size={14} />
-      Restore Session
+      {#if loadingRestore[`${contextMenu.session?.app}/${contextMenu.session?.name}`]}
+        <Loader2 size={14} class="animate-spin" />
+        Restoring...
+      {:else}
+        <RotateCcw size={14} />
+        Restore Session
+      {/if}
     </button>
 
     <!-- Restore Addon Only: Enabled only if session has addons -->
@@ -816,25 +859,38 @@
       </div>
 
       <div class="flex justify-end gap-3 mt-6">
-        <button 
-          class="px-4 py-2 rounded-lg font-medium bg-[var(--bg-hover)] hover:bg-[var(--border)] border border-[var(--border)] text-[var(--text-secondary)] transition-all"
+        <button
+          class="px-4 py-2 rounded-lg font-medium bg-[var(--bg-hover)] hover:bg-[var(--border)] border border-[var(--border)] text-[var(--text-secondary)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           on:click={() => showNewDialog = false}
+          disabled={loadingCreateBackup || loadingKillCreate}
         >
           Cancel
         </button>
         {#if newBackupAppRunning}
-          <button 
-            class="px-4 py-2 rounded-lg font-medium bg-[var(--danger)] hover:bg-[var(--danger)]/80 text-white transition-all"
+          <button
+            class="px-4 py-2 rounded-lg font-medium bg-[var(--danger)] hover:bg-[var(--danger)]/80 text-white transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             on:click={handleKillAndCreateBackup}
+            disabled={loadingKillCreate}
           >
-            Kill and Continue Create Backup
+            {#if loadingKillCreate}
+              <Loader2 size={16} class="animate-spin" />
+              Processing...
+            {:else}
+              Kill and Continue Create Backup
+            {/if}
           </button>
         {:else}
-          <button 
-            class="px-4 py-2 rounded-lg font-medium bg-[var(--primary)] hover:bg-[var(--primary-light)] hover:text-black text-white transition-all"
+          <button
+            class="px-4 py-2 rounded-lg font-medium bg-[var(--primary)] hover:bg-[var(--primary-light)] hover:text-black text-white transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             on:click={handleCreateBackup}
+            disabled={loadingCreateBackup}
           >
-            Create Backup
+            {#if loadingCreateBackup}
+              <Loader2 size={16} class="animate-spin" />
+              Creating...
+            {:else}
+              Create Backup
+            {/if}
           </button>
         {/if}
       </div>

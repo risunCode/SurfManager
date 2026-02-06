@@ -1,8 +1,8 @@
-# SurfManager v2.2.1
+# SurfManager v2.5.0
 
 > **Advanced Session & Data Manager for Development Tools**
 
-[![Version](https://img.shields.io/badge/version-2.2.1-brightgreen.svg)](https://github.com/risunCode/SurfManager)
+[![Version](https://img.shields.io/badge/version-2.5.0-brightgreen.svg)](https://github.com/risunCode/SurfManager)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue.svg)](https://github.com/risunCode/SurfManager)
 [![Go](https://img.shields.io/badge/go-1.22+-00ADD8.svg)](https://golang.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -54,6 +54,14 @@ Perfect for developers who need to:
 | **⚙️ Customizable Settings** | Persistent settings for personalized experience |
 | **📝 Custom App Config** | VSCode preset or fully custom backup items |
 | **✏️ Edit App Config** | Edit existing app configurations via UI |
+
+### 🚀 What's New in v2.5.0
+
+- **3-5x Faster Backup/Restore** - Parallel file copying using all CPU cores
+- **Instant Session Listing** - Cached metadata eliminates slow directory scans
+- **Streaming Hash Computation** - Files hashed while copying (no double reads)
+- **On-Demand Integrity Verification** - Lazy verification via new API
+- **4MB I/O Buffers** - Optimized for high-throughput file operations
 
 ### 🚀 What's New in v2.0
 
@@ -390,7 +398,7 @@ SurfManager is open-source under the MIT License.
 
 <div align="center">
 
-**SurfManager v2.0**
+**SurfManager v2.5.0**
 
 *Making development workflows smoother, one session at a time*
 

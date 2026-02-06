@@ -1,10 +1,17 @@
 <script>
   import { onMount, createEventDispatcher } from 'svelte';
-  import { FolderOpen, RotateCcw, Fingerprint, Play, RefreshCw, Plus, Trash2, XCircle, Copy, Database, HardDrive, Download, AlertTriangle } from 'lucide-svelte';
+  import { FolderOpen, RotateCcw, Fingerprint, Play, RefreshCw, Plus, Trash2, XCircle, Copy, Database, HardDrive, Download, AlertTriangle, Loader2 } from 'lucide-svelte';
   import { GetActiveApps, CheckAppInstalled, GetAppDataPath, ResetApp, GenerateNewID, LaunchApp, OpenAppFolder, GetSessions, KillApp, ResetAddonData, GetApp, GetPlatformInfo, GetLogs } from '../../wailsjs/go/main/App.js';
   import { confirm } from './ConfirmModal.svelte';
   import { toast } from './Toast.svelte';
   import { settings } from './stores/settings.js';
+
+  // Loading states for each action
+  let loadingReset = false;
+  let loadingNewID = false;
+  let loadingKill = false;
+  let loadingAddon = false;
+  let loadingLaunch = false;
 
   export let logs = [];
   export let globalRunningAppsStatus = {};
@@ -143,7 +150,7 @@
   }
 
   async function handleResetWithOverride(skipClose) {
-    if (!selectedApp) return;
+    if (!selectedApp || loadingReset) return;
 
     let skipCloseStep = skipClose;
     let alreadyConfirmed = false;
@@ -159,6 +166,7 @@
       if (!confirmed) return;
 
       alreadyConfirmed = true;
+      loadingReset = true;
       try {
         log(`[Kill] Stopping ${selectedApp.display_name}...`);
         await KillApp(selectedApp.app_name);
@@ -166,6 +174,7 @@
       } catch (e) {
         log(`[Kill] Error: ${e}`);
         toast.error(`Failed to stop app: ${e}`, 5000);
+        loadingReset = false;
         return;
       }
       skipCloseStep = true;
@@ -176,6 +185,7 @@
       if (!confirmed) return;
     }
 
+    loadingReset = true;
     log(`[Reset] Starting ${selectedApp.display_name}...`);
     try {
       await ResetApp(selectedApp.app_name, autoBackup, skipCloseStep);
@@ -193,12 +203,15 @@
           danger: true
         });
         if (override) {
+          loadingReset = false;
           await handleResetWithOverride(true);
           return;
         }
       }
       log(`[Reset] Error: ${e}`);
       toast.error(`Reset failed: ${e}`, 5000);
+    } finally {
+      loadingReset = false;
     }
   }
 
@@ -207,8 +220,9 @@
   }
 
   async function handleNewID() {
-    if (!selectedApp) return;
-    
+    if (!selectedApp || loadingNewID) return;
+
+    loadingNewID = true;
     toast.info('Generating new machine ID...');
     log(`[NewID] Generating for ${selectedApp.display_name}...`);
     try {
@@ -218,12 +232,15 @@
     } catch (e) {
       log(`[NewID] Error: ${e}`);
       toast.error(`Failed to generate new ID: ${e}`, 5000);
+    } finally {
+      loadingNewID = false;
     }
   }
 
   async function handleLaunch() {
-    if (!selectedApp) return;
-    
+    if (!selectedApp || loadingLaunch) return;
+
+    loadingLaunch = true;
     try {
       await LaunchApp(selectedApp.app_name);
       log(`Launched ${selectedApp.display_name}`);
@@ -231,12 +248,15 @@
     } catch (e) {
       log(`Error launching: ${e}`);
       toast.error(`Failed to launch app: ${e}`, 5000);
+    } finally {
+      loadingLaunch = false;
     }
   }
 
   async function handleKillApp() {
-    if (!selectedApp) return;
-    
+    if (!selectedApp || loadingKill) return;
+
+    loadingKill = true;
     log(`[Kill] Stopping ${selectedApp.display_name}...`);
     try {
       await KillApp(selectedApp.app_name);
@@ -246,12 +266,14 @@
     } catch (e) {
       log(`[Kill] Error: ${e}`);
       toast.error(`Failed to stop app: ${e}`, 5000);
+    } finally {
+      loadingKill = false;
     }
   }
 
   async function handleResetAddon() {
-    if (!selectedApp || addonCount === 0) return;
-    
+    if (!selectedApp || addonCount === 0 || loadingAddon) return;
+
     if ($settings.confirmBeforeReset) {
       const confirmed = await confirm({
         title: 'Reset Addon Data',
@@ -261,7 +283,8 @@
       });
       if (!confirmed) return;
     }
-    
+
+    loadingAddon = true;
     log(`[ResetAddon] Deleting addon folders for ${selectedApp.display_name}...`);
     try {
       await ResetAddonData(selectedApp.app_name, false);
@@ -284,16 +307,19 @@
             log(`[ResetAddon] ${selectedApp.display_name} addon data deleted!`);
             toast.success('Addon folders deleted successfully', 3000);
             await loadApps();
-            return;
           } catch (inner) {
             log(`[ResetAddon] Error: ${inner}`);
             toast.error(`Failed to delete addon folders: ${inner}`, 5000);
-            return;
+          } finally {
+            loadingAddon = false;
           }
+          return;
         }
       }
       log(`[ResetAddon] Error: ${e}`);
       toast.error(`Failed to delete addon folders: ${e}`, 5000);
+    } finally {
+      loadingAddon = false;
     }
   }
 
@@ -509,51 +535,71 @@
             <button
               class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               on:click={handleReset}
-              disabled={!selectedApp.dataPath}
+              disabled={!selectedApp.dataPath || loadingReset}
               title="Reset all app data"
             >
-              <RotateCcw size={18} />
-              <span class="text-xs font-medium">Reset</span>
+              {#if loadingReset}
+                <Loader2 size={18} class="animate-spin" />
+              {:else}
+                <RotateCcw size={18} />
+              {/if}
+              <span class="text-xs font-medium">{loadingReset ? 'Resetting...' : 'Reset'}</span>
             </button>
 
             <button
               class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--warning)] hover:border-[var(--warning)] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               on:click={handleResetAddon}
-              disabled={addonCount === 0}
+              disabled={addonCount === 0 || loadingAddon}
               title={addonCount > 0 ? `Delete addon folders (${addonCount})` : 'No addons configured'}
             >
-              <Trash2 size={18} />
-              <span class="text-xs font-medium">Addons</span>
+              {#if loadingAddon}
+                <Loader2 size={18} class="animate-spin" />
+              {:else}
+                <Trash2 size={18} />
+              {/if}
+              <span class="text-xs font-medium">{loadingAddon ? 'Deleting...' : 'Addons'}</span>
             </button>
 
             <button
               class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--primary)] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               on:click={handleNewID}
-              disabled={!selectedApp.dataPath}
+              disabled={!selectedApp.dataPath || loadingNewID}
               title="Generate new machine ID"
             >
-              <Fingerprint size={18} />
-              <span class="text-xs font-medium">New ID</span>
+              {#if loadingNewID}
+                <Loader2 size={18} class="animate-spin" />
+              {:else}
+                <Fingerprint size={18} />
+              {/if}
+              <span class="text-xs font-medium">{loadingNewID ? 'Generating...' : 'New ID'}</span>
             </button>
 
             <button
               class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--danger)] hover:border-[var(--danger)] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               on:click={handleKillApp}
-              disabled={!selectedApp.running}
+              disabled={!selectedApp.running || loadingKill}
               title="Force close app"
             >
-              <XCircle size={18} />
-              <span class="text-xs font-medium">Kill</span>
+              {#if loadingKill}
+                <Loader2 size={18} class="animate-spin" />
+              {:else}
+                <XCircle size={18} />
+              {/if}
+              <span class="text-xs font-medium">{loadingKill ? 'Stopping...' : 'Kill'}</span>
             </button>
 
             <button
               class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--success)] hover:border-[var(--success)] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               on:click={handleLaunch}
-              disabled={!selectedApp.installed}
+              disabled={!selectedApp.installed || loadingLaunch}
               title="Launch app"
             >
-              <Play size={18} />
-              <span class="text-xs font-medium">Launch</span>
+              {#if loadingLaunch}
+                <Loader2 size={18} class="animate-spin" />
+              {:else}
+                <Play size={18} />
+              {/if}
+              <span class="text-xs font-medium">{loadingLaunch ? 'Launching...' : 'Launch'}</span>
             </button>
           </div>
 

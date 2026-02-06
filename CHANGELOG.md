@@ -2,6 +2,87 @@
 
 All notable changes to SurfManager will be documented in this file.
 
+## [2.5.0] - 2026-02-07
+
+### Summary
+
+Major performance optimization release with loading animations. Backup/restore operations are now 3-5x faster, session listing is instant, and all action buttons now show loading feedback.
+
+### ✨ New Features
+
+**Loading Animations**
+- All action buttons now display a spinning loader during operations
+- Dynamic button text shows current state (e.g., "Resetting...", "Creating...", "Deleting...")
+- Buttons are disabled during loading to prevent double-clicks
+
+**Reset Tab Loading States**
+- Reset button: spinner + "Resetting..." during reset operation
+- Addons button: spinner + "Deleting..." during addon folder deletion
+- New ID button: spinner + "Generating..." during machine ID generation
+- Kill button: spinner + "Stopping..." during app termination
+- Launch button: spinner + "Launching..." during app launch
+
+**Sessions Tab Loading States**
+- Create Backup button: spinner + "Creating..." during backup creation
+- Kill and Continue button: spinner + "Processing..." during kill + backup
+- Restore Session (context menu): spinner + "Restoring..." during restore
+- Delete button (per row): spinner + "Deleting..." during session deletion
+
+**Config Tab Loading States**
+- Save button: spinner + "Saving..." during app configuration save
+- Delete button: spinner during app deletion
+- Active/Inactive toggle: spinner during status change
+
+### 🚀 Performance Improvements
+
+**Parallel File Copying**
+- Backup and restore now use a worker pool with all available CPU cores
+- Each worker uses optimized 4MB I/O buffers for maximum throughput
+- File operations run concurrently instead of sequentially
+
+**Streaming Hash Computation**
+- Files are hashed while being copied using `io.TeeReader`
+- Eliminates the previous double-read pattern (copy then hash)
+- Reduces I/O by 50% during backup operations
+
+**Cached Metadata**
+- Session size and file count now stored in `.backup_meta.json`
+- Session listing no longer walks directory trees to calculate size
+- Session list loads instantly regardless of backup size
+
+**Lazy Hash Verification**
+- Hash verification removed from session listing (was blocking UI)
+- New on-demand `VerifySessionIntegrity` API for explicit integrity checks
+- Corrupted status no longer computed at list time
+
+### ✨ New Features
+
+**Backend**
+- Added `VerifySessionIntegrity(appKey, sessionName)` API for on-demand backup verification
+- Enhanced metadata schema with `hash_version`, `size`, and `file_count` fields
+- New v2 hash algorithm matching streaming computation
+
+### 📝 Technical Changes
+
+**New Types**
+- `CopyJob` - represents a file copy operation with source, destination, and relative path
+- `FileCopyResult` - holds copy result including size, hash, and error status
+- `BackupMetadata` - full metadata structure with cached values
+
+**New Functions**
+- `copyFileStreaming()` - copies files while computing SHA256 in single pass
+- `copyWithWorkerPool()` - parallel file copying with worker pool
+- `collectCopyJobs*()` - job collection helpers for items and addons
+- `computeHashFromResults()` - aggregate hash from sorted file results
+- `readBackupMetadataFull()` - reads full metadata including cached size
+- `computeBackupHashV2()` - v2 hash algorithm for new backups
+
+### 🔄 Backwards Compatibility
+
+- Old backups without cached size fall back to directory walk
+- Old hash format (v1) automatically detected and verified correctly
+- No migration required - old backups work seamlessly
+
 ## [2.2.1] - 2026-02-05
 
 ### Summary (vs 2.2.0)

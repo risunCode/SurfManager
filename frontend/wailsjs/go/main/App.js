@@ -201,3 +201,7 @@ export function SetActiveSession(arg1, arg2) {
 export function ToggleApp(arg1) {
   return window['go']['main']['App']['ToggleApp'](arg1);
 }
+
+export function VerifySessionIntegrity(arg1, arg2) {
+  return window['go']['main']['App']['VerifySessionIntegrity'](arg1, arg2);
+}

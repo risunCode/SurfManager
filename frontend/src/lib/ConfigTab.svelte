@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { Plus, Search, Edit, Trash2, FolderOpen, Save, X, Check, RefreshCw, ToggleLeft, FileJson } from 'lucide-svelte';
+  import { Plus, Search, Edit, Trash2, FolderOpen, Save, X, Check, RefreshCw, ToggleLeft, FileJson, Loader2 } from 'lucide-svelte';
   import { CheckAppInstalled, GetApp, GetApps, OpenConfigFolder, SaveApp, DeleteApp, SelectExeFromLocalPrograms, SelectFolderFromHome, SelectFolderFromRoaming, SelectFolderFromLocalPrograms, ToggleApp, GetPlatformInfo } from '../../wailsjs/go/main/App.js';
   import { confirm } from './ConfirmModal.svelte';
   import { toast } from './Toast.svelte';
@@ -12,6 +12,11 @@
   let apps = [];
   let loading = false;
   let platformInfo = {};
+
+  // Loading states
+  let loadingSave = false;
+  let loadingDelete = {};    // { appKey: boolean }
+  let loadingToggle = {};    // { appKey: boolean }
   
   // Context menu state
   let contextMenu = { show: false, x: 0, y: 0, app: null };
@@ -86,27 +91,37 @@
   }
 
   async function handleToggle(app) {
+    if (loadingToggle[app.app_name]) return;
+
+    loadingToggle = { ...loadingToggle, [app.app_name]: true };
     try {
       await ToggleApp(app.app_name);
       log(`Toggled ${app.display_name}: ${app.active ? 'Inactive' : 'Active'}`);
       await loadApps();
     } catch (e) {
       log(`Error: ${e}`);
+    } finally {
+      loadingToggle = { ...loadingToggle, [app.app_name]: false };
     }
   }
 
   async function handleDelete(app) {
+    if (loadingDelete[app.app_name]) return;
+
     if ($settings.confirmBeforeDelete) {
       const confirmed = await confirm.delete(app.display_name);
       if (!confirmed) return;
     }
-    
+
+    loadingDelete = { ...loadingDelete, [app.app_name]: true };
     try {
       await DeleteApp(app.app_name);
       log(`Deleted: ${app.display_name}`);
       await loadApps();
     } catch (e) {
       log(`Error: ${e}`);
+    } finally {
+      loadingDelete = { ...loadingDelete, [app.app_name]: false };
     }
   }
 
@@ -319,6 +334,8 @@
   }
 
   async function saveNewApp() {
+    if (loadingSave) return;
+
     if (!newApp.app_name || !newApp.exe_path || !newApp.data_path) {
       alert('Please fill in all required fields');
       return;
@@ -362,14 +379,19 @@
       addon_backup_paths: newApp.addon_paths
     };
 
+    loadingSave = true;
     try {
       await SaveApp(config);
       log(`${dialogMode === 'edit' ? 'Updated' : 'Added'}: ${config.display_name}`);
+      toast.success(`${dialogMode === 'edit' ? 'Updated' : 'Added'} ${config.display_name}`, 3000);
       showAddDialog = false;
       resetNewApp();
       await loadApps();
     } catch (e) {
       log(`Error: ${e}`);
+      toast.error(`Failed to save: ${e}`, 5000);
+    } finally {
+      loadingSave = false;
     }
   }
 
@@ -501,12 +523,16 @@
               <td class="p-3">
                 <div class="flex items-center gap-2">
                   <button
-                    class="px-3 py-1 rounded text-xs font-medium transition-all
-                           {app.active 
-                             ? 'bg-[var(--success)]/20 text-[var(--success)] hover:bg-[var(--success)]/30' 
+                    class="px-3 py-1 rounded text-xs font-medium transition-all flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed
+                           {app.active
+                             ? 'bg-[var(--success)]/20 text-[var(--success)] hover:bg-[var(--success)]/30'
                              : 'bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--border)]'}"
                     on:click={() => handleToggle(app)}
+                    disabled={loadingToggle[app.app_name]}
                   >
+                    {#if loadingToggle[app.app_name]}
+                      <Loader2 size={12} class="animate-spin" />
+                    {/if}
                     {app.active ? 'Active' : 'Inactive'}
                   </button>
                   <button
@@ -517,11 +543,16 @@
                     <Edit size={14} />
                   </button>
                   <button
-                    class="p-1.5 rounded text-[var(--text-secondary)] hover:text-[var(--danger)] hover:bg-[var(--bg-hover)] transition-colors"
+                    class="p-1.5 rounded text-[var(--text-secondary)] hover:text-[var(--danger)] hover:bg-[var(--bg-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     on:click={() => handleDelete(app)}
                     title="Delete"
+                    disabled={loadingDelete[app.app_name]}
                   >
-                    <Trash2 size={14} />
+                    {#if loadingDelete[app.app_name]}
+                      <Loader2 size={14} class="animate-spin" />
+                    {:else}
+                      <Trash2 size={14} />
+                    {/if}
                   </button>
                 </div>
               </td>
@@ -846,17 +877,24 @@
       </div>
 
       <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-[var(--border)]">
-        <button 
-          class="px-4 py-2 rounded-lg font-medium bg-[var(--bg-hover)] hover:bg-[var(--border)] border border-[var(--border)] text-[var(--text-secondary)] transition-all"
+        <button
+          class="px-4 py-2 rounded-lg font-medium bg-[var(--bg-hover)] hover:bg-[var(--border)] border border-[var(--border)] text-[var(--text-secondary)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           on:click={() => { showAddDialog = false; resetNewApp(); }}
+          disabled={loadingSave}
         >
           Cancel
         </button>
-        <button 
-          class="px-4 py-2 rounded-lg font-medium bg-[var(--primary)] hover:bg-[var(--primary-light)] hover:text-black text-white transition-all"
+        <button
+          class="px-4 py-2 rounded-lg font-medium bg-[var(--primary)] hover:bg-[var(--primary-light)] hover:text-black text-white transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           on:click={saveNewApp}
+          disabled={loadingSave}
         >
-          Save
+          {#if loadingSave}
+            <Loader2 size={16} class="animate-spin" />
+            Saving...
+          {:else}
+            Save
+          {/if}
         </button>
       </div>
     </div>

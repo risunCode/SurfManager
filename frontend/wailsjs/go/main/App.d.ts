@@ -103,3 +103,5 @@ export function SelectFolderFromRoaming(arg1:string):Promise<string>;
 export function SetActiveSession(arg1:string,arg2:string):Promise<void>;
 
 export function ToggleApp(arg1:string):Promise<void>;
+
+export function VerifySessionIntegrity(arg1:string,arg2:string):Promise<boolean>;

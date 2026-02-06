@@ -1289,6 +1289,12 @@ func (a *App) CheckSessionHasAddons(appKey, sessionName string) bool {
 	return a.backup.SessionHasAddons(appKey, sessionName)
 }
 
+// VerifySessionIntegrity verifies a backup session's integrity on-demand.
+// Returns true if the backup is valid, false if corrupted.
+func (a *App) VerifySessionIntegrity(appKey, sessionName string) (bool, error) {
+	return a.backup.VerifySessionIntegrity(appKey, sessionName)
+}
+
 // generateUUID generates a simple UUID
 func generateUUID() string {
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
