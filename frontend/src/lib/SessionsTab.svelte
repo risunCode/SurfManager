@@ -292,23 +292,6 @@
       toast.success('Addon folders restored successfully');
       await loadData();
     } catch (e) {
-      const msg = e?.toString?.() || '';
-      if (msg.toLowerCase().includes('failed to close')) {
-        const appConfig = await GetApp(session.app);
-        const override = await confirm({
-          title: `${appConfig.display_name} still running`,
-          message: 'We could not close the app automatically. If you already closed it, continue without closing step.',
-          confirmText: "I've closed the app",
-          cancelText: 'Cancel',
-          danger: true
-        });
-        if (override) {
-          await RestoreAddonOnly(session.app, session.name, true);
-          toast.success('Addon folders restored successfully');
-          await loadData();
-          return;
-        }
-      }
       log(`Error: ${e}`);
       toast.error(`Addon restore failed: ${e}`);
     }

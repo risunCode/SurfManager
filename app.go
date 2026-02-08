@@ -320,6 +320,88 @@ func (a *App) ResetApp(appKey string, autoBackup bool, skipClose bool) error {
 	return nil
 }
 
+// ResetAccountOnly removes only known account-related files.
+// This operation always requires the target app to be closed first.
+func (a *App) ResetAccountOnly(appKey string) error {
+	cfg := a.GetApp(appKey)
+	if cfg == nil {
+		return fmt.Errorf("app not found: %s", appKey)
+	}
+
+	dataPath := a.GetAppDataPath(appKey)
+	if dataPath == "" {
+		return fmt.Errorf("no data folder found for %s", cfg.DisplayName)
+	}
+
+	// Validate and clean the data path
+	dataPath = filepath.Clean(dataPath)
+	absDataPath, err := filepath.Abs(dataPath)
+	if err != nil {
+		return fmt.Errorf("invalid data path: %w", err)
+	}
+
+	processNames := a.collectProcessNames(cfg)
+
+	// Remove account-only always requires app to be closed
+	if len(processNames) > 0 {
+		wailsRuntime.EventsEmit(a.ctx, "progress", map[string]interface{}{
+			"percent": 10,
+			"message": fmt.Sprintf("Closing %s...", cfg.DisplayName),
+		})
+		if err := a.process.SmartClose(cfg.DisplayName, processNames); err != nil {
+			return fmt.Errorf("failed to close %s: %w", cfg.DisplayName, err)
+		}
+	}
+
+	accountOnlyPaths := []string{
+		"User/globalStorage/state.vscdb",
+		"User/globalStorage/state.vscdb.backup",
+		"User/globalStorage/storage.json",
+	}
+
+	wailsRuntime.EventsEmit(a.ctx, "progress", map[string]interface{}{
+		"percent": 30,
+		"message": "Removing account files...",
+	})
+
+	deletedCount := 0
+	for i, relPath := range accountOnlyPaths {
+		cleanRelPath := filepath.Clean(filepath.FromSlash(relPath))
+		targetPath := filepath.Clean(filepath.Join(absDataPath, cleanRelPath))
+
+		// Ensure resolved path stays inside app data directory
+		if targetPath != absDataPath && !strings.HasPrefix(targetPath, absDataPath+string(os.PathSeparator)) {
+			wailsRuntime.EventsEmit(a.ctx, "log", fmt.Sprintf("[RemoveAccountOnly] Skipped unsafe path: %s", relPath))
+			continue
+		}
+
+		if _, statErr := os.Stat(targetPath); statErr == nil {
+			if rmErr := os.RemoveAll(targetPath); rmErr != nil {
+				wailsRuntime.EventsEmit(a.ctx, "log", fmt.Sprintf("[RemoveAccountOnly] Failed to delete %s: %v", relPath, rmErr))
+			} else {
+				deletedCount++
+			}
+		}
+
+		progress := 30 + int(float64(i+1)/float64(len(accountOnlyPaths))*70)
+		wailsRuntime.EventsEmit(a.ctx, "progress", map[string]interface{}{
+			"percent": progress,
+			"message": fmt.Sprintf("Processed: %s", relPath),
+		})
+	}
+
+	if deletedCount == 0 {
+		wailsRuntime.EventsEmit(a.ctx, "log", "[RemoveAccountOnly] No known account files found to delete")
+	}
+
+	wailsRuntime.EventsEmit(a.ctx, "progress", map[string]interface{}{
+		"percent": 100,
+		"message": fmt.Sprintf("Remove account complete! Deleted %d file(s)", deletedCount),
+	})
+
+	return nil
+}
+
 // GenerateNewID generates new machine IDs for an app
 func (a *App) GenerateNewID(appKey string) (int, error) {
 	cfg := a.GetApp(appKey)
@@ -1241,18 +1323,7 @@ func (a *App) RestoreAddonOnly(appKey, sessionName string, skipClose bool) error
 		return fmt.Errorf("session '%s' does not have addon backups", sessionName)
 	}
 
-	processNames := a.collectProcessNames(cfg)
-
-	// Smart close the app (unless skipClose is true)
-	if !skipClose && len(processNames) > 0 {
-		wailsRuntime.EventsEmit(a.ctx, "progress", map[string]interface{}{
-			"percent": 5,
-			"message": fmt.Sprintf("Closing %s...", cfg.DisplayName),
-		})
-		if err := a.process.SmartClose(cfg.DisplayName, processNames); err != nil {
-			return fmt.Errorf("failed to close %s: %w", cfg.DisplayName, err)
-		}
-	}
+	_ = skipClose // Addon-only restore does not close/kill the app.
 
 	wailsRuntime.EventsEmit(a.ctx, "progress", map[string]interface{}{
 		"percent": 20,

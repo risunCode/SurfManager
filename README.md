@@ -1,8 +1,8 @@
-# SurfManager v2.5.0
+# SurfManager v2.6.1
 
 > **Advanced Session & Data Manager for Development Tools**
 
-[![Version](https://img.shields.io/badge/version-2.5.0-brightgreen.svg)](https://github.com/risunCode/SurfManager)
+[![Version](https://img.shields.io/badge/version-2.6.1-brightgreen.svg)](https://github.com/risunCode/SurfManager)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue.svg)](https://github.com/risunCode/SurfManager)
 [![Go](https://img.shields.io/badge/go-1.22+-00ADD8.svg)](https://golang.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -54,6 +54,13 @@ Perfect for developers who need to:
 | **⚙️ Customizable Settings** | Persistent settings for personalized experience |
 | **📝 Custom App Config** | VSCode preset or fully custom backup items |
 | **✏️ Edit App Config** | Edit existing app configurations via UI |
+
+### 🚀 What's New in v2.6.1
+
+- **Reset Mode Selector** - Reset button now offers Full Reset or Remove Account Only
+- **Remove Account Only** - Deletes only `User/globalStorage/state.vscdb`, `state.vscdb.backup`, and `storage.json`
+- **No Auto-Backup for Remove Account** - Account-only removal skips auto-backup by design
+- **Addon Restore No-Close** - Restore Addon Only no longer kills/closes running apps
 
 ### 🚀 What's New in v2.5.0
 
@@ -398,7 +405,7 @@ SurfManager is open-source under the MIT License.
 
 <div align="center">
 
-**SurfManager v2.5.0**
+**SurfManager v2.6.1**
 
 *Making development workflows smoother, one session at a time*
 

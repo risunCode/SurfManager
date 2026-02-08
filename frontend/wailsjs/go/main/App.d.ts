@@ -76,6 +76,8 @@ export function ReloadApps():Promise<void>;
 
 export function RenameSession(arg1:string,arg2:string,arg3:string):Promise<void>;
 
+export function ResetAccountOnly(arg1:string):Promise<void>;
+
 export function ResetAddonData(arg1:string,arg2:boolean):Promise<void>;
 
 export function ResetApp(arg1:string,arg2:boolean,arg3:boolean):Promise<void>;

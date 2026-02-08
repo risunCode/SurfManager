@@ -146,6 +146,10 @@ export function RenameSession(arg1, arg2, arg3) {
   return window['go']['main']['App']['RenameSession'](arg1, arg2, arg3);
 }
 
+export function ResetAccountOnly(arg1) {
+  return window['go']['main']['App']['ResetAccountOnly'](arg1);
+}
+
 export function ResetAddonData(arg1, arg2) {
   return window['go']['main']['App']['ResetAddonData'](arg1, arg2);
 }

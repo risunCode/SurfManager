@@ -1,7 +1,7 @@
 <script>
   import { onMount, createEventDispatcher } from 'svelte';
   import { FolderOpen, RotateCcw, Fingerprint, Play, RefreshCw, Plus, Trash2, XCircle, Copy, Database, HardDrive, Download, AlertTriangle, Loader2 } from 'lucide-svelte';
-  import { GetActiveApps, CheckAppInstalled, GetAppDataPath, ResetApp, GenerateNewID, LaunchApp, OpenAppFolder, GetSessions, KillApp, ResetAddonData, GetApp, GetPlatformInfo, GetLogs } from '../../wailsjs/go/main/App.js';
+  import { GetActiveApps, CheckAppInstalled, GetAppDataPath, ResetApp, ResetAccountOnly, GenerateNewID, LaunchApp, OpenAppFolder, GetSessions, KillApp, ResetAddonData, GetApp, GetPlatformInfo, GetLogs } from '../../wailsjs/go/main/App.js';
   import { confirm } from './ConfirmModal.svelte';
   import { toast } from './Toast.svelte';
   import { settings } from './stores/settings.js';
@@ -12,6 +12,7 @@
   let loadingKill = false;
   let loadingAddon = false;
   let loadingLaunch = false;
+  let showResetModeModal = false;
 
   export let logs = [];
   export let globalRunningAppsStatus = {};
@@ -216,7 +217,43 @@
   }
 
   async function handleReset() {
+    if (!selectedApp || loadingReset || !selectedApp.dataPath) return;
+    showResetModeModal = true;
+  }
+
+  async function handleFullReset() {
+    showResetModeModal = false;
     await handleResetWithOverride(false);
+  }
+
+  async function handleRemoveAccountOnly() {
+    showResetModeModal = false;
+    if (!selectedApp || loadingReset) return;
+
+    if ($settings.confirmBeforeReset) {
+      const confirmed = await confirm({
+        title: 'Remove Account Only',
+        message: `Remove account files for ${selectedApp.display_name}?\n\nThis will remove:\n- User/globalStorage/state.vscdb\n- User/globalStorage/state.vscdb.backup\n- User/globalStorage/storage.json\n\nAuto-backup will NOT be created.`,
+        confirmText: 'Remove Account',
+        cancelText: 'Cancel',
+        danger: true
+      });
+      if (!confirmed) return;
+    }
+
+    loadingReset = true;
+    log(`[RemoveAccount] Starting ${selectedApp.display_name}...`);
+    try {
+      await ResetAccountOnly(selectedApp.app_name);
+      log(`[RemoveAccount] ${selectedApp.display_name} complete!`);
+      toast.success('Account data removed successfully', 3000);
+      await loadApps();
+    } catch (e) {
+      log(`[RemoveAccount] Error: ${e}`);
+      toast.error(`Remove account failed: ${e}`, 5000);
+    } finally {
+      loadingReset = false;
+    }
   }
 
   async function handleNewID() {
@@ -638,3 +675,56 @@
     </div>
   </div>
 </div>
+
+{#if showResetModeModal}
+  <div
+    class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[210]"
+    role="dialog"
+    aria-modal="true"
+    on:click|self={() => showResetModeModal = false}
+  >
+    <div class="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] w-full max-w-lg p-6 shadow-2xl">
+      <h3 class="text-lg font-semibold text-[var(--text-primary)] mb-2">Choose Reset Mode</h3>
+      <p class="text-sm text-[var(--text-secondary)] mb-5">
+        Select which reset operation to run for <span class="text-[var(--text-primary)] font-medium">{selectedApp?.display_name}</span>.
+      </p>
+
+      <div class="space-y-3">
+        <button
+          class="w-full p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--danger)]/60 hover:bg-[var(--danger)]/10 transition-colors text-left"
+          on:click={handleFullReset}
+        >
+          <div class="flex items-center gap-2 mb-1">
+            <RotateCcw size={16} class="text-[var(--danger)]" />
+            <span class="font-semibold text-[var(--text-primary)]">Full Reset</span>
+          </div>
+          <p class="text-xs text-[var(--text-secondary)]">
+            Delete app data folder and addon folders. Auto-backup follows current setting.
+          </p>
+        </button>
+
+        <button
+          class="w-full p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--warning)]/60 hover:bg-[var(--warning)]/10 transition-colors text-left"
+          on:click={handleRemoveAccountOnly}
+        >
+          <div class="flex items-center gap-2 mb-1">
+            <Trash2 size={16} class="text-[var(--warning)]" />
+            <span class="font-semibold text-[var(--text-primary)]">Remove Account Only</span>
+          </div>
+          <p class="text-xs text-[var(--text-secondary)]">
+            Remove only known account files: <code>User/globalStorage/state.vscdb</code>, <code>state.vscdb.backup</code>, and <code>storage.json</code>.
+          </p>
+        </button>
+      </div>
+
+      <div class="flex justify-end mt-6">
+        <button
+          class="px-4 py-2 rounded-lg font-medium bg-[var(--bg-hover)] hover:bg-[var(--border)] border border-[var(--border)] text-[var(--text-secondary)] transition-all"
+          on:click={() => showResetModeModal = false}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}

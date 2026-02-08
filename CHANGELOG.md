@@ -2,6 +2,32 @@
 
 All notable changes to SurfManager will be documented in this file.
 
+## [2.6.1] - 2026-02-08
+
+### Summary
+
+Reset and restore behavior update focused on account management flow and safer addon restore UX.
+
+### Added
+
+- Reset tab now shows a mode selector modal with:
+  - Full Reset
+  - Remove Account Only
+- Added backend API: `ResetAccountOnly(appKey)`
+
+### Changed
+
+- `RestoreAddonOnly` no longer closes/kills the target app.
+- Remove Account Only now removes known account files directly (no dependency on app `backup_items` config):
+  - `User/globalStorage/state.vscdb`
+  - `User/globalStorage/state.vscdb.backup`
+  - `User/globalStorage/storage.json`
+- Remove Account Only does not create auto-backup.
+
+### Fixed
+
+- Fixed failure case: `no account-only backup items configured for <app>` during Remove Account Only.
+
 ## [2.5.0] - 2026-02-07
 
 ### Summary
