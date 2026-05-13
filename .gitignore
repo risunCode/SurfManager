@@ -1,0 +1,22 @@
+# Rust/Tauri
+src-tauri/target/
+Cargo.lock
+
+# Node
+node_modules/
+frontend/dist/
+
+# Build artifacts
+build/bin/
+
+# Kiro specs (internal development docs)
+.kiro/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+z_references

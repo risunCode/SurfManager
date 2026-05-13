@@ -1,0 +1,36 @@
+[package]
+name = "surfmanager"
+version = "3.0.0"
+edition = "2021"
+description = "Advanced Session & Data Manager for Development Tools"
+license = "MIT"
+
+[lib]
+name = "surfmanager_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync"] }
+walkdir = "2"
+sha2 = "0.10"
+chrono = { version = "0.4", features = ["serde"] }
+dirs = "5"
+sysinfo = "0.30"
+thiserror = "1"
+uuid = { version = "1", features = ["v4"] }
+open = "5"
+zip = { version = "0.6", default-features = false, features = ["deflate"] }
+rfd = "0.14"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+panic = "abort"

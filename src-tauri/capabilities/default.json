@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/capabilities.json",
+  "identifier": "default",
+  "description": "Default desktop capability for SurfManager",
+  "windows": ["main"],
+  "permissions": ["core:default", "shell:default"]
+}

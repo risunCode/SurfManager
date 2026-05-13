@@ -1,0 +1,32 @@
+{
+  "$schema": "./gen/schemas/desktop-schema.json",
+  "productName": "SurfManager",
+  "version": "3.0.0",
+  "identifier": "com.risuncode.surfmanager",
+  "build": {
+    "beforeBuildCommand": "npm --prefix ../frontend run build",
+    "beforeDevCommand": "npm --prefix ../frontend run dev",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../frontend/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "SurfManager",
+        "width": 1200,
+        "height": 700,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null,
+      "capabilities": ["default"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": ["icons/icon.png", "icons/icon.ico"]
+  }
+}
